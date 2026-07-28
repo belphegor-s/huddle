@@ -35,6 +35,17 @@ export type ChannelKind = z.infer<typeof ChannelKind>;
 export const NotificationLevel = z.enum(['all', 'mentions', 'none']);
 export type NotificationLevel = z.infer<typeof NotificationLevel>;
 
+/**
+ * Normalised before validation, so `  Ada@Example.COM ` and `ada@example.com`
+ * are one account rather than two. Addresses are compared as opaque strings
+ * everywhere else.
+ */
+export const Email = z
+  .string()
+  .max(254)
+  .transform((value) => value.trim().toLowerCase())
+  .pipe(z.email());
+
 export const User = z.object({
   id: Id,
   email: z.email(),
@@ -45,13 +56,15 @@ export const User = z.object({
 });
 export type User = z.infer<typeof User>;
 
+export const Slug = z
+  .string()
+  .min(2)
+  .max(40)
+  .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, 'Lowercase letters, numbers and hyphens only');
+
 export const Workspace = z.object({
   id: Id,
-  slug: z
-    .string()
-    .min(2)
-    .max(40)
-    .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, 'Lowercase letters, numbers and hyphens only'),
+  slug: Slug,
   name: z.string().min(1).max(80),
   iconUrl: z.url().nullable(),
   createdAt: z.number().int(),
@@ -119,6 +132,75 @@ export const Message = z.object({
   deletedAt: z.number().int().nullable(),
 });
 export type Message = z.infer<typeof Message>;
+
+/**
+ * Where to land after signing in. Relative paths only, so a magic link cannot
+ * be crafted to bounce someone to another site with their session freshly
+ * minted.
+ */
+export const InternalPath = z
+  .string()
+  .max(512)
+  .regex(/^\/(?!\/)[\w\-./?=&%#]*$/, 'Expected a path on this site');
+
+export const RequestMagicLinkInput = z.object({
+  email: Email,
+  redirectTo: InternalPath.nullable().default(null),
+});
+export type RequestMagicLinkInput = z.infer<typeof RequestMagicLinkInput>;
+
+export const CreateWorkspaceInput = z.object({
+  name: z.string().trim().min(1).max(80),
+  slug: Slug,
+});
+export type CreateWorkspaceInput = z.infer<typeof CreateWorkspaceInput>;
+
+export const CreateInviteInput = z.object({
+  role: z.enum(['admin', 'member', 'guest']).default('member'),
+  expiresInHours: z.number().int().min(1).max(720).default(168),
+  maxUses: z.number().int().min(1).max(1000).nullable().default(null),
+});
+export type CreateInviteInput = z.infer<typeof CreateInviteInput>;
+
+export const UpdateProfileInput = z.object({
+  displayName: z.string().trim().min(1).max(80).optional(),
+  timezone: z.string().max(64).nullable().optional(),
+  avatarUrl: z.url().nullable().optional(),
+});
+export type UpdateProfileInput = z.infer<typeof UpdateProfileInput>;
+
+/**
+ * Server side payloads held in the key value store. They are parsed on the
+ * way out rather than trusted, because a store can be rolled back, migrated
+ * or edited by an operator, and a malformed session should sign someone out
+ * rather than crash the request.
+ */
+export const StoredMagicLink = z.object({
+  email: z.email(),
+  redirectTo: InternalPath.nullable(),
+  createdAt: z.number().int(),
+});
+export type StoredMagicLink = z.infer<typeof StoredMagicLink>;
+
+export const StoredSession = z.object({
+  userId: Id,
+  createdAt: z.number().int(),
+  lastSeenAt: z.number().int(),
+});
+export type StoredSession = z.infer<typeof StoredSession>;
+
+/** A workspace as it appears in the switcher, with the viewer's own role. */
+export const WorkspaceMembership = z.object({
+  workspace: Workspace,
+  role: Role,
+});
+export type WorkspaceMembership = z.infer<typeof WorkspaceMembership>;
+
+export const Me = z.object({
+  user: User,
+  workspaces: z.array(WorkspaceMembership),
+});
+export type Me = z.infer<typeof Me>;
 
 export const DraftMessage = z.object({
   /** Client generated ULID, so an optimistic send can be reconciled on echo. */

@@ -27,7 +27,9 @@ for (const file of files) {
 }
 
 if (hits.length > 0) {
-  console.error(`Found ${hits.length} em dash(es). Replace with a comma, colon, parentheses, or full stop.\n`);
+  console.error(
+    `Found ${hits.length} em dash(es). Replace with a comma, colon, parentheses, or full stop.\n`,
+  );
   for (const hit of hits) console.error(hit);
   process.exit(1);
 }

@@ -115,7 +115,11 @@ export class MemoryMessageStore implements MessageStore {
     return message.reactions;
   }
 
-  async history(input: { channelId: string; before?: number; limit: number }): Promise<MessagePage> {
+  async history(input: {
+    channelId: string;
+    before?: number;
+    limit: number;
+  }): Promise<MessagePage> {
     const state = this.state(input.channelId);
     const before = input.before ?? Number.POSITIVE_INFINITY;
     const matching = state.messages.filter((m) => m.seq < before);
@@ -123,11 +127,7 @@ export class MemoryMessageStore implements MessageStore {
     return page(slice, state.seq, matching.length > slice.length);
   }
 
-  async since(input: {
-    channelId: string;
-    afterSeq: number;
-    limit: number;
-  }): Promise<MessagePage> {
+  async since(input: { channelId: string; afterSeq: number; limit: number }): Promise<MessagePage> {
     const state = this.state(input.channelId);
     const matching = state.messages.filter((m) => m.seq > input.afterSeq);
     const slice = matching.slice(0, input.limit);

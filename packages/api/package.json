@@ -13,6 +13,11 @@
   "dependencies": {
     "@huddle/core": "workspace:*",
     "@huddle/domain": "workspace:*",
-    "hono": "^4.12.32"
+    "hono": "^4.12.32",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "vitest": "^4.1.10"
   }
 }

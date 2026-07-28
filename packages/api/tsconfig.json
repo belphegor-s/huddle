@@ -1,4 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Only the domain test helpers reach for Node, to read the migration
+    // folder off disk. Nothing under src touches a Node API.
+    "types": ["node"]
+  },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

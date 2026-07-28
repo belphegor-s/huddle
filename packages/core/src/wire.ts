@@ -58,7 +58,12 @@ export const ServerEvent = z.discriminatedUnion('type', [
     seq: z.number().int().nonnegative(),
     ref: z.string().optional(),
   }),
-  z.object({ type: z.literal('message'), channelId: Id, message: Message, ref: z.string().optional() }),
+  z.object({
+    type: z.literal('message'),
+    channelId: Id,
+    message: Message,
+    ref: z.string().optional(),
+  }),
   z.object({ type: z.literal('message_updated'), channelId: Id, message: Message }),
   z.object({
     type: z.literal('message_deleted'),
@@ -93,14 +98,7 @@ export const ServerEvent = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('error'),
-    code: z.enum([
-      'unauthorized',
-      'forbidden',
-      'not_found',
-      'rate_limited',
-      'invalid',
-      'internal',
-    ]),
+    code: z.enum(['unauthorized', 'forbidden', 'not_found', 'rate_limited', 'invalid', 'internal']),
     message: z.string(),
     ref: z.string().optional(),
   }),

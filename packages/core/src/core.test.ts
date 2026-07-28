@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isUlid, ulid, ulidTime } from './ids.js';
+import { Email, InternalPath, RequestMagicLinkInput } from './schemas.js';
+import { hashToken, randomToken } from './tokens.js';
 import { ClientEvent, decodeClientEvent, encodeEvent } from './wire.js';
 
 describe('ulid', () => {
@@ -54,5 +56,51 @@ describe('wire protocol', () => {
   it('rejects a non ulid channel id', () => {
     const raw = JSON.stringify({ type: 'typing', channelId: 'nope' });
     expect(decodeClientEvent(raw)).toBeNull();
+  });
+});
+
+describe('email', () => {
+  it('normalises case and surrounding space', () => {
+    expect(Email.parse('  Ada@Example.COM ')).toBe('ada@example.com');
+  });
+
+  it('rejects an address that is not one', () => {
+    expect(Email.safeParse('ada at example').success).toBe(false);
+  });
+});
+
+describe('redirect targets', () => {
+  it('accepts a path on this site', () => {
+    expect(InternalPath.parse('/w/acme?tab=all')).toBe('/w/acme?tab=all');
+  });
+
+  it.each(['//evil.example', 'https://evil.example', 'javascript:alert(1)', 'w/acme'])(
+    'rejects %s',
+    (value) => {
+      expect(InternalPath.safeParse(value).success).toBe(false);
+    },
+  );
+
+  it('defaults a missing redirect to null', () => {
+    expect(RequestMagicLinkInput.parse({ email: 'ada@example.com' }).redirectTo).toBeNull();
+  });
+});
+
+describe('tokens', () => {
+  it('does not repeat across a large batch', () => {
+    const tokens = new Set(Array.from({ length: 10_000 }, () => randomToken()));
+    expect(tokens.size).toBe(10_000);
+  });
+
+  it('is url safe', () => {
+    expect(randomToken()).toMatch(/^[\w-]+$/);
+  });
+
+  it('hashes to a stable 64 character digest', async () => {
+    const first = await hashToken('correct horse battery staple');
+    const second = await hashToken('correct horse battery staple');
+    expect(first).toBe(second);
+    expect(first).toMatch(/^[0-9a-f]{64}$/);
+    expect(await hashToken('correct horse battery stapld')).not.toBe(first);
   });
 });

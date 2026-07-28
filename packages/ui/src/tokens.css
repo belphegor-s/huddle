@@ -11,12 +11,9 @@
  */
 
 @theme {
-  --font-ui:
-    'Switzer', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display:
-    'Bricolage Grotesque', 'Switzer', ui-sans-serif, system-ui, sans-serif;
-  --font-mono:
-    'Commit Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+  --font-ui: 'Switzer', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Switzer', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Commit Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
 
   /* Set for reading a message list, not for a marketing page. */
   --text-2xs: 0.6875rem;

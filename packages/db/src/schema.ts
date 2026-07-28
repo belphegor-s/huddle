@@ -1,4 +1,11 @@
-import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 
 /**
  * SQLite dialect only, deliberately. The same schema runs on D1, on libSQL and
@@ -111,7 +118,9 @@ export const invites = sqliteTable(
       .references(() => workspaces.id, { onDelete: 'cascade' }),
     /** Hashed, never stored in the clear, so a database leak cannot grant access. */
     tokenHash: text('token_hash').notNull(),
-    role: text('role', { enum: ['admin', 'member', 'guest'] }).notNull().default('member'),
+    role: text('role', { enum: ['admin', 'member', 'guest'] })
+      .notNull()
+      .default('member'),
     createdBy: text('created_by').notNull(),
     createdAt: ms('created_at').notNull(),
     expiresAt: ms('expires_at').notNull(),
@@ -136,10 +145,7 @@ export const pushSubscriptions = sqliteTable(
     createdAt: ms('created_at').notNull(),
     lastSeenAt: ms('last_seen_at').notNull(),
   },
-  (t) => [
-    uniqueIndex('push_endpoint_idx').on(t.endpoint),
-    index('push_user_idx').on(t.userId),
-  ],
+  (t) => [uniqueIndex('push_endpoint_idx').on(t.endpoint), index('push_user_idx').on(t.userId)],
 );
 
 export const files = sqliteTable(
