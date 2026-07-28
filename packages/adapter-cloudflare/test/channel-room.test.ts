@@ -8,7 +8,14 @@ function room(channelId: string) {
 }
 
 function draft(text: string) {
-  return { id: ulid(), body: JSON.stringify({ text }), text, parentId: null, attachments: [], mentions: [] };
+  return {
+    id: ulid(),
+    body: JSON.stringify({ text }),
+    text,
+    parentId: null,
+    attachments: [],
+    mentions: [],
+  };
 }
 
 describe('ChannelRoom', () => {

@@ -25,9 +25,22 @@ interface DemoLine {
  */
 const CONVERSATION: DemoLine[] = [
   { author: 'Priya', initials: 'PR', text: 'Where did we land on the pricing page copy?' },
-  { author: 'Sam', initials: 'SA', text: 'Thread on it in #launch, decision is in the pinned message.' },
-  { author: 'Priya', initials: 'PR', text: 'Found it in two seconds. This is the part WhatsApp could never do.' },
-  { author: 'Ada', initials: 'AD', text: 'Deployed the self hosted build to our own box this morning.', tone: 'accent' },
+  {
+    author: 'Sam',
+    initials: 'SA',
+    text: 'Thread on it in #launch, decision is in the pinned message.',
+  },
+  {
+    author: 'Priya',
+    initials: 'PR',
+    text: 'Found it in two seconds. This is the part WhatsApp could never do.',
+  },
+  {
+    author: 'Ada',
+    initials: 'AD',
+    text: 'Deployed the self hosted build to our own box this morning.',
+    tone: 'accent',
+  },
 ];
 
 function useRevealedLines(total: number): number {
@@ -58,7 +71,7 @@ function ConversationDemo() {
           <li key={line.author + line.text} className="animate-rise flex gap-3">
             <span
               aria-hidden="true"
-              className="bg-surface-sunken text-text-secondary mt-0.5 grid size-8 shrink-0 place-items-center rounded-md text-2xs font-semibold"
+              className="bg-surface-sunken text-text-secondary text-2xs mt-0.5 grid size-8 shrink-0 place-items-center rounded-md font-semibold"
             >
               {line.initials}
             </span>
@@ -124,9 +137,9 @@ export default function Home() {
             Your team is running on a group chat that forgets everything.
           </h1>
           <p className="text-text-secondary max-w-prose text-lg">
-            huddle is team chat with channels, threads, files, voice notes and search that works.
-            It is open source, it costs nothing to run on Cloudflare, and it fits in one container
-            if you would rather host it yourself.
+            huddle is team chat with channels, threads, files, voice notes and search that works. It
+            is open source, it costs nothing to run on Cloudflare, and it fits in one container if
+            you would rather host it yourself.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <a
@@ -178,8 +191,8 @@ export default function Home() {
         <h2 className="font-display text-xl font-semibold">Private because of how it is built</h2>
         <p className="text-text-secondary mt-2 max-w-prose text-base">
           No analytics, no trackers, and no third party requests from the app. Fonts and assets are
-          served from your own instance. AI features are off until you add a key, so message
-          content never leaves your deployment on its own.
+          served from your own instance. AI features are off until you add a key, so message content
+          never leaves your deployment on its own.
         </p>
       </section>
     </main>

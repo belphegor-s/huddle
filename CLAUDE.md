@@ -19,8 +19,7 @@ Ports and adapters. The domain does not know what platform it runs on.
 
 ```
 apps/
-  web/                React Router v7 PWA (the only client for now)
-  worker/             Cloudflare Workers entry, wires adapter-cloudflare
+  web/                React Router v7 PWA, and the Cloudflare Worker that serves both it and /api. Wires adapter-cloudflare.
   server/             Node entry for self hosting, wires adapter-node
 packages/
   core/               Types, zod schemas, wire protocol, ID generation. Zero dependencies on anything.
@@ -31,6 +30,8 @@ packages/
   adapter-cloudflare/ Durable Objects, D1, R2, KV, Queues, Workers AI.
   adapter-node/       libSQL, filesystem or S3 compatible blobs, in process pubsub, optional Redis.
 ```
+
+**One origin per deploy.** The app and the API are served by a single Worker on Cloudflare and a single process on Node. A split would force CORS, break the session cookie, and double the request count against the free tier. `apps/web/workers/app.ts` routes `/api/*` into `packages/api` and everything else into React Router.
 
 **SQLite is the only dialect.** D1 on Cloudflare, libSQL or better-sqlite3 when self hosted. One schema, one migration set, both backends. This is deliberate and should not be traded away for Postgres without a very strong reason.
 

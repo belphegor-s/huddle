@@ -98,7 +98,7 @@ export default function Specimen() {
                 className="border-border block h-12 rounded-md border"
                 style={{ background: `var(--${name})` }}
               />
-              <span className="text-text-muted font-mono text-2xs">{name}</span>
+              <span className="text-text-muted text-2xs font-mono">{name}</span>
             </li>
           ))}
         </ul>

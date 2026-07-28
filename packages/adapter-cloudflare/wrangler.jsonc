@@ -1,24 +1,16 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "huddle",
-  "main": "./workers/app.ts",
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+
+  // Test only. The deployable Worker is apps/web. This config exists so the
+  // Durable Objects can be exercised in real workerd next to the code they
+  // belong to, rather than from whichever app happens to import them.
+  "name": "huddle-adapter-cloudflare-test",
+  "main": "./test/worker.ts",
   "compatibility_date": "2026-07-28",
   "compatibility_flags": ["nodejs_compat"],
 
-  // One Worker serves the app and the API. Same origin means the session
-  // cookie works without CORS, and an API call costs one request instead of
-  // two, which matters against the free tier request budget.
-  "observability": {
-    "enabled": true,
-    "head_sampling_rate": 1,
-  },
-
-  "assets": {
-    "directory": "./build/client",
-  },
-
   "vars": {
-    "PUBLIC_URL": "http://localhost:5173",
+    "PUBLIC_URL": "http://localhost:8787",
   },
 
   "d1_databases": [
@@ -26,7 +18,7 @@
       "binding": "DB",
       "database_name": "huddle",
       "database_id": "local",
-      "migrations_dir": "../../packages/db/migrations",
+      "migrations_dir": "../db/migrations",
     },
   ],
 
@@ -51,8 +43,6 @@
     ],
   },
 
-  // SQLite backed Durable Objects are available on the Workers free plan,
-  // which is what keeps a small team at zero cost.
   "migrations": [
     {
       "tag": "v1",

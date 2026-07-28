@@ -14,8 +14,12 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@huddle/adapter-cloudflare": "workspace:*",
+    "@huddle/api": "workspace:*",
     "@huddle/core": "workspace:*",
+    "@huddle/domain": "workspace:*",
     "@huddle/ui": "workspace:*",
+    "hono": "^4.12.32",
     "isbot": "^5.2.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

@@ -77,9 +77,7 @@ export class ChannelRoom extends DurableObject {
   }
 
   private latestSeq(): number {
-    const row = this.sql
-      .exec<{ seq: number | null }>('SELECT MAX(seq) AS seq FROM messages')
-      .one();
+    const row = this.sql.exec<{ seq: number | null }>('SELECT MAX(seq) AS seq FROM messages').one();
     return row.seq ?? 0;
   }
 
@@ -185,7 +183,11 @@ export class ChannelRoom extends DurableObject {
     }
 
     const next = reactions.filter((r) => r.userIds.length > 0);
-    this.sql.exec('UPDATE messages SET reactions = ? WHERE id = ?', JSON.stringify(next), input.messageId);
+    this.sql.exec(
+      'UPDATE messages SET reactions = ? WHERE id = ?',
+      JSON.stringify(next),
+      input.messageId,
+    );
     return next;
   }
 
@@ -212,11 +214,7 @@ export class ChannelRoom extends DurableObject {
     };
   }
 
-  async since(input: {
-    channelId: string;
-    afterSeq: number;
-    limit: number;
-  }): Promise<MessagePage> {
+  async since(input: { channelId: string; afterSeq: number; limit: number }): Promise<MessagePage> {
     const rows = this.sql
       .exec<Row>(
         'SELECT * FROM messages WHERE seq > ? ORDER BY seq ASC LIMIT ?',
