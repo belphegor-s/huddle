@@ -29,7 +29,7 @@ async function signIn(email: string): Promise<string> {
   expect(requested.status).toBe(200);
 
   const token = /token=([\w-]+)/.exec(ports.mailer.last()?.text ?? '')?.[1];
-  const callback = await call(`/api/auth/callback?token=${token}`);
+  const callback = await call(`/auth/callback?token=${token}`);
   expect(callback.status).toBe(302);
 
   const cookie = callback.headers.get('set-cookie')?.split(';')[0];
@@ -52,7 +52,7 @@ describe('signing in', () => {
     expect(ports.mailer.last()?.to).toBe('ada@example.com');
 
     const token = /token=([\w-]+)/.exec(ports.mailer.last()?.text ?? '')?.[1];
-    const callback = await call(`/api/auth/callback?token=${token}`);
+    const callback = await call(`/auth/callback?token=${token}`);
 
     expect(callback.headers.get('location')).toBe('/');
     expect(callback.headers.get('set-cookie')).toContain('HttpOnly');
@@ -62,7 +62,7 @@ describe('signing in', () => {
     await post('/api/auth/magic-link', { email: 'ada@example.com', redirectTo: '/w/acme' });
     const token = /token=([\w-]+)/.exec(ports.mailer.last()?.text ?? '')?.[1];
 
-    const callback = await call(`/api/auth/callback?token=${token}`);
+    const callback = await call(`/auth/callback?token=${token}`);
     expect(callback.headers.get('location')).toBe('/w/acme');
   });
 
@@ -80,8 +80,8 @@ describe('signing in', () => {
     await post('/api/auth/magic-link', { email: 'ada@example.com' });
     const token = /token=([\w-]+)/.exec(ports.mailer.last()?.text ?? '')?.[1];
 
-    await call(`/api/auth/callback?token=${token}`);
-    const again = await call(`/api/auth/callback?token=${token}`);
+    await call(`/auth/callback?token=${token}`);
+    const again = await call(`/auth/callback?token=${token}`);
 
     expect(again.headers.get('location')).toBe('/signin?error=link_expired');
   });

@@ -4,7 +4,8 @@ import {
   R2BlobStore,
   type CloudflareBindings,
 } from '@huddle/adapter-cloudflare';
-import { createRequestHandler } from 'react-router';
+import { createRequestHandler, RouterContextProvider } from 'react-router';
+import { portsContext } from '../app/lib/ports';
 
 export { ChannelRoom, RateCounter } from '@huddle/adapter-cloudflare';
 
@@ -53,13 +54,20 @@ async function handleBlob(request: Request, env: CloudflareBindings): Promise<Re
 export default {
   async fetch(request: Request, env: CloudflareBindings, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    const ports = createCloudflarePorts(env, ctx);
 
-    if (url.pathname.startsWith('/api/')) {
+    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) {
       const blobResponse = await handleBlob(request, env);
       if (blobResponse) return blobResponse;
-      return createApi(createCloudflarePorts(env, ctx)).fetch(request);
+      return createApi(ports).fetch(request);
     }
 
-    return handler(request);
+    // Loaders and actions get the ports directly rather than calling our own
+    // API over HTTP. A same origin subrequest would be a second billed request
+    // per render, and would land in the same use case anyway.
+    const context = new RouterContextProvider();
+    context.set(portsContext, ports);
+
+    return handler(request, context);
   },
 } satisfies ExportedHandler<CloudflareBindings>;

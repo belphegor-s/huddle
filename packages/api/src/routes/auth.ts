@@ -21,12 +21,25 @@ export function authRoutes(): Hono<ApiEnv> {
     return c.json({ ok: true, expiresAt: sent.value.expiresAt });
   });
 
-  /*
-   * A browser navigation rather than a fetch, because it is reached by
-   * tapping a link in a mail client. It answers with a redirect either way,
-   * so a dead link lands on the sign in screen with an explanation instead of
-   * a bare error page.
-   */
+  routes.post('/signout', async (c) => {
+    const token = c.var.sessionToken;
+    if (token) await signOut(c.var.ports, token);
+    endSession(c);
+    return c.json({ ok: true });
+  });
+
+  return routes;
+}
+
+/**
+ * Reached by tapping a link in a mail client, so it lives outside /api: it is
+ * a page navigation, not a call. It answers with a redirect either way, so a
+ * dead link lands on the sign in screen with an explanation rather than on a
+ * bare error page.
+ */
+export function authCallbackRoutes(): Hono<ApiEnv> {
+  const routes = new Hono<ApiEnv>();
+
   routes.get('/callback', async (c) => {
     const token = c.req.query('token');
     if (!token) return c.redirect('/signin?error=missing_link');
@@ -36,13 +49,6 @@ export function authRoutes(): Hono<ApiEnv> {
 
     startSession(c, verified.value.sessionToken);
     return c.redirect(verified.value.redirectTo ?? '/');
-  });
-
-  routes.post('/signout', async (c) => {
-    const token = c.var.sessionToken;
-    if (token) await signOut(c.var.ports, token);
-    endSession(c);
-    return c.json({ ok: true });
   });
 
   return routes;

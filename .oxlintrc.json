@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+
+  "plugins": ["typescript", "react", "oxc"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn"
+  },
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "react/react-in-jsx-scope": "off",
+    "no-console": "off",
+    // Sequential awaits are usually the point here: ordering tests, rate limit
+    // counters, migrations. Parallelising them would change what they assert.
+    "no-await-in-loop": "off"
+  },
+  "ignorePatterns": [
+    "**/build/**",
+    "**/dist/**",
+    "**/.react-router/**",
+    "**/.wrangler/**",
+    "**/.turbo/**",
+    "**/worker-configuration.d.ts"
+  ]
+}

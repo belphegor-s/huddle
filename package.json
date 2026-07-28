@@ -12,20 +12,18 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "e2e": "pnpm --filter @huddle/web e2e",
-    "lint": "eslint .",
+    "lint": "oxlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:dashes": "node scripts/check-no-em-dash.mjs",
     "db:generate": "pnpm --filter @huddle/db generate"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "eslint": "^10.8.0",
+    "oxlint": "^1.75.0",
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "turbo": "^2.10.7",
     "typescript": "^7.0.2",
-    "typescript-eslint": "^8.65.0",
     "vitest": "^4.1.10"
   },
   "workspaces": [

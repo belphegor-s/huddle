@@ -1,5 +1,5 @@
 import type { User } from '@huddle/core';
-import { loadSession } from '@huddle/domain';
+import { loadSession, type Ports } from '@huddle/domain';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
@@ -39,6 +39,31 @@ export const withSession = createMiddleware<ApiEnv>(async (c, next) => {
   c.set('user', token ? await loadSession(c.var.ports, token) : null);
   await next();
 });
+
+/**
+ * The same lookup, for callers holding a bare Request rather than a Hono
+ * context. React Router loaders use this, so a page render and an API call
+ * agree on who is signed in without one of them having to call the other.
+ */
+export async function sessionFromRequest(ports: Ports, request: Request): Promise<User | null> {
+  const token = sessionTokenFrom(request);
+  return token ? loadSession(ports, token) : null;
+}
+
+export function sessionTokenFrom(request: Request): string | null {
+  const header = request.headers.get('cookie');
+  if (!header) return null;
+
+  for (const part of header.split(';')) {
+    const [key, ...rest] = part.trim().split('=');
+    if (key === SESSION_COOKIE) return decodeURIComponent(rest.join('='));
+  }
+
+  return null;
+}
+
+/** For callers that set headers directly rather than through a Hono context. */
+export const CLEARED_SESSION_COOKIE = `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`;
 
 /** Narrows the nullable session variable at the one point routes care about. */
 export function currentUser(c: ApiContext): User {

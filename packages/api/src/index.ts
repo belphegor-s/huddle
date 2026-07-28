@@ -2,12 +2,19 @@ import type { Ports } from '@huddle/domain';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { ApiEnv } from './context.js';
-import { authRoutes } from './routes/auth.js';
+import { authCallbackRoutes, authRoutes } from './routes/auth.js';
 import { workspaceRoutes } from './routes/workspaces.js';
 import { withSession } from './session.js';
 
 export type { ApiContext, ApiEnv } from './context.js';
-export { SESSION_COOKIE } from './session.js';
+export {
+  CLEARED_SESSION_COOKIE,
+  endSession,
+  SESSION_COOKIE,
+  sessionFromRequest,
+  sessionTokenFrom,
+  startSession,
+} from './session.js';
 
 /**
  * Every route is written against ports, so this same app object is mounted by
@@ -23,6 +30,7 @@ export function createApi(ports: Ports): Hono<ApiEnv> {
   });
 
   app.use('/api/*', withSession);
+  app.use('/auth/*', withSession);
 
   app.get('/api/health', (c) =>
     c.json({
@@ -34,6 +42,7 @@ export function createApi(ports: Ports): Hono<ApiEnv> {
 
   app.route('/api/auth', authRoutes());
   app.route('/api', workspaceRoutes());
+  app.route('/auth', authCallbackRoutes());
 
   app.onError((error, c) => {
     // Routes raise these deliberately and carry their own response with them.

@@ -9,3 +9,10 @@
  * let element level defaults silently override every Tailwind utility.
  */
 @import '@huddle/ui/base.css' layer(base);
+
+/*
+ * The component package resolves through node_modules, which Tailwind skips
+ * when it looks for class names. Without this, a utility used only inside
+ * @huddle/ui silently generates no CSS and the component renders unstyled.
+ */
+@source '../../../packages/ui/src';

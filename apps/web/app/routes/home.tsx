@@ -1,5 +1,22 @@
+import { listWorkspaces } from '@huddle/domain';
 import { useEffect, useReducer } from 'react';
+import { redirect } from 'react-router';
+import { currentUser } from '../lib/session.server';
+import { portsContext } from '../lib/ports';
 import type { Route } from './+types/home';
+
+/*
+ * The landing page is for people who are not signed in. Anyone with a session
+ * goes straight to work, and someone with no workspace yet goes to make one.
+ */
+export async function loader({ context, request }: Route.LoaderArgs) {
+  const user = await currentUser(context, request);
+  if (!user) return null;
+
+  const workspaces = await listWorkspaces(context.get(portsContext), user.id);
+  const first = workspaces[0];
+  throw redirect(first ? `/w/${first.workspace.slug}` : '/new');
+}
 
 export function meta(_: Route.MetaArgs) {
   return [
@@ -123,12 +140,17 @@ export default function Home() {
     <main className="mx-auto w-full max-w-5xl px-5 pb-24 sm:px-8">
       <header className="flex items-center justify-between py-6">
         <span className="font-display text-lg font-semibold tracking-tight">huddle</span>
-        <a
-          href="https://github.com"
-          className="text-text-secondary hover:text-text-primary text-sm no-underline"
-        >
-          Source
-        </a>
+        <nav className="flex items-center gap-4">
+          <a
+            href="https://github.com"
+            className="text-text-secondary hover:text-text-primary text-sm no-underline"
+          >
+            Source
+          </a>
+          <a href="/signin" className="text-text-primary text-sm font-medium no-underline">
+            Sign in
+          </a>
+        </nav>
       </header>
 
       <section className="grid items-center gap-10 pt-8 pb-20 md:grid-cols-[1.05fr_1fr] md:gap-14">
