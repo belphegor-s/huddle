@@ -1,0 +1,16 @@
+{
+  "name": "@huddle/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "react-router dev",
+    "build": "react-router build",
+    "preview": "wrangler dev",
+    "deploy": "react-router build && wrangler deploy",
+    "cf-typegen": "wrangler types",
+    "typecheck": "react-router typegen && tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "e2e": "playwright test"
+  }
+}
