@@ -1,0 +1,55 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "huddle-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-28",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+
+  "vars": {
+    "PUBLIC_URL": "http://localhost:8787"
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "huddle",
+      "database_id": "local",
+      "migrations_dir": "../../packages/db/migrations"
+    }
+  ],
+
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "local"
+    }
+  ],
+
+  "r2_buckets": [
+    {
+      "binding": "BLOBS",
+      "bucket_name": "huddle-blobs"
+    }
+  ],
+
+  "durable_objects": {
+    "bindings": [
+      { "name": "CHANNEL_ROOM", "class_name": "ChannelRoom" },
+      { "name": "RATE_COUNTER", "class_name": "RateCounter" }
+    ]
+  },
+
+  // SQLite backed Durable Objects are available on the Workers free plan,
+  // which is what keeps a small team at zero cost.
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["ChannelRoom", "RateCounter"]
+    }
+  ]
+}

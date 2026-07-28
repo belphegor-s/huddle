@@ -9,6 +9,20 @@
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@huddle/adapter-cloudflare": "workspace:*",
+    "@huddle/api": "workspace:*",
+    "@huddle/core": "workspace:*",
+    "@huddle/domain": "workspace:*",
+    "hono": "^4.12.32"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.18.8",
+    "@cloudflare/workers-types": "^5.20260727.1",
+    "@libsql/client": "^0.17.4",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.114.0"
   }
 }
