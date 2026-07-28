@@ -6,10 +6,16 @@
   "exports": {
     ".": "./src/index.ts",
     "./tokens.css": "./src/tokens.css",
-    "./*": "./src/components/*.tsx"
+    "./base.css": "./src/base.css",
+    "./fonts.css": "./src/fonts.css",
+    "./fonts/*": "./fonts/*"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource/commit-mono": "^5.3.0"
   }
 }

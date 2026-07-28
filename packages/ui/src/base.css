@@ -1,0 +1,87 @@
+/*
+ * Base layer. Everything here is a decision that should hold across every
+ * screen, so no component needs to restate it.
+ */
+
+html {
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-size: var(--text-base);
+  line-height: var(--leading-message);
+  /* Timestamps and counts should not jitter as digits change. */
+  font-variant-numeric: tabular-nums;
+}
+
+:where(h1, h2, h3, h4) {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+  margin: 0;
+}
+
+:where(p) {
+  text-wrap: pretty;
+  margin: 0;
+}
+
+:where(code, pre, kbd, samp) {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+:where(a) {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+:where(button, input, textarea, select) {
+  font: inherit;
+  color: inherit;
+}
+
+/* One focus treatment everywhere, and it is never removed. */
+:where(:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+:where(:focus:not(:focus-visible)) {
+  outline: none;
+}
+
+/*
+ * A real static fallback rather than a disabled animation. Motion goes away,
+ * state changes stay legible.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Touch targets and safe areas matter more than anything else on a phone. */
+@media (pointer: coarse) {
+  :where(button, a, [role='button']) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

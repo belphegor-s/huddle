@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DraftMessage, Id, Message, Reaction } from './schemas.js';
+import { DraftMessage, Id, JsonString, Message, Reaction } from './schemas.js';
 
 export const WIRE_VERSION = 1;
 
@@ -25,7 +25,7 @@ export const ClientEvent = z.discriminatedUnion('type', [
     type: z.literal('edit'),
     channelId: Id,
     messageId: Id,
-    body: z.unknown(),
+    body: JsonString,
     text: z.string().max(16_000),
     ...withRef,
   }),

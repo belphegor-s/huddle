@@ -29,7 +29,7 @@ export class DurableObjectMessageStore implements MessageStore {
     channelId: string;
     messageId: string;
     authorId: string;
-    body: unknown;
+    body: string;
     text: string;
     now: number;
   }): Promise<Message | null> {

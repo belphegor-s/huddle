@@ -62,7 +62,7 @@ export class MemoryMessageStore implements MessageStore {
     channelId: string;
     messageId: string;
     authorId: string;
-    body: unknown;
+    body: string;
     text: string;
     now: number;
   }): Promise<Message | null> {
@@ -85,7 +85,7 @@ export class MemoryMessageStore implements MessageStore {
     if (!message || message.deletedAt !== null) return null;
     message.deletedAt = input.now;
     message.text = '';
-    message.body = null;
+    message.body = '""';
     message.attachments = [];
     return { messageId: message.id, seq: message.seq };
   }

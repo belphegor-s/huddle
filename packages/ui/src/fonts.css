@@ -1,0 +1,44 @@
+/*
+ * All three faces are self hosted. The app makes no font request to any third
+ * party, which is both a privacy commitment and one less thing between a cold
+ * load and readable text.
+ *
+ * Switzer is vendored by scripts/fetch-fonts.mjs. The other two ship as npm
+ * packages, so their files come from node_modules and are bundled by Vite.
+ */
+
+@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource/commit-mono/400.css';
+@import '@fontsource/commit-mono/700.css';
+
+@font-face {
+  font-family: 'Switzer';
+  src: url('../fonts/switzer-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Switzer';
+  src: url('../fonts/switzer-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Switzer';
+  src: url('../fonts/switzer-600.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Switzer';
+  src: url('../fonts/switzer-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

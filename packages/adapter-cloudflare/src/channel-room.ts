@@ -23,7 +23,7 @@ function toMessage(channelId: string, row: Row): Message {
     channelId,
     seq: row.seq,
     authorId: row.author_id,
-    body: JSON.parse(row.body) as unknown,
+    body: row.body,
     text: row.text,
     parentId: row.parent_id,
     attachments: JSON.parse(row.attachments) as Attachment[],
@@ -106,7 +106,7 @@ export class ChannelRoom extends DurableObject {
       input.draft.id,
       seq,
       input.authorId,
-      JSON.stringify(input.draft.body ?? null),
+      input.draft.body,
       input.draft.text,
       input.draft.parentId,
       JSON.stringify(input.draft.attachments),
@@ -123,7 +123,7 @@ export class ChannelRoom extends DurableObject {
     channelId: string;
     messageId: string;
     authorId: string;
-    body: unknown;
+    body: string;
     text: string;
     now: number;
   }): Promise<Message | null> {
@@ -132,7 +132,7 @@ export class ChannelRoom extends DurableObject {
 
     this.sql.exec(
       'UPDATE messages SET body = ?, text = ?, edited_at = ? WHERE id = ?',
-      JSON.stringify(input.body ?? null),
+      input.body,
       input.text,
       input.now,
       input.messageId,
@@ -153,7 +153,7 @@ export class ChannelRoom extends DurableObject {
     // a reconnecting client still learns the message is gone.
     this.sql.exec(
       `UPDATE messages
-         SET deleted_at = ?, body = 'null', text = '', attachments = '[]', reactions = '[]'
+         SET deleted_at = ?, body = '""', text = '', attachments = '[]', reactions = '[]'
        WHERE id = ?`,
       input.now,
       input.messageId,

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { createTestPorts } from './index.js';
 
 function draft(text: string) {
-  return { id: ulid(), body: { text }, text, parentId: null, attachments: [], mentions: [] };
+  return { id: ulid(), body: JSON.stringify({ text }), text, parentId: null, attachments: [], mentions: [] };
 }
 
 describe('test ports', () => {

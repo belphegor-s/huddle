@@ -1,0 +1,11 @@
+@import 'tailwindcss';
+
+@import '@huddle/ui/fonts.css';
+@import '@huddle/ui/tokens.css';
+
+/*
+ * base.css must land in the base layer. Unlayered CSS wins over anything in
+ * @layer utilities regardless of specificity, so importing it plainly would
+ * let element level defaults silently override every Tailwind utility.
+ */
+@import '@huddle/ui/base.css' layer(base);

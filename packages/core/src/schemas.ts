@@ -3,6 +3,29 @@ import { isUlid } from './ids.js';
 
 export const Id = z.string().refine(isUlid, { message: 'Expected a ULID' });
 
+/**
+ * Rich text travels as serialized TipTap JSON rather than a parsed object.
+ *
+ * The server never inspects a message body, so keeping it opaque removes a
+ * parse and a re-serialize on every hop, and avoids handing a recursive type
+ * to the Durable Object RPC boundary, which cannot prove such a type is
+ * serializable.
+ */
+export const JsonString = z
+  .string()
+  .max(64_000)
+  .refine(
+    (value) => {
+      try {
+        JSON.parse(value);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: 'Expected serialized JSON' },
+  );
+
 export const Role = z.enum(['owner', 'admin', 'member', 'guest']);
 export type Role = z.infer<typeof Role>;
 
@@ -84,7 +107,7 @@ export const Message = z.object({
   seq: z.number().int().nonnegative(),
   authorId: Id,
   /** TipTap JSON. Rendered by the client, never trusted as HTML. */
-  body: z.unknown(),
+  body: JsonString,
   /** Flattened text for search, notifications and accessibility. */
   text: z.string(),
   parentId: Id.nullable(),
@@ -100,7 +123,7 @@ export type Message = z.infer<typeof Message>;
 export const DraftMessage = z.object({
   /** Client generated ULID, so an optimistic send can be reconciled on echo. */
   id: Id,
-  body: z.unknown(),
+  body: JsonString,
   text: z.string().max(16_000),
   parentId: Id.nullable().default(null),
   attachments: z.array(Attachment).max(20).default([]),

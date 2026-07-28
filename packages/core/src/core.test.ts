@@ -33,7 +33,7 @@ describe('wire protocol', () => {
       channelId: ulid(),
       draft: {
         id: ulid(),
-        body: { type: 'doc', content: [] },
+        body: JSON.stringify({ type: 'doc', content: [] }),
         text: 'hello',
         parentId: null,
         attachments: [],
