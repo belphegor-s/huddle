@@ -2,8 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "types": ["@cloudflare/workers-types", "vite/client"],
+    "types": ["vite/client"],
     "rootDirs": [".", "./.react-router/types"]
   },
-  "include": ["app/**/*.ts", "app/**/*.tsx", "workers/**/*.ts", "*.ts", ".react-router/types/**/*"]
+  "include": ["app/**/*.ts", "app/**/*.tsx", "*.ts", ".react-router/types/**/*"]
 }

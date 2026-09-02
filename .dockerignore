@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+**/dist
+**/build
+**/.turbo
+**/.react-router
+.git
+.github
+.env
+.env.*
+!.env.example
+coverage
+playwright-report
+test-results
+*.log

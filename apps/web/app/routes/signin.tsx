@@ -1,9 +1,8 @@
-import { InternalPath, RequestMagicLinkInput } from '@huddle/core';
-import { requestMagicLink } from '@huddle/domain';
+import { RequestMagicLinkInput } from '@huddle/core';
 import { Button, TextField } from '@huddle/ui';
 import { Form, redirect, useNavigation, useSearchParams } from 'react-router';
-import { currentUser } from '../lib/session.server';
-import { portsContext } from '../lib/ports';
+import { api, ApiError } from '../lib/api';
+import { currentMe } from '../lib/session';
 import type { Route } from './+types/signin';
 
 export function meta() {
@@ -15,13 +14,13 @@ const LINK_PROBLEMS: Record<string, string> = {
   missing_link: 'That link was incomplete. Ask for another one.',
 };
 
-export async function loader({ context, request }: Route.LoaderArgs) {
-  const user = await currentUser(context, request);
-  if (user) throw redirect(nextFrom(request) ?? '/');
+export async function clientLoader() {
+  const me = await currentMe();
+  if (me) throw redirect(nextFrom() ?? '/');
   return null;
 }
 
-export async function action({ context, request }: Route.ActionArgs) {
+export async function clientAction({ request }: Route.ClientActionArgs) {
   const form = await request.formData();
   const input = RequestMagicLinkInput.safeParse({
     email: form.get('email'),
@@ -32,16 +31,14 @@ export async function action({ context, request }: Route.ActionArgs) {
     return { error: 'Enter an email address that can receive mail.', email: null };
   }
 
-  const sent = await requestMagicLink(context.get(portsContext), {
-    email: input.data.email,
-    redirectTo: input.data.redirectTo,
-    clientIp: request.headers.get('cf-connecting-ip') ?? 'unknown',
-    appUrl: new URL(request.url).origin,
-  });
-
-  if (!sent.ok) {
+  try {
+    await api.requestMagicLink(input.data.email, input.data.redirectTo);
+  } catch (error) {
+    const tooMany = error instanceof ApiError && error.status === 429;
     return {
-      error: 'Too many sign in emails for now. Try again in an hour.',
+      error: tooMany
+        ? 'Too many sign in emails for now. Try again in an hour.'
+        : 'That did not go through. Try again in a moment.',
       email: null,
     };
   }
@@ -49,10 +46,9 @@ export async function action({ context, request }: Route.ActionArgs) {
   return { error: null, email: input.data.email };
 }
 
-function nextFrom(request: Request): string | null {
-  const raw = new URL(request.url).searchParams.get('next');
-  const parsed = InternalPath.safeParse(raw);
-  return parsed.success ? parsed.data : null;
+function nextFrom(): string | null {
+  const raw = new URLSearchParams(window.location.search).get('next');
+  return raw !== null && raw.startsWith('/') && !raw.startsWith('//') ? raw : null;
 }
 
 export default function SignIn({ actionData }: Route.ComponentProps) {
@@ -62,9 +58,7 @@ export default function SignIn({ actionData }: Route.ComponentProps) {
   const next = params.get('next') ?? '';
   const problem = LINK_PROBLEMS[params.get('error') ?? ''];
 
-  if (actionData?.email) {
-    return <CheckYourEmail email={actionData.email} />;
-  }
+  if (actionData?.email) return <CheckYourEmail email={actionData.email} next={next} />;
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-8 px-6 py-12">
@@ -102,7 +96,7 @@ export default function SignIn({ actionData }: Route.ComponentProps) {
   );
 }
 
-function CheckYourEmail({ email }: { email: string }) {
+function CheckYourEmail({ email, next }: { email: string; next: string }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-6 px-6 py-12">
       <div className="flex flex-col gap-2">
@@ -115,6 +109,7 @@ function CheckYourEmail({ email }: { email: string }) {
 
       <Form method="post" className="flex flex-col gap-3">
         <input type="hidden" name="email" value={email} />
+        <input type="hidden" name="next" value={next} />
         <Button type="submit" variant="secondary" size="lg">
           Send it again
         </Button>

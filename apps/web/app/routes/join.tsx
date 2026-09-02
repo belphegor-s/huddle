@@ -1,8 +1,7 @@
-import { acceptInvite, describeInvite } from '@huddle/domain';
 import { Button } from '@huddle/ui';
 import { Form, redirect, useNavigation } from 'react-router';
-import { currentUser, requireUser } from '../lib/session.server';
-import { portsContext } from '../lib/ports';
+import { api, ApiError } from '../lib/api';
+import { currentMe, requireMe } from '../lib/session';
 import type { Route } from './+types/join';
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -16,36 +15,45 @@ const PROBLEMS: Record<string, string> = {
   used_up: 'This invitation has been used as many times as it was meant to be.',
 };
 
+const FALLBACK = 'This invitation is not valid any more.';
+
 /*
  * Readable while signed out on purpose. Someone handed a link should be able
  * to see what they are being asked to join before handing over an address.
  */
-export async function loader({ context, request, params }: Route.LoaderArgs) {
-  const described = await describeInvite(context.get(portsContext), params.token);
-  const user = await currentUser(context, request);
+export async function clientLoader({ params }: Route.ClientLoaderArgs) {
+  const me = await currentMe();
 
-  if (!described.ok) {
-    return { problem: PROBLEMS[described.error] ?? PROBLEMS.invalid_invite, workspaceName: null };
+  try {
+    const described = await api.describeInvite(params.token);
+    return {
+      problem: null,
+      workspaceName: described.workspace.name,
+      signedInAs: me?.user.email ?? null,
+    };
+  } catch (error) {
+    return {
+      problem: problemFor(error),
+      workspaceName: null,
+      signedInAs: me?.user.email ?? null,
+    };
   }
-
-  return {
-    problem: null,
-    workspaceName: described.value.workspace.name,
-    role: described.value.role,
-    signedInAs: user?.email ?? null,
-  };
 }
 
-export async function action({ context, request, params }: Route.ActionArgs) {
-  const user = await requireUser(context, request);
-  const joined = await acceptInvite(context.get(portsContext), {
-    token: params.token,
-    userId: user.id,
-  });
+export async function clientAction({ params }: Route.ClientActionArgs) {
+  await requireMe();
 
-  if (!joined.ok) return { problem: PROBLEMS[joined.error] ?? PROBLEMS.invalid_invite };
+  try {
+    const joined = await api.acceptInvite(params.token);
+    return redirect(`/w/${joined.workspace.slug}`);
+  } catch (error) {
+    return { problem: problemFor(error) };
+  }
+}
 
-  throw redirect(`/w/${joined.value.workspace.slug}`);
+function problemFor(error: unknown): string {
+  const code = error instanceof ApiError ? error.code : 'invalid_invite';
+  return PROBLEMS[code] ?? FALLBACK;
 }
 
 export default function Join({ loaderData, actionData }: Route.ComponentProps) {

@@ -14,14 +14,12 @@
     "no-console": "off",
     // Sequential awaits are usually the point here: ordering tests, rate limit
     // counters, migrations. Parallelising them would change what they assert.
-    "no-await-in-loop": "off"
+    "no-await-in-loop": "off",
+    // Every list keyed by index here is a positional render of derived text:
+    // the lines of a message body, the bars of a waveform, the runs of a
+    // search snippet. Position is the identity, so there is nothing better to
+    // key on.
+    "react/no-array-index-key": "off"
   },
-  "ignorePatterns": [
-    "**/build/**",
-    "**/dist/**",
-    "**/.react-router/**",
-    "**/.wrangler/**",
-    "**/.turbo/**",
-    "**/worker-configuration.d.ts"
-  ]
+  "ignorePatterns": ["**/build/**", "**/dist/**", "**/.react-router/**", "**/.turbo/**"]
 }

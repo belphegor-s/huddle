@@ -1,25 +1,30 @@
+import { sql } from 'drizzle-orm';
 import {
+  bigint,
+  boolean,
   index,
   integer,
+  jsonb,
+  pgTable,
   primaryKey,
-  sqliteTable,
   text,
   uniqueIndex,
-} from 'drizzle-orm/sqlite-core';
+} from 'drizzle-orm/pg-core';
 
 /**
- * SQLite dialect only, deliberately. The same schema runs on D1, on libSQL and
- * on a local file, which is what keeps the Cloudflare and self hosted builds
- * from drifting apart. See CLAUDE.md.
+ * Postgres, one schema, no dialect switch. Everything the app needs is a table
+ * here: messages, sessions, magic links and rate counters included, so the
+ * only external services a deploy needs are Postgres and an S3 bucket.
  *
- * Messages are not here. They live in per channel storage behind the
- * MessageStore port, because that is what gives single writer `seq` ordering.
+ * Times are epoch milliseconds in bigint rather than timestamptz, because the
+ * wire protocol and the client both speak milliseconds and a single
+ * representation removes a class of timezone bugs.
  */
 
 const id = () => text('id').primaryKey();
-const ms = (name: string) => integer(name, { mode: 'number' });
+const ms = (name: string) => bigint(name, { mode: 'number' });
 
-export const users = sqliteTable(
+export const users = pgTable(
   'users',
   {
     id: id(),
@@ -32,7 +37,7 @@ export const users = sqliteTable(
   (t) => [uniqueIndex('users_email_idx').on(t.email)],
 );
 
-export const workspaces = sqliteTable(
+export const workspaces = pgTable(
   'workspaces',
   {
     id: id(),
@@ -44,7 +49,7 @@ export const workspaces = sqliteTable(
   (t) => [uniqueIndex('workspaces_slug_idx').on(t.slug)],
 );
 
-export const memberships = sqliteTable(
+export const memberships = pgTable(
   'memberships',
   {
     workspaceId: text('workspace_id')
@@ -62,7 +67,7 @@ export const memberships = sqliteTable(
   ],
 );
 
-export const channels = sqliteTable(
+export const channels = pgTable(
   'channels',
   {
     id: id(),
@@ -72,12 +77,16 @@ export const channels = sqliteTable(
     kind: text('kind', { enum: ['channel', 'dm', 'group_dm'] }).notNull(),
     name: text('name'),
     topic: text('topic'),
-    isPrivate: integer('is_private', { mode: 'boolean' }).notNull().default(false),
+    isPrivate: boolean('is_private').notNull().default(false),
     createdBy: text('created_by').notNull(),
     createdAt: ms('created_at').notNull(),
     archivedAt: ms('archived_at'),
-    /** Mirrored from the message store so channel lists sort without a fanout read. */
     lastMessageAt: ms('last_message_at'),
+    /**
+     * The ordering authority for the channel. Incremented inside the same
+     * statement that claims it, so two concurrent sends cannot take the same
+     * number no matter how many app instances are running.
+     */
     lastSeq: integer('last_seq').notNull().default(0),
   },
   (t) => [
@@ -86,7 +95,7 @@ export const channels = sqliteTable(
   ],
 );
 
-export const channelMembers = sqliteTable(
+export const channelMembers = pgTable(
   'channel_members',
   {
     channelId: text('channel_id')
@@ -98,6 +107,7 @@ export const channelMembers = sqliteTable(
     joinedAt: ms('joined_at').notNull(),
     /** Highest sequence this user has read. Drives every unread badge. */
     readSeq: integer('read_seq').notNull().default(0),
+    mentionCount: integer('mention_count').notNull().default(0),
     notificationLevel: text('notification_level', { enum: ['all', 'mentions', 'none'] })
       .notNull()
       .default('all'),
@@ -109,7 +119,40 @@ export const channelMembers = sqliteTable(
   ],
 );
 
-export const invites = sqliteTable(
+export const messages = pgTable(
+  'messages',
+  {
+    id: id(),
+    channelId: text('channel_id')
+      .notNull()
+      .references(() => channels.id, { onDelete: 'cascade' }),
+    seq: integer('seq').notNull(),
+    authorId: text('author_id').notNull(),
+    /** TipTap JSON, never parsed by the server. */
+    body: text('body').notNull(),
+    /** Flattened text for search, notifications and accessibility. */
+    text: text('text').notNull(),
+    parentId: text('parent_id'),
+    attachments: jsonb('attachments')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    reactions: jsonb('reactions')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    mentions: jsonb('mentions')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    createdAt: ms('created_at').notNull(),
+    editedAt: ms('edited_at'),
+    deletedAt: ms('deleted_at'),
+  },
+  (t) => [
+    uniqueIndex('messages_channel_seq_idx').on(t.channelId, t.seq),
+    index('messages_thread_idx').on(t.channelId, t.parentId, t.seq),
+  ],
+);
+
+export const invites = pgTable(
   'invites',
   {
     id: id(),
@@ -131,7 +174,23 @@ export const invites = sqliteTable(
   (t) => [uniqueIndex('invites_token_idx').on(t.tokenHash)],
 );
 
-export const pushSubscriptions = sqliteTable(
+/**
+ * Sessions, magic links and rate counters share one keyed table. They are all
+ * short lived values with an expiry, and a dedicated store for each would mean
+ * another service in the compose file for no benefit.
+ */
+export const ephemeral = pgTable(
+  'ephemeral',
+  {
+    key: text('key').primaryKey(),
+    value: text('value').notNull(),
+    counter: integer('counter').notNull().default(0),
+    expiresAt: ms('expires_at').notNull(),
+  },
+  (t) => [index('ephemeral_expiry_idx').on(t.expiresAt)],
+);
+
+export const pushSubscriptions = pgTable(
   'push_subscriptions',
   {
     id: id(),
@@ -148,7 +207,7 @@ export const pushSubscriptions = sqliteTable(
   (t) => [uniqueIndex('push_endpoint_idx').on(t.endpoint), index('push_user_idx').on(t.userId)],
 );
 
-export const files = sqliteTable(
+export const files = pgTable(
   'files',
   {
     id: id(),
@@ -163,7 +222,7 @@ export const files = sqliteTable(
     width: integer('width'),
     height: integer('height'),
     durationMs: integer('duration_ms'),
-    peaks: text('peaks', { mode: 'json' }).$type<number[] | null>(),
+    peaks: jsonb('peaks').$type<number[] | null>(),
     createdAt: ms('created_at').notNull(),
   },
   (t) => [index('files_workspace_idx').on(t.workspaceId)],
@@ -174,6 +233,7 @@ export type Workspace = typeof workspaces.$inferSelect;
 export type Membership = typeof memberships.$inferSelect;
 export type Channel = typeof channels.$inferSelect;
 export type ChannelMember = typeof channelMembers.$inferSelect;
+export type MessageRow = typeof messages.$inferSelect;
 export type Invite = typeof invites.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type FileRow = typeof files.$inferSelect;

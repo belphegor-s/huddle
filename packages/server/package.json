@@ -1,0 +1,36 @@
+{
+  "name": "@huddle/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.916.0",
+    "@aws-sdk/s3-request-presigner": "^3.916.0",
+    "@huddle/core": "workspace:*",
+    "@huddle/db": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.32",
+    "nodemailer": "^7.0.9",
+    "pg": "^8.16.3",
+    "web-push": "^3.6.7",
+    "ws": "^8.19.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.14",
+    "@types/node": "^26.1.1",
+    "@types/nodemailer": "^7.0.5",
+    "@types/pg": "^8.15.6",
+    "@types/web-push": "^3.6.4",
+    "@types/ws": "^8.18.1",
+    "vitest": "^4.1.10"
+  }
+}

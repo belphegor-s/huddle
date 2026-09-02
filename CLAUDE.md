@@ -1,6 +1,6 @@
 # huddle
 
-Open source team chat. Channels, threads, files, voice notes, search, huddles, AI. Mobile first, self hostable, runs at zero cost on Cloudflare free tier.
+Open source team chat. Channels, threads, files, voice notes, search, huddles, AI. Mobile first, self hostable, one container plus a Postgres.
 
 ## Hard rules
 
@@ -8,49 +8,55 @@ These are not preferences. Violating any of them is a bug.
 
 1. **No em dashes anywhere in the repo.** Not in code, comments, docs, UI copy, commit messages, or JSON. Use a comma, a colon, parentheses, or a full stop. CI enforces this via `pnpm check:dashes`.
 2. **Commits never credit an AI.** No `Co-Authored-By: Claude`, no "generated with" trailers, no AI mention in the body. Conventional Commits format, human voice.
-3. **No vendor lock-in.** Nothing outside `packages/adapter-*` may import a platform SDK. Domain and API layers talk to ports only. If you reach for `env.MY_DO` in a route handler, stop and add a port method instead.
-4. **Cost is a design constraint.** Default configuration must stay inside the Cloudflare free tier for a small team. Anything that scales per message (queues, AI calls, image transforms) needs an inline or batched fallback that costs nothing.
-5. **Privacy by default.** No third party requests from the client at runtime. Fonts, icons, and scripts are self hosted. No analytics, no trackers, no CDN calls. Telemetry, if ever added, is opt in and off by default.
-6. **Comments only where the code cannot speak.** Explain a non obvious why, a protocol constraint, a workaround with a link. Never narrate what the next line does. No section banners, no decorative dividers.
+3. **No indirection for its own sake.** There is one database, one object store, one realtime hub, and the code calls them directly. Do not add an interface with a single implementation, a plugin layer, or a driver abstraction. Portability comes from choosing boring standard pieces, not from wrapping them.
+4. **Standard pieces only.** Postgres, an S3 compatible bucket, SMTP, an OpenAI compatible endpoint. Nothing that exists on exactly one cloud. If a feature needs a proprietary service, it does not go in.
+5. **A deploy is one container.** The process serves the client, the API and the WebSocket on one port. Anything that would add a service to `docker-compose.yml` needs to justify why the app cannot do it, and the answer is usually that it can.
+6. **Privacy by default.** No third party requests from the client at runtime. Fonts, icons, and scripts are self hosted. No analytics, no trackers, no CDN calls. AI is off until a key is set. Telemetry, if ever added, is opt in and off by default.
+7. **Comments only where the code cannot speak.** Explain a non obvious why, a protocol constraint, a workaround with a link. Never narrate what the next line does. No section banners, no decorative dividers.
 
 ## Architecture
 
-Ports and adapters. The domain does not know what platform it runs on.
-
 ```
 apps/
-  web/                React Router v7 PWA, and the Cloudflare Worker that serves both it and /api. Wires adapter-cloudflare.
-  server/             Node entry for self hosting, wires adapter-node
+  server/             The deployable process. Serves the client, /api, and the WebSocket on one port.
+  web/                React Router SPA. Static bundle, talks to the API over fetch and one socket.
 packages/
   core/               Types, zod schemas, wire protocol, ID generation. Zero dependencies on anything.
-  domain/             Ports (interfaces) and use cases. Pure. Fully unit testable with fakes.
-  api/                Hono routes and middleware, written against ports. Runs unchanged on both entries.
-  db/                 Drizzle schema and migrations. SQLite dialect only.
+  db/                 Drizzle schema, migrations, and the Postgres connection.
+  server/             Services, HTTP routes, realtime hub, storage clients. The whole backend.
   ui/                 Design tokens, fonts, components. Owned in repo, not a dependency.
-  adapter-cloudflare/ Durable Objects, D1, R2, KV, Queues, Workers AI.
-  adapter-node/       libSQL, filesystem or S3 compatible blobs, in process pubsub, optional Redis.
 ```
 
-**One origin per deploy.** The app and the API are served by a single Worker on Cloudflare and a single process on Node. A split would force CORS, break the session cookie, and double the request count against the free tier. `apps/web/workers/app.ts` routes `/api/*` into `packages/api` and everything else into React Router.
+**One process, one origin.** `apps/server` serves the built client from `WEB_DIR`, mounts the Hono app at `/api` and `/auth`, and upgrades `/api/realtime` to a WebSocket. Same origin means the session cookie works with no CORS and no second hostname to configure.
 
-**SQLite is the only dialect.** D1 on Cloudflare, libSQL or better-sqlite3 when self hosted. One schema, one migration set, both backends. This is deliberate and should not be traded away for Postgres without a very strong reason.
+**The client is a static bundle.** `ssr: false`, with `/` prerendered so a link preview and a search engine see the landing page. Loaders are `clientLoader` and call the API. There is no server side React anywhere, which is why the runtime image has no `node_modules`.
 
-**Realtime** is the one thing implemented twice, because it has to be. Cloudflare uses a `ChannelRoom` Durable Object with the WebSocket Hibernation API, which gives single writer ordering for free. Node uses an in process WebSocket hub, with Redis pub/sub only when running more than one instance. Both satisfy the same `RealtimeHub` port and the same wire protocol, so the client cannot tell them apart.
+**Services take an `AppContext`.** One object holding the database, the hub, the bucket, the mailer, the AI client and the clock. It is a parameter, not a container: services are plain functions and tests build the context directly.
 
-**Message ordering** comes from a monotonic `seq` per channel. Clients reconnect by sending their last seen `seq` and receiving the delta. That single mechanism covers reconnect, backgrounded phones, and flaky mobile networks identically. Do not add a second sync path.
+**Message ordering** comes from a monotonic `seq` per channel, claimed by `UPDATE channels SET last_seq = last_seq + 1 RETURNING last_seq` inside the transaction that inserts the message. The row lock serialises concurrent sends per channel, so ordering holds across as many app instances as you run. Clients reconnect by sending their last seen `seq` and receiving the delta. That single mechanism covers reconnect, backgrounded phones, and flaky mobile networks identically. Do not add a second sync path.
+
+**Realtime** is an in process hub: a map from channel to connected subscribers. Running more than one instance sets `HUDDLE_CLUSTER=true`, which adds a Postgres `LISTEN`/`NOTIFY` relay so instances see each other's traffic. No Redis. A message too large for a `NOTIFY` payload travels as a pointer and the receiving instance reads the row it already has.
+
+**Every frame that changes anything** goes through the same service function the HTTP route calls. There is one place permission is decided and one place a message is written.
+
+**Search** is Postgres full text: a GIN index on `to_tsvector('simple', text)` and `ts_headline` for snippets. The snippet carries control character markers rather than HTML, so message content can never become markup in the client.
+
+**Uploads** never pass through the app. The server records the file and signs a PUT, the browser sends the bytes to the bucket, and downloads are a redirect to a signed GET. A permanent `/api/files/:id` link keeps working after the signed URL it points at has expired.
 
 ## Commands
 
 ```bash
-pnpm dev              # everything, local, no cloud account needed
+pnpm dev              # api on :3000 and the client on :5173, proxied
 pnpm build
 pnpm typecheck
-pnpm test             # vitest, workers pool for the cloudflare adapter
+pnpm test             # vitest, real Postgres in process via PGlite
 pnpm e2e              # playwright
 pnpm lint
 pnpm check:dashes     # em dash guard
 pnpm db:generate      # drizzle migration from schema changes
 ```
+
+`pnpm dev` needs a Postgres. `docker compose up db` is enough, or any local install, pointed at by `DATABASE_URL` in `.env`.
 
 ## Conventions
 
@@ -58,9 +64,10 @@ pnpm db:generate      # drizzle migration from schema changes
 - Files stay small and single purpose. A file over roughly 300 lines is a signal to split.
 - Zod schemas live in `packages/core` and are the single source of truth for both validation and types. Never hand write a type that a schema already describes.
 - IDs are ULIDs, generated client side for optimistic sends, using `crypto.getRandomValues`. Never `Math.random`.
-- Every DB query is workspace scoped through `requireMember`. There is exactly one such guard and every route passes through it.
-- Errors are typed results at domain boundaries, exceptions only for genuinely exceptional cases.
-- Run `wrangler types` rather than hand writing an `Env` interface.
+- Every workspace scoped read and write goes through `requireMember`, and every channel scoped one through `requireChannel`. There are exactly two such guards and every route passes through one.
+- A private channel the caller is not in answers `not_found`, never `forbidden`. Confirming that it exists is itself the leak.
+- Errors are typed results at service boundaries, exceptions only for genuinely exceptional cases.
+- Tests run against PGlite, which is real Postgres. Do not introduce a fake database: row locks, `jsonb` and full text search are exactly where the bugs are.
 
 ## Design
 
@@ -71,16 +78,16 @@ Native feel is the bar, not "nice for a web app". Judge every interaction agains
 - Respect `prefers-reduced-motion` everywhere, with a real static fallback rather than a disabled animation.
 - Dark mode is designed, not inverted.
 - Mobile: safe area insets, thumb reachable primary actions, 44px minimum targets, keyboard aware composer via `visualViewport`, no layout shift when the keyboard opens.
-- Every gesture has a visible non gesture fallback. A first time user must never need to discover a swipe.
+- On a phone the channel list and the conversation are two screens, not a drawer. Every gesture has a visible non gesture fallback. A first time user must never need to discover a swipe.
 - Copy is plain and short. No exclamation marks, no marketing voice inside the product, no emoji in system text.
 
 ## Deploy targets
 
-All four are first class and tested before a release.
+All of these are the same image.
 
-1. Deploy to Cloudflare button, zero cost for a small team.
-2. `docker compose up`, app plus SQLite plus MinIO, for self hosting and air gapped installs.
-3. Railway, Render, and Coolify templates.
-4. Helm chart for existing Kubernetes clusters.
+1. `docker compose up`, app plus Postgres, bucket of your choosing.
+2. Railway, Render, Coolify, Fly: one container, `DATABASE_URL` and the S3 variables.
+3. Helm chart for existing Kubernetes clusters.
+4. A plain `node dist/main.js` on a box you already have.
 
-If a feature cannot work on all four, it goes behind a capability flag and degrades cleanly, with the limitation documented.
+If a feature cannot work on all of them, it goes behind a capability flag and degrades cleanly, with the limitation documented.

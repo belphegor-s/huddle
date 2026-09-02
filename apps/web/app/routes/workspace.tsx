@@ -1,125 +1,118 @@
-import { CreateInviteInput } from '@huddle/core';
-import { createInvite, findWorkspaceBySlug, listWorkspaces, outranks } from '@huddle/domain';
-import { Avatar, Button } from '@huddle/ui';
-import { data, Form, Link, useNavigation } from 'react-router';
-import { requireUser } from '../lib/session.server';
-import { portsContext } from '../lib/ports';
+import { CreateChannelInput } from '@huddle/core';
+import { cx } from '@huddle/ui';
+import { useCallback, useEffect, useState } from 'react';
+import { Outlet, useLocation, useParams, useRevalidator } from 'react-router';
+import { NewChannelDialog } from '../components/new-channel-dialog';
+import { NewDmDialog } from '../components/new-dm-dialog';
+import { Sidebar } from '../components/sidebar';
+import { api } from '../lib/api';
+import { Realtime } from '../lib/realtime';
+import { requireMe } from '../lib/session';
+import type { WorkspaceContext } from '../lib/workspace';
 import type { Route } from './+types/workspace';
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return [{ title: loaderData?.workspace.name ?? 'huddle' }];
 }
 
-export async function loader({ context, request, params }: Route.LoaderArgs) {
-  const user = await requireUser(context, request);
-  const found = await findWorkspaceBySlug(context.get(portsContext), {
-    slug: params.slug,
-    userId: user.id,
-  });
+export async function clientLoader({ params }: Route.ClientLoaderArgs) {
+  const me = await requireMe();
+  const slug = params.slug ?? '';
+  const found = await api.workspaceBySlug(slug);
 
-  // A workspace someone is not in is indistinguishable from one that does not
-  // exist, both here and in the API.
-  if (!found.ok) throw data('Not found', { status: 404 });
+  const [channels, members] = await Promise.all([
+    api.channels(found.workspace.id),
+    api.members(found.workspace.id),
+  ]);
 
-  return {
-    user,
-    workspace: found.value.workspace,
-    role: found.value.role,
-    workspaces: await listWorkspaces(context.get(portsContext), user.id),
+  return { me, workspace: found.workspace, role: found.role, channels, members };
+}
+
+export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
+  const { me, workspace, role, channels, members } = loaderData;
+  const revalidator = useRevalidator();
+  const params = useParams();
+  const location = useLocation();
+  const [dialog, setDialog] = useState<'channel' | 'dm' | null>(null);
+
+  // One socket for the whole session, kept across channel and workspace
+  // navigations, because the connection is per person and the subscriptions on
+  // it are per channel. Switching rooms never costs a reconnect.
+  const [realtime] = useState(() => new Realtime());
+
+  useEffect(() => {
+    realtime.connect();
+    return () => realtime.stop();
+  }, [realtime]);
+
+  const refresh = useCallback(() => {
+    void revalidator.revalidate();
+  }, [revalidator]);
+
+  // Anything arriving for a channel that is not on screen still changes a
+  // badge, so the sidebar re-reads rather than guessing.
+  useEffect(() => {
+    return realtime.on((event) => {
+      if (event.type === 'message' && event.channelId !== params.ref) refresh();
+    });
+  }, [params.ref, realtime, refresh]);
+
+  const context: WorkspaceContext = {
+    me,
+    workspace,
+    role,
+    members,
+    channels,
+    realtime,
+    refresh,
   };
-}
 
-export async function action({ context, request, params }: Route.ActionArgs) {
-  const user = await requireUser(context, request);
-  const found = await findWorkspaceBySlug(context.get(portsContext), {
-    slug: params.slug,
-    userId: user.id,
-  });
-  if (!found.ok) throw data('Not found', { status: 404 });
-
-  const invite = await createInvite(context.get(portsContext), {
-    workspaceId: found.value.workspace.id,
-    actorId: user.id,
-    ...CreateInviteInput.parse({}),
-  });
-
-  if (!invite.ok) return { inviteUrl: null };
-
-  return { inviteUrl: `${new URL(request.url).origin}/join/${invite.value.token}` };
-}
-
-export default function WorkspaceHome({ loaderData, actionData }: Route.ComponentProps) {
-  const { user, workspace, role, workspaces } = loaderData;
-  const navigation = useNavigation();
-  const canInvite = outranks(role, 'admin');
+  // On a phone the sidebar and the conversation are two screens, not a drawer:
+  // a first time user must never have to discover a swipe to find either.
+  const inRoom = location.pathname !== `/w/${workspace.slug}`;
 
   return (
-    <div className="flex min-h-dvh flex-col md:flex-row">
-      <nav className="border-border bg-surface-sunken flex items-center justify-between gap-3 border-b px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:w-64 md:flex-col md:items-stretch md:border-r md:border-b-0 md:py-4">
-        <div className="flex items-center gap-2">
-          <Avatar name={workspace.name} size="md" />
-          <div className="min-w-0">
-            <p className="truncate font-medium">{workspace.name}</p>
-            <p className="text-text-muted truncate text-xs">{role}</p>
-          </div>
-        </div>
+    <div className="flex h-dvh overflow-hidden">
+      <Sidebar
+        me={me}
+        workspace={workspace}
+        channels={channels}
+        members={members}
+        className={cx(inRoom ? 'hidden md:flex' : 'flex')}
+        onCreateChannel={() => setDialog('channel')}
+        onStartDm={() => setDialog('dm')}
+      />
 
-        {workspaces.length > 1 ? (
-          <ul className="hidden gap-1 md:mt-6 md:flex md:flex-col">
-            {workspaces.map(({ workspace: other }) => (
-              <li key={other.id}>
-                <Link
-                  to={`/w/${other.slug}`}
-                  className={
-                    other.id === workspace.id
-                      ? 'bg-surface-active flex min-h-11 items-center rounded-lg px-3 text-sm no-underline'
-                      : 'text-text-secondary hover:bg-surface-hover flex min-h-11 items-center rounded-lg px-3 text-sm no-underline'
-                  }
-                >
-                  {other.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        <div className="flex items-center gap-2 md:mt-auto">
-          <Avatar name={user.displayName} url={user.avatarUrl} size="md" />
-          <span className="hidden min-w-0 flex-1 truncate text-sm md:block">
-            {user.displayName}
-          </span>
-          <Form method="post" action="/signout">
-            <Button type="submit" variant="ghost">
-              Sign out
-            </Button>
-          </Form>
-        </div>
-      </nav>
-
-      <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-16 text-center">
-        <div className="flex max-w-sm flex-col gap-2">
-          <h1 className="text-2xl">No channels yet</h1>
-          <p className="text-text-secondary">
-            Channels, threads and messages arrive next. For now, get the rest of the team in.
-          </p>
-        </div>
-
-        {canInvite ? (
-          <div className="flex w-full max-w-md flex-col gap-3">
-            <Form method="post">
-              <Button type="submit" disabled={navigation.state === 'submitting'}>
-                {navigation.state === 'submitting' ? 'Creating link' : 'Create an invite link'}
-              </Button>
-            </Form>
-
-            {actionData?.inviteUrl ? (
-              <output className="border-border bg-surface-raised rounded-lg border px-3 py-2 text-left font-mono text-xs break-all">
-                {actionData.inviteUrl}
-              </output>
-            ) : null}
-          </div>
-        ) : null}
+      <main className={cx('min-w-0 flex-1', inRoom ? 'flex' : 'hidden md:flex')}>
+        <Outlet context={context} />
       </main>
+
+      {dialog === 'channel' ? (
+        <NewChannelDialog
+          workspaceSlug={workspace.slug}
+          onClose={() => setDialog(null)}
+          onCreate={async (input) => {
+            const created = await api.createChannel(workspace.id, CreateChannelInput.parse(input));
+            setDialog(null);
+            refresh();
+            return created;
+          }}
+        />
+      ) : null}
+
+      {dialog === 'dm' ? (
+        <NewDmDialog
+          workspaceSlug={workspace.slug}
+          members={members.filter((member) => member.id !== me.user.id)}
+          onClose={() => setDialog(null)}
+          onOpen={async (userIds) => {
+            const opened = await api.openDm(workspace.id, userIds);
+            setDialog(null);
+            refresh();
+            return opened;
+          }}
+        />
+      ) : null}
     </div>
   );
 }

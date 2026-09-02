@@ -1,18 +1,18 @@
 {
   "version": "7",
-  "dialect": "sqlite",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1785217217878,
+      "version": "7",
+      "when": 1788366613758,
       "tag": "0000_init",
       "breakpoints": true
     },
     {
       "idx": 1,
-      "version": "6",
-      "when": 1785217236280,
+      "version": "7",
+      "when": 1788366613759,
       "tag": "0001_message_search",
       "breakpoints": true
     }

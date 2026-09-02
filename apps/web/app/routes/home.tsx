@@ -1,30 +1,31 @@
-import { listWorkspaces } from '@huddle/domain';
 import { useEffect, useReducer } from 'react';
 import { redirect } from 'react-router';
-import { currentUser } from '../lib/session.server';
-import { portsContext } from '../lib/ports';
-import type { Route } from './+types/home';
+import { api } from '../lib/api';
+import { currentMe } from '../lib/session';
 
 /*
  * The landing page is for people who are not signed in. Anyone with a session
  * goes straight to work, and someone with no workspace yet goes to make one.
+ *
+ * This route is prerendered, so the check runs in the browser on hydration
+ * rather than blocking the first paint for a visitor who has never signed in.
  */
-export async function loader({ context, request }: Route.LoaderArgs) {
-  const user = await currentUser(context, request);
-  if (!user) return null;
+export async function clientLoader() {
+  const me = await currentMe();
+  if (!me) return null;
 
-  const workspaces = await listWorkspaces(context.get(portsContext), user.id);
+  const workspaces = me.workspaces.length > 0 ? me.workspaces : await api.workspaces();
   const first = workspaces[0];
   throw redirect(first ? `/w/${first.workspace.slug}` : '/new');
 }
 
-export function meta(_: Route.MetaArgs) {
+export function meta() {
   return [
     { title: 'huddle: team chat you can actually host yourself' },
     {
       name: 'description',
       content:
-        'Open source team chat. Channels, threads, files, voice notes and search. Runs free on Cloudflare or in one container on your own server.',
+        'Open source team chat. Channels, threads, files, voice notes and search. One container, your server, your data.',
     },
   ];
 }
@@ -129,10 +130,10 @@ const CAPABILITIES = [
 ];
 
 const DEPLOY_TARGETS = [
-  { name: 'Cloudflare', detail: 'Free tier, one button' },
   { name: 'Docker Compose', detail: 'One command, your server' },
-  { name: 'Railway, Render, Coolify', detail: 'Templates' },
+  { name: 'Railway, Render, Coolify', detail: 'One click templates' },
   { name: 'Kubernetes', detail: 'Helm chart' },
+  { name: 'Anything with Postgres', detail: 'Plain Node process' },
 ];
 
 export default function Home() {
@@ -160,8 +161,8 @@ export default function Home() {
           </h1>
           <p className="text-text-secondary max-w-prose text-lg">
             huddle is team chat with channels, threads, files, voice notes and search that works. It
-            is open source, it costs nothing to run on Cloudflare, and it fits in one container if
-            you would rather host it yourself.
+            is open source, it runs anywhere Docker runs, and the whole thing is one command on a
+            machine you already pay for.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <a
@@ -193,8 +194,9 @@ export default function Home() {
       <section id="deploy" className="border-border mt-16 border-t pt-12">
         <h2 className="font-display text-xl font-semibold">Runs where you want it</h2>
         <p className="text-text-secondary mt-2 max-w-prose text-base">
-          Nothing in huddle is tied to one provider. The same build targets a Cloudflare account or
-          your own hardware, including a network with no internet access at all.
+          Nothing in huddle is tied to one provider. It is a Node process, a Postgres database and
+          an S3 bucket, which every host on earth already has, including a network with no internet
+          access at all.
         </p>
         <ul className="mt-6 grid gap-3 sm:grid-cols-2">
           {DEPLOY_TARGETS.map((target) => (

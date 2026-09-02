@@ -33,6 +33,17 @@ type Pages = {
       "slug": string;
     };
   };
+  "/w/:slug/c/:ref": {
+    params: {
+      "slug": string;
+      "ref": string;
+    };
+  };
+  "/w/:slug/search": {
+    params: {
+      "slug": string;
+    };
+  };
   "/specimen": {
     params: {};
   };
@@ -41,7 +52,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/signin" | "/signout" | "/new" | "/join/:token" | "/w/:slug" | "/specimen";
+    page: "/" | "/signin" | "/signout" | "/new" | "/join/:token" | "/w/:slug" | "/w/:slug/c/:ref" | "/w/:slug/search" | "/specimen";
   };
   "routes/home.tsx": {
     id: "routes/home";
@@ -65,7 +76,19 @@ type RouteFiles = {
   };
   "routes/workspace.tsx": {
     id: "routes/workspace";
+    page: "/w/:slug" | "/w/:slug/c/:ref" | "/w/:slug/search";
+  };
+  "routes/workspace-home.tsx": {
+    id: "routes/workspace-home";
     page: "/w/:slug";
+  };
+  "routes/channel.tsx": {
+    id: "routes/channel";
+    page: "/w/:slug/c/:ref";
+  };
+  "routes/search.tsx": {
+    id: "routes/search";
+    page: "/w/:slug/search";
   };
   "routes/specimen.tsx": {
     id: "routes/specimen";
@@ -81,5 +104,8 @@ type RouteModules = {
   "routes/new-workspace": typeof import("./app/routes/new-workspace.tsx");
   "routes/join": typeof import("./app/routes/join.tsx");
   "routes/workspace": typeof import("./app/routes/workspace.tsx");
+  "routes/workspace-home": typeof import("./app/routes/workspace-home.tsx");
+  "routes/channel": typeof import("./app/routes/channel.tsx");
+  "routes/search": typeof import("./app/routes/search.tsx");
   "routes/specimen": typeof import("./app/routes/specimen.tsx");
 };

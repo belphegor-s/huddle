@@ -212,3 +212,115 @@ export const DraftMessage = z.object({
   mentions: z.array(Id).max(64).default([]),
 });
 export type DraftMessage = z.infer<typeof DraftMessage>;
+
+export const ChannelName = z
+  .string()
+  .trim()
+  .min(1)
+  .max(80)
+  .regex(/^[a-z0-9][a-z0-9-_]*$/, 'Lowercase letters, numbers, hyphens and underscores only');
+
+export const CreateChannelInput = z.object({
+  name: ChannelName,
+  topic: z.string().trim().max(280).nullable().default(null),
+  isPrivate: z.boolean().default(false),
+});
+export type CreateChannelInput = z.infer<typeof CreateChannelInput>;
+
+export const UpdateChannelInput = z.object({
+  name: ChannelName.optional(),
+  topic: z.string().trim().max(280).nullable().optional(),
+  archived: z.boolean().optional(),
+});
+export type UpdateChannelInput = z.infer<typeof UpdateChannelInput>;
+
+export const OpenDmInput = z.object({
+  /** The other people. The caller is added implicitly and never listed twice. */
+  userIds: z.array(Id).min(1).max(8),
+});
+export type OpenDmInput = z.infer<typeof OpenDmInput>;
+
+/**
+ * A channel as the sidebar needs it: the channel itself plus everything that
+ * decides how its row is drawn, so the list renders from one request.
+ */
+export const ChannelSummary = z.object({
+  channel: Channel,
+  lastSeq: z.number().int().nonnegative(),
+  lastMessageAt: z.number().int().nullable(),
+  readSeq: z.number().int().nonnegative(),
+  unreadCount: z.number().int().nonnegative(),
+  mentionCount: z.number().int().nonnegative(),
+  notificationLevel: NotificationLevel,
+  muted: z.boolean(),
+  /** Filled for DMs only, where the name is the other people. */
+  memberIds: z.array(Id),
+});
+export type ChannelSummary = z.infer<typeof ChannelSummary>;
+
+export const MemberProfile = z.object({
+  id: Id,
+  displayName: z.string(),
+  avatarUrl: z.url().nullable(),
+  role: Role,
+});
+export type MemberProfile = z.infer<typeof MemberProfile>;
+
+export const UpdateChannelPrefsInput = z.object({
+  notificationLevel: NotificationLevel.optional(),
+  mutedUntil: z.number().int().nullable().optional(),
+});
+export type UpdateChannelPrefsInput = z.infer<typeof UpdateChannelPrefsInput>;
+
+export const SearchInput = z.object({
+  text: z.string().trim().min(1).max(200),
+  channelId: Id.optional(),
+  authorId: Id.optional(),
+  hasFile: z.boolean().optional(),
+  after: z.number().int().optional(),
+  before: z.number().int().optional(),
+  limit: z.number().int().min(1).max(50).default(20),
+});
+export type SearchInput = z.infer<typeof SearchInput>;
+
+export const EditMessageInput = z.object({
+  body: JsonString,
+  text: z.string().max(16_000),
+});
+export type EditMessageInput = z.infer<typeof EditMessageInput>;
+
+export const ReactInput = z.object({
+  emoji: z.string().min(1).max(32),
+  on: z.boolean(),
+});
+export type ReactInput = z.infer<typeof ReactInput>;
+
+export const MarkReadInput = z.object({
+  seq: z.number().int().nonnegative(),
+});
+export type MarkReadInput = z.infer<typeof MarkReadInput>;
+
+export const CreateUploadInput = z.object({
+  name: z.string().trim().min(1).max(255),
+  mimeType: z.string().min(1).max(127),
+  size: z.number().int().positive(),
+  width: z.number().int().positive().nullable().default(null),
+  height: z.number().int().positive().nullable().default(null),
+  durationMs: z.number().int().nonnegative().nullable().default(null),
+  peaks: z.array(z.number().min(0).max(1)).max(512).nullable().default(null),
+});
+export type CreateUploadInput = z.infer<typeof CreateUploadInput>;
+
+/**
+ * What the client needs to push the bytes, plus the attachment to put on the
+ * message once it has. The URL is a route on this server rather than the
+ * signed one, so a link in an old message still resolves years later.
+ */
+export const UploadTicket = z.object({
+  uploadUrl: z.string(),
+  method: z.literal('PUT'),
+  headers: z.record(z.string(), z.string()),
+  expiresAt: z.number().int(),
+  attachment: Attachment,
+});
+export type UploadTicket = z.infer<typeof UploadTicket>;

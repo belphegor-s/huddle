@@ -2,10 +2,6 @@ node_modules/
 dist/
 build/
 .turbo/
-.wrangler/
-.dev.vars
-.dev.vars.*
-!.dev.vars.example
 *.local
 .env
 .env.*
@@ -17,4 +13,3 @@ test-results/
 Thumbs.db
 *.log
 .claude/settings.local.json
-worker-configuration.d.ts
