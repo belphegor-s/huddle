@@ -6,13 +6,12 @@ import {
   type Channel,
   type ChannelSummary,
   type CreateChannelInput,
-  type MemberProfile,
   type Result,
   type Role,
   type UpdateChannelInput,
   type UpdateChannelPrefsInput,
 } from '@huddle/core';
-import { channelMembers, channels, memberships, users } from '@huddle/db';
+import { channelMembers, channels, memberships } from '@huddle/db';
 import { and, asc, desc, eq, inArray, isNull, notInArray } from 'drizzle-orm';
 import type { AppContext } from '../context.js';
 import { outranks, requireMember, type AccessError } from './access.js';
@@ -360,31 +359,6 @@ export async function setChannelPrefs(
     );
 
   return ok(null);
-}
-
-export async function listWorkspaceMembers(
-  ctx: AppContext,
-  input: { workspaceId: string; userId: string },
-): Promise<Result<MemberProfile[], AccessError>> {
-  const member = await requireMember(ctx.db, {
-    workspaceId: input.workspaceId,
-    userId: input.userId,
-  });
-  if (!member.ok) return err(member.error);
-
-  const rows = await ctx.db
-    .select({
-      id: users.id,
-      displayName: users.displayName,
-      avatarUrl: users.avatarUrl,
-      role: memberships.role,
-    })
-    .from(memberships)
-    .innerJoin(users, eq(users.id, memberships.userId))
-    .where(eq(memberships.workspaceId, input.workspaceId))
-    .orderBy(asc(users.displayName));
-
-  return ok(rows);
 }
 
 export async function channelMemberIds(ctx: AppContext, channelId: string): Promise<string[]> {

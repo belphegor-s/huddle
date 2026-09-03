@@ -13,7 +13,7 @@ import {
   joinChannel,
   leaveChannel,
   listChannels,
-  listWorkspaceMembers,
+  listMembers,
   openDm,
   requireChannel,
   searchMessages,
@@ -72,7 +72,7 @@ export function channelRoutes(): Hono<ApiEnv> {
   });
 
   routes.get('/workspaces/:workspaceId/members', async (c) => {
-    const members = await listWorkspaceMembers(c.var.app, {
+    const members = await listMembers(c.var.app, {
       workspaceId: c.req.param('workspaceId'),
       userId: currentUser(c).id,
     });

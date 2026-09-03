@@ -53,6 +53,7 @@ export default function ChannelRoute() {
       summary={summary}
       realtime={realtime}
       canUseAi={features.ai}
+      canAttach={features.files}
       joined={joined !== undefined}
       onChanged={refresh}
     />
@@ -67,6 +68,7 @@ interface ChannelViewProps {
   summary: ChannelSummary;
   realtime: Realtime;
   canUseAi: boolean;
+  canAttach: boolean;
   joined: boolean;
   onChanged(): void;
 }
@@ -79,6 +81,7 @@ function ChannelView({
   summary,
   realtime,
   canUseAi,
+  canAttach,
   joined,
   onChanged,
 }: ChannelViewProps) {
@@ -168,6 +171,7 @@ function ChannelView({
           workspaceId={workspace.id}
           members={members}
           placeholder={`Message ${label}`}
+          canAttach={canAttach}
           onTyping={stream.notifyTyping}
           onSend={async (input) => {
             await stream.send({ ...input, parentId: null });
@@ -184,6 +188,7 @@ function ChannelView({
           members={members}
           stream={stream}
           canUseAi={canUseAi}
+          canAttach={canAttach}
           onClose={() => setThreadId(null)}
         />
       ) : null}

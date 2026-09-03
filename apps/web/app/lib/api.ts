@@ -86,6 +86,7 @@ export interface Capabilities {
   ok: boolean;
   ai: boolean;
   push: boolean;
+  files: boolean;
 }
 
 export const api = {
@@ -111,6 +112,10 @@ export const api = {
     post<WorkspaceMembership>(`/api/invites/${encodeURIComponent(token)}/accept`),
 
   members: (workspaceId: string) => call<MemberProfile[]>(`/api/workspaces/${workspaceId}/members`),
+  setMemberRole: (workspaceId: string, userId: string, role: Role) =>
+    patch<MemberProfile>(`/api/workspaces/${workspaceId}/members/${userId}`, { role }),
+  removeMember: (workspaceId: string, userId: string) =>
+    remove<{ ok: true }>(`/api/workspaces/${workspaceId}/members/${userId}`),
   channels: (workspaceId: string) =>
     call<ChannelSummary[]>(`/api/workspaces/${workspaceId}/channels`),
   browseChannels: (workspaceId: string) =>
@@ -120,7 +125,6 @@ export const api = {
   openDm: (workspaceId: string, userIds: string[]) =>
     post<ChannelSummary>(`/api/workspaces/${workspaceId}/dms`, { userIds }),
 
-  channel: (channelId: string) => call<ChannelAccess>(`/api/channels/${channelId}`),
   channelByRef: (workspaceId: string, ref: string) =>
     call<ChannelAccess>(
       `/api/workspaces/${workspaceId}/channels/by-ref/${encodeURIComponent(ref)}`,

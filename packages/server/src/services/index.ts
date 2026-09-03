@@ -26,7 +26,6 @@ export {
   joinChannel,
   leaveChannel,
   listChannels,
-  listWorkspaceMembers,
   openDm,
   requireChannel,
   setChannelPrefs,
@@ -64,3 +63,6 @@ export type { UnfurlError } from './unfurl.js';
 
 export { catchUp, summariseThread } from './assistant.js';
 export type { AssistantError } from './assistant.js';
+
+export { listMembers, removeMember, setMemberRole } from './members.js';
+export type { MemberError } from './members.js';

@@ -47,6 +47,14 @@ export function Sidebar({
         Search messages
       </Link>
 
+      <Link
+        to={`/w/${workspace.slug}/people`}
+        className="text-text-secondary hover:bg-surface-hover mb-2 flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm no-underline"
+      >
+        <Icon name="people" className="size-4" />
+        People
+      </Link>
+
       <Section title="Channels" actionLabel="New channel" onAction={onCreateChannel} />
       <ul className="flex flex-col">
         {rooms.map((summary) => (
@@ -80,8 +88,15 @@ export function Sidebar({
       </div>
 
       <footer className="border-border flex items-center gap-2 border-t px-2 pt-3">
-        <Avatar name={me.user.displayName} url={me.user.avatarUrl} size="md" />
-        <span className="min-w-0 flex-1 truncate text-sm">{me.user.displayName}</span>
+        <Link
+          to={`/w/${workspace.slug}/you`}
+          className="hover:bg-surface-hover -mx-1 flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-1 no-underline"
+        >
+          <Avatar name={me.user.displayName} url={me.user.avatarUrl} size="md" />
+          <span className="text-text-primary min-w-0 flex-1 truncate text-sm">
+            {me.user.displayName}
+          </span>
+        </Link>
         <Form method="post" action="/signout">
           <Button type="submit" variant="ghost">
             Sign out

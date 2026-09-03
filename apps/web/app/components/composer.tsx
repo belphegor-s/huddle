@@ -11,11 +11,20 @@ interface ComposerProps {
   workspaceId: string;
   members: MemberProfile[];
   placeholder: string;
+  /** False when the deployment has no bucket. Attaching would only fail. */
+  canAttach: boolean;
   onSend(input: { text: string; mentions: string[]; attachments: Attachment[] }): Promise<void>;
   onTyping(): void;
 }
 
-export function Composer({ workspaceId, members, placeholder, onSend, onTyping }: ComposerProps) {
+export function Composer({
+  workspaceId,
+  members,
+  placeholder,
+  canAttach,
+  onSend,
+  onTyping,
+}: ComposerProps) {
   const input = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const uploads = useUploads(workspaceId);
@@ -67,7 +76,7 @@ export function Composer({ workspaceId, members, placeholder, onSend, onTyping }
     <div
       onDragOver={(event) => {
         // Only a file drag. Dragging selected text around should not arm this.
-        if (!event.dataTransfer.types.includes('Files')) return;
+        if (!canAttach || !event.dataTransfer.types.includes('Files')) return;
         event.preventDefault();
         setDragging(true);
       }}
@@ -76,7 +85,7 @@ export function Composer({ workspaceId, members, placeholder, onSend, onTyping }
         setDragging(false);
       }}
       onDrop={(event) => {
-        if (!event.dataTransfer.types.includes('Files')) return;
+        if (!canAttach || !event.dataTransfer.types.includes('Files')) return;
         event.preventDefault();
         setDragging(false);
         void uploads.add(event.dataTransfer.files);
@@ -112,9 +121,11 @@ export function Composer({ workspaceId, members, placeholder, onSend, onTyping }
           }}
         />
 
-        <IconButton label="Attach a file" onClick={() => picker.current?.click()}>
-          <Icon name="attach" />
-        </IconButton>
+        {canAttach ? (
+          <IconButton label="Attach a file" onClick={() => picker.current?.click()}>
+            <Icon name="attach" />
+          </IconButton>
+        ) : null}
 
         <textarea
           ref={input}
@@ -130,6 +141,7 @@ export function Composer({ workspaceId, members, placeholder, onSend, onTyping }
           onPaste={(event) => {
             // A screenshot on the clipboard is the most common attachment
             // there is, and going through a file dialog for it is absurd.
+            if (!canAttach) return;
             const files = [...event.clipboardData.files];
             if (files.length === 0) return;
             event.preventDefault();
@@ -157,14 +169,14 @@ export function Composer({ workspaceId, members, placeholder, onSend, onTyping }
           >
             <Icon name="send" />
           </Button>
-        ) : (
+        ) : canAttach ? (
           <VoiceButton
             onRecorded={async (file, meta) => {
               await uploads.add([file], meta);
             }}
             onProblem={setProblem}
           />
-        )}
+        ) : null}
       </div>
     </div>
   );

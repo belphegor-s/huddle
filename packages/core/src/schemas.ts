@@ -339,3 +339,8 @@ export const LinkPreview = z.object({
   imageUrl: z.string().nullable(),
 });
 export type LinkPreview = z.infer<typeof LinkPreview>;
+
+export const SetMemberRoleInput = z.object({
+  role: z.enum(['admin', 'member', 'guest']),
+});
+export type SetMemberRoleInput = z.infer<typeof SetMemberRoleInput>;

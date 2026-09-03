@@ -1,4 +1,9 @@
-import { CreateInviteInput, CreateWorkspaceInput, UpdateProfileInput } from '@huddle/core';
+import {
+  CreateInviteInput,
+  CreateWorkspaceInput,
+  SetMemberRoleInput,
+  UpdateProfileInput,
+} from '@huddle/core';
 import {
   acceptInvite,
   createInvite,
@@ -7,7 +12,9 @@ import {
   describeMe,
   findWorkspaceBySlug,
   listWorkspaces,
+  removeMember,
   revokeInvite,
+  setMemberRole,
   updateProfile,
 } from '../../services/index.js';
 import { Hono } from 'hono';
@@ -81,6 +88,35 @@ export function workspaceRoutes(): Hono<ApiEnv> {
    * being invited to before asking them to sign in. It exposes the workspace
    * name and nothing else.
    */
+  routes.patch('/workspaces/:workspaceId/members/:userId', async (c) => {
+    const input = await jsonBody(c, SetMemberRoleInput);
+    const updated = await setMemberRole(c.var.app, {
+      workspaceId: c.req.param('workspaceId'),
+      actorId: currentUser(c).id,
+      userId: c.req.param('userId'),
+      role: input.role,
+    });
+
+    if (!updated.ok) return failure(c, updated.error);
+    return c.json(updated.value);
+  });
+
+  /*
+   * The same route removes someone else and leaves yourself, because they are
+   * the same operation with a different actor. Only the guard differs, and it
+   * lives in the service where the rest of the rules already are.
+   */
+  routes.delete('/workspaces/:workspaceId/members/:userId', async (c) => {
+    const removed = await removeMember(c.var.app, {
+      workspaceId: c.req.param('workspaceId'),
+      actorId: currentUser(c).id,
+      userId: c.req.param('userId'),
+    });
+
+    if (!removed.ok) return failure(c, removed.error);
+    return c.json({ ok: true });
+  });
+
   routes.get('/invites/:token', async (c) => {
     const described = await describeInvite(c.var.app, c.req.param('token'));
 

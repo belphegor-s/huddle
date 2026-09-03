@@ -16,6 +16,7 @@ interface ThreadPanelProps {
   members: MemberProfile[];
   stream: ChannelStream;
   canUseAi: boolean;
+  canAttach: boolean;
   onClose(): void;
 }
 
@@ -31,6 +32,7 @@ export function ThreadPanel({
   members,
   stream,
   canUseAi,
+  canAttach,
   onClose,
 }: ThreadPanelProps) {
   const [summarising, setSummarising] = useState(false);
@@ -111,6 +113,7 @@ export function ThreadPanel({
         workspaceId={workspaceId}
         members={members}
         placeholder="Reply"
+        canAttach={canAttach}
         onTyping={stream.notifyTyping}
         onSend={(input) => stream.send({ ...input, parentId })}
       />
