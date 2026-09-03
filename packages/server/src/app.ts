@@ -11,6 +11,7 @@ import { createAiClient } from './storage/ai.js';
 import { S3Blobs, type BlobStore } from './storage/blobs.js';
 import { KeyValue } from './storage/kv.js';
 import { createMailer } from './storage/mail.js';
+import { createPushSender } from './storage/push.js';
 
 const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
 
@@ -52,6 +53,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<App> {
     hub,
     blobs: options.overrides?.blobs ?? new S3Blobs(config.s3),
     mail: createMailer(config.mail),
+    push: createPushSender(config.push),
     ai: createAiClient(config.ai),
     config,
     now: Date.now,

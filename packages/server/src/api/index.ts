@@ -6,6 +6,7 @@ import { authCallbackRoutes, authRoutes } from './routes/auth.js';
 import { channelRoutes } from './routes/channels.js';
 import { fileRoutes } from './routes/files.js';
 import { messageRoutes } from './routes/messages.js';
+import { pushRoutes } from './routes/push.js';
 import { workspaceRoutes } from './routes/workspaces.js';
 import { withSession } from './session.js';
 
@@ -40,6 +41,7 @@ export function createApi(app: AppContext): Hono<ApiEnv> {
       ok: true,
       time: app.now(),
       ai: app.ai.available,
+      push: app.push.available,
     }),
   );
 
@@ -48,6 +50,7 @@ export function createApi(app: AppContext): Hono<ApiEnv> {
   api.route('/api', channelRoutes());
   api.route('/api', messageRoutes());
   api.route('/api', fileRoutes());
+  api.route('/api', pushRoutes());
   api.route('/auth', authCallbackRoutes());
 
   api.onError((error, c) => {

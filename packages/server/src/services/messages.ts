@@ -15,6 +15,7 @@ import { and, asc, desc, eq, gt, inArray, lt, sql } from 'drizzle-orm';
 import type { AppContext } from '../context.js';
 import { outranks } from './access.js';
 import { requireChannel, type ChannelError } from './channels.js';
+import { notifyNewMessage } from './notifications.js';
 
 export type MessageError = ChannelError | 'rate_limited' | 'invalid';
 
@@ -110,6 +111,10 @@ export async function sendMessage(
     message,
     ref: input.draft.id,
   });
+
+  // After the response, never before it. A slow push service must not be able
+  // to hold up the send.
+  ctx.background('notify', () => notifyNewMessage(ctx, { channel, message }));
 
   return ok(message);
 }

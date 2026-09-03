@@ -20,6 +20,7 @@ const STATUS: Record<string, ContentfulStatusCode> = {
   name_taken: 409,
   archived: 409,
   too_large: 413,
+  unavailable: 503,
   expired: 410,
   used_up: 410,
   rate_limited: 429,

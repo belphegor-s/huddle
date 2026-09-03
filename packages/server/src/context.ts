@@ -5,6 +5,7 @@ import type { AiClient } from './storage/ai.js';
 import type { BlobStore } from './storage/blobs.js';
 import type { KeyValue } from './storage/kv.js';
 import type { Mailer } from './storage/mail.js';
+import type { PushSender } from './storage/push.js';
 
 /**
  * Everything a service needs, assembled once at boot and passed down. These
@@ -18,6 +19,7 @@ export interface AppContext {
   hub: RealtimeHub;
   blobs: BlobStore;
   mail: Mailer;
+  push: PushSender;
   ai: AiClient;
   config: Config;
   now(): number;

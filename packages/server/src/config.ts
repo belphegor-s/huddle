@@ -29,6 +29,8 @@ const Env = z.object({
 
   VAPID_PUBLIC_KEY: z.string().default(''),
   VAPID_PRIVATE_KEY: z.string().default(''),
+  /** Push services want a way to contact the operator of a misbehaving sender. */
+  VAPID_SUBJECT: z.string().default(''),
 });
 
 export interface Config {
@@ -70,7 +72,7 @@ export function loadConfig(source: Record<string, string | undefined> = process.
     push: {
       publicKey: env.VAPID_PUBLIC_KEY,
       privateKey: env.VAPID_PRIVATE_KEY,
-      subject: env.PUBLIC_URL,
+      subject: env.VAPID_SUBJECT === '' ? env.PUBLIC_URL : env.VAPID_SUBJECT,
     },
   };
 }

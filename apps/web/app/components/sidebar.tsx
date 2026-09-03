@@ -2,6 +2,7 @@ import type { ChannelSummary, MemberProfile, Me, Workspace } from '@huddle/core'
 import { Avatar, Button, cx } from '@huddle/ui';
 import { Form, Link, NavLink } from 'react-router';
 import { channelTitle } from '../lib/workspace';
+import { PushToggle } from './push-toggle';
 
 interface SidebarProps {
   me: Me;
@@ -70,7 +71,11 @@ export function Sidebar({
         {direct.length === 0 ? <Empty>No conversations yet</Empty> : null}
       </ul>
 
-      <footer className="border-border mt-auto flex items-center gap-2 border-t px-2 pt-3">
+      <div className="mt-auto">
+        <PushToggle />
+      </div>
+
+      <footer className="border-border flex items-center gap-2 border-t px-2 pt-3">
         <Avatar name={me.user.displayName} url={me.user.avatarUrl} size="md" />
         <span className="min-w-0 flex-1 truncate text-sm">{me.user.displayName}</span>
         <Form method="post" action="/signout">

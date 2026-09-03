@@ -40,6 +40,21 @@ PUBLIC_URL=https://chat.example.com
 
 `PUBLIC_URL` is the origin sign in links point back at, so it has to be the address people actually use.
 
+### Notifications
+
+huddle installs from the browser and sends real push, with no app store account on either side. Generate a key pair once and put it in the environment:
+
+```bash
+pnpm --filter @huddle/server exec web-push generate-vapid-keys
+```
+
+```
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+```
+
+The toggle appears in the sidebar once the server has a pair. Push needs HTTPS everywhere except `localhost`, and on an iPhone the app has to be added to the home screen first, which is Apple's rule rather than ours.
+
 ## Deploy
 
 **Docker Compose.** The file in this repo. One app container, one Postgres, one named volume.

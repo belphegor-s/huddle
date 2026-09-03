@@ -28,6 +28,12 @@ services:
       SMTP_URL: ${SMTP_URL:-}
       EMAIL_FROM: ${EMAIL_FROM:-huddle <no-reply@localhost>}
 
+      # Push notifications. Off until a VAPID pair is set. Generate one with
+      # pnpm --filter @huddle/server exec web-push generate-vapid-keys
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+
       # Off unless you point it somewhere. No message content leaves the
       # deployment while these are empty.
       AI_BASE_URL: ${AI_BASE_URL:-}

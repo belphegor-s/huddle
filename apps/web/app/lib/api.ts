@@ -148,6 +148,15 @@ export const api = {
   requestUpload: (workspaceId: string, input: CreateUploadInput) =>
     post<UploadTicket>(`/api/workspaces/${workspaceId}/uploads`, input),
 
+  pushKey: () => call<{ available: boolean; publicKey: string }>('/api/push/key'),
+  subscribePush: (subscription: PushSubscriptionJSON) =>
+    post<{ ok: true }>('/api/push/subscriptions', subscription),
+  unsubscribePush: (endpoint: string) =>
+    call<{ ok: true }>('/api/push/subscriptions', {
+      method: 'DELETE',
+      body: JSON.stringify({ endpoint }),
+    }),
+
   signOut: () => post<{ ok: true }>('/api/auth/signout'),
   requestMagicLink: (email: string, redirectTo: string | null) =>
     post<{ ok: true; expiresAt: number }>('/api/auth/magic-link', { email, redirectTo }),

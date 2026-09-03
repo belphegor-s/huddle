@@ -55,3 +55,6 @@ export type { SearchResult } from './search.js';
 
 export { deleteFile, requestUpload, resolveDownload } from './files.js';
 export type { UploadError } from './files.js';
+
+export { notifyNewMessage, removePushSubscription, savePushSubscription } from './notifications.js';
+export type { PushError, SavePushInput } from './notifications.js';
