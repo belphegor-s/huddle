@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Avatar, Icon } from '@huddle/ui';
 import type { ChannelStream } from '../lib/use-messages';
 import { api } from '../lib/api';
+import { toLines } from '../lib/rich-text';
 import { memberName } from '../lib/workspace';
 import { AssistantPanel } from './assistant-panel';
 import { Attachments } from './attachments';
@@ -88,7 +89,7 @@ export function ThreadPanel({
             <Avatar name={memberName(members, parent.authorId)} />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">{memberName(members, parent.authorId)}</p>
-              <MessageBody body={parent.body} members={members} meId={meId} />
+              <MessageBody source={sourceOf(parent.body)} members={members} meId={meId} />
               <Attachments attachments={parent.attachments} />
             </div>
           </article>
@@ -100,7 +101,7 @@ export function ThreadPanel({
               <Avatar name={memberName(members, reply.authorId)} size="sm" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">{memberName(members, reply.authorId)}</p>
-                <MessageBody body={reply.body} members={members} meId={meId} />
+                <MessageBody source={sourceOf(reply.body)} members={members} meId={meId} />
                 <Attachments attachments={reply.attachments} />
               </div>
             </li>
@@ -121,4 +122,9 @@ export function ThreadPanel({
       />
     </aside>
   );
+}
+
+/** The markdown someone typed, read back out of the stored document. */
+function sourceOf(body: string): string {
+  return toLines(body).join('\n');
 }

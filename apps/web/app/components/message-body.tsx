@@ -1,10 +1,11 @@
 import { parseMarkdown, type Block, type Inline, type MemberProfile } from '@huddle/core';
 import { cx, Icon } from '@huddle/ui';
 import { useMemo, useState } from 'react';
-import { handleOf, toLines } from '../lib/rich-text';
+import { handleOf } from '../lib/rich-text';
 
 interface MessageBodyProps {
-  body: string;
+  /** The markdown someone typed, not the flattened reading of it. */
+  source: string;
   members: MemberProfile[];
   meId: string;
 }
@@ -16,8 +17,8 @@ interface MessageBodyProps {
  * nodes, so a message containing a script tag is text at every step and there
  * is no escaping anywhere to get wrong.
  */
-export function MessageBody({ body, members, meId }: MessageBodyProps) {
-  const blocks = useMemo(() => parseMarkdown(toLines(body).join('\n')), [body]);
+export function MessageBody({ source, members, meId }: MessageBodyProps) {
+  const blocks = useMemo(() => parseMarkdown(source), [source]);
   const handles = useMemo(() => {
     const map = new Map<string, MemberProfile>();
     for (const member of members) map.set(handleOf(member.displayName), member);

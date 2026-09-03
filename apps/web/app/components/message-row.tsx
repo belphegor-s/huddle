@@ -1,7 +1,8 @@
 import type { MemberProfile, Message } from '@huddle/core';
 import { Avatar, cx, Icon } from '@huddle/ui';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { formatClock, formatTime } from '../lib/format';
+import { toLines } from '../lib/rich-text';
 import { memberAvatar, memberName } from '../lib/workspace';
 import { Attachments } from './attachments';
 import { EmojiPicker } from './emoji-picker';
@@ -42,6 +43,7 @@ export function MessageRow({
   const [picking, setPicking] = useState(false);
   const [editing, setEditing] = useState(false);
 
+  const source = useMemo(() => toLines(message.body).join('\n'), [message.body]);
   const name = memberName(members, message.authorId);
   const pending = message.seq === PENDING_SEQ;
   const mine = message.authorId === meId;
@@ -80,7 +82,7 @@ export function MessageRow({
 
         {editing ? (
           <MessageEditor
-            initial={message.text}
+            initial={source}
             onCancel={() => setEditing(false)}
             onSave={async (text) => {
               await onEdit(message.id, text);
@@ -94,14 +96,14 @@ export function MessageRow({
               in milliseconds and a spinner would flash.
             */}
             <div className={cx(pending && 'text-text-secondary')}>
-              <MessageBody body={message.body} members={members} meId={meId} />
+              <MessageBody source={source} members={members} meId={meId} />
               {message.editedAt === null ? null : (
                 <span className="text-text-muted text-2xs ml-1">edited</span>
               )}
             </div>
 
             <Attachments attachments={message.attachments} />
-            <LinkPreviews text={message.text} />
+            <LinkPreviews source={source} />
           </>
         )}
 

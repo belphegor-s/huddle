@@ -2,7 +2,7 @@ import { LIMITS, ulid, type Attachment, type Message, type ServerEvent } from '@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import type { Realtime } from './realtime';
-import { toDocument } from './rich-text';
+import { toDocument, toPlain } from './rich-text';
 
 export interface ChannelStream {
   messages: Message[];
@@ -156,7 +156,7 @@ export function useMessages(realtime: Realtime, channelId: string, userId: strin
       const draft = {
         id: ulid(),
         body: toDocument(input.text),
-        text: input.text,
+        text: toPlain(input.text),
         parentId: input.parentId,
         attachments: input.attachments,
         mentions: input.mentions,
@@ -199,7 +199,7 @@ export function useMessages(realtime: Realtime, channelId: string, userId: strin
 
   const edit = useCallback(
     async (messageId: string, text: string) => {
-      upsert(await api.edit(channelId, messageId, { body: toDocument(text), text }));
+      upsert(await api.edit(channelId, messageId, { body: toDocument(text), text: toPlain(text) }));
     },
     [channelId, upsert],
   );

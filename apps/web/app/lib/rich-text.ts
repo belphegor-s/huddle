@@ -1,4 +1,4 @@
-import type { MemberProfile } from '@huddle/core';
+import { parseMarkdown, toPlainText, type MemberProfile } from '@huddle/core';
 
 interface TextNode {
   type: 'text';
@@ -31,6 +31,18 @@ export function toDocument(text: string): string {
   };
 
   return JSON.stringify(doc);
+}
+
+/**
+ * The plain reading of what was typed, with the markdown taken out.
+ *
+ * This is what goes in `text`, which feeds search, notifications and the
+ * transcript handed to a model. A notification that says `**pricing page**` is
+ * worse than one that says pricing page, and a search snippet full of
+ * delimiters is unreadable. The source itself is kept in the body.
+ */
+export function toPlain(source: string): string {
+  return toPlainText(parseMarkdown(source));
 }
 
 /** Never trusted as markup. The result is rendered as text nodes. */

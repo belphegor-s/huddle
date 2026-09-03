@@ -9,12 +9,12 @@ const URL_PATTERN = /https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]}]/g;
 /** One card. Five links in a message should not turn into five cards. */
 const PREVIEW_LIMIT = 1;
 
-export function LinkPreviews({ text }: { text: string }) {
+export function LinkPreviews({ source }: { source: string }) {
   const { workspace } = useWorkspace();
   const [previews, setPreviews] = useState<LinkPreview[]>([]);
 
   useEffect(() => {
-    const links = [...new Set(text.match(URL_PATTERN) ?? [])].slice(0, PREVIEW_LIMIT);
+    const links = [...new Set(source.match(URL_PATTERN) ?? [])].slice(0, PREVIEW_LIMIT);
     if (links.length === 0) {
       setPreviews([]);
       return;
@@ -32,7 +32,7 @@ export function LinkPreviews({ text }: { text: string }) {
     return () => {
       cancelled = true;
     };
-  }, [text, workspace.id]);
+  }, [source, workspace.id]);
 
   if (previews.length === 0) return null;
 
