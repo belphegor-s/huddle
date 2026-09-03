@@ -11,7 +11,7 @@ import {
   type ServerEvent,
 } from '@huddle/core';
 import { channelMembers, channels, messages, type Database, type MessageRow } from '@huddle/db';
-import { and, asc, desc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
 import type { AppContext } from '../context.js';
 import { outranks } from './access.js';
 import { requireChannel, type ChannelError } from './channels.js';
@@ -114,6 +114,7 @@ export async function sendMessage(
 
   await markCaughtUp(ctx.db, channel.id, input.userId, message.seq);
   await bumpMentions(ctx.db, channel.id, input.userId, message.mentions);
+  await tellMembersTheyAreBehind(ctx, channel.id, input.userId, message.seq);
 
   ctx.hub.publish(channel.id, {
     type: 'message',
@@ -464,6 +465,40 @@ async function readMessage(
 
   const row = rows[0];
   return row ? toMessage(row) : null;
+}
+
+/**
+ * A badge has to move for people who are not looking at the channel, and they
+ * are exactly the people the channel fanout does not reach: it goes to sockets
+ * subscribed to this channel, and theirs is not.
+ *
+ * So the count goes to each member directly, already worked out for them. The
+ * alternative is every client polling every channel it is in, which is the same
+ * traffic on a worse schedule.
+ */
+async function tellMembersTheyAreBehind(
+  ctx: AppContext,
+  channelId: string,
+  authorId: string,
+  latestSeq: number,
+): Promise<void> {
+  const members = await ctx.db
+    .select({
+      userId: channelMembers.userId,
+      readSeq: channelMembers.readSeq,
+      mentionCount: channelMembers.mentionCount,
+    })
+    .from(channelMembers)
+    .where(and(eq(channelMembers.channelId, channelId), ne(channelMembers.userId, authorId)));
+
+  for (const member of members) {
+    ctx.hub.publishToUser(member.userId, {
+      type: 'unread',
+      channelId,
+      count: Math.max(0, latestSeq - member.readSeq),
+      mentionCount: member.mentionCount,
+    });
+  }
 }
 
 async function markCaughtUp(

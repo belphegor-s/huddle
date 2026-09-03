@@ -11,6 +11,7 @@ import {
 } from 'react-router';
 import { NewChannelDialog } from '../components/new-channel-dialog';
 import { NewDmDialog } from '../components/new-dm-dialog';
+import { ConnectionBanner } from '../components/connection-banner';
 import { Sidebar } from '../components/sidebar';
 import { api, ApiError } from '../lib/api';
 import { Realtime } from '../lib/realtime';
@@ -57,11 +58,16 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
     void revalidator.revalidate();
   }, [revalidator]);
 
-  // Anything arriving for a channel that is not on screen still changes a
-  // badge, so the sidebar re-reads rather than guessing.
+  /*
+   * The server sends an unread count straight to each member, because the
+   * channel fanout only reaches sockets subscribed to that channel and a badge
+   * has to move for the channels you are not looking at. The sidebar re-reads
+   * rather than trusting the number, so one revalidation settles every badge at
+   * once however many arrived.
+   */
   useEffect(() => {
     return realtime.on((event) => {
-      if (event.type === 'message' && event.channelId !== params.ref) refresh();
+      if (event.type === 'unread' && event.channelId !== params.ref) refresh();
     });
   }, [params.ref, realtime, refresh]);
 
@@ -81,20 +87,24 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
   const inRoom = location.pathname !== `/w/${workspace.slug}`;
 
   return (
-    <div className="flex h-dvh overflow-hidden">
-      <Sidebar
-        me={me}
-        workspace={workspace}
-        channels={channels}
-        members={members}
-        className={cx(inRoom ? 'hidden md:flex' : 'flex')}
-        onCreateChannel={() => setDialog('channel')}
-        onStartDm={() => setDialog('dm')}
-      />
+    <div className="flex h-dvh flex-col overflow-hidden">
+      <ConnectionBanner realtime={realtime} />
 
-      <main className={cx('min-w-0 flex-1', inRoom ? 'flex' : 'hidden md:flex')}>
-        <Outlet context={context} />
-      </main>
+      <div className="flex min-h-0 flex-1">
+        <Sidebar
+          me={me}
+          workspace={workspace}
+          channels={channels}
+          members={members}
+          className={cx(inRoom ? 'hidden md:flex' : 'flex')}
+          onCreateChannel={() => setDialog('channel')}
+          onStartDm={() => setDialog('dm')}
+        />
+
+        <main className={cx('min-w-0 flex-1', inRoom ? 'flex' : 'hidden md:flex')}>
+          <Outlet context={context} />
+        </main>
+      </div>
 
       {dialog === 'channel' ? (
         <NewChannelDialog

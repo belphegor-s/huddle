@@ -186,6 +186,7 @@ function ChannelView({
           channelId={summary.channel.id}
           parentId={threadId}
           members={members}
+          meId={me.user.id}
           stream={stream}
           canUseAi={canUseAi}
           canAttach={canAttach}

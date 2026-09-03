@@ -14,6 +14,7 @@ interface ThreadPanelProps {
   channelId: string;
   parentId: string;
   members: MemberProfile[];
+  meId: string;
   stream: ChannelStream;
   canUseAi: boolean;
   canAttach: boolean;
@@ -30,6 +31,7 @@ export function ThreadPanel({
   channelId,
   parentId,
   members,
+  meId,
   stream,
   canUseAi,
   canAttach,
@@ -86,7 +88,7 @@ export function ThreadPanel({
             <Avatar name={memberName(members, parent.authorId)} />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">{memberName(members, parent.authorId)}</p>
-              <MessageBody body={parent.body} />
+              <MessageBody body={parent.body} members={members} meId={meId} />
               <Attachments attachments={parent.attachments} />
             </div>
           </article>
@@ -98,7 +100,7 @@ export function ThreadPanel({
               <Avatar name={memberName(members, reply.authorId)} size="sm" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">{memberName(members, reply.authorId)}</p>
-                <MessageBody body={reply.body} />
+                <MessageBody body={reply.body} members={members} meId={meId} />
                 <Attachments attachments={reply.attachments} />
               </div>
             </li>

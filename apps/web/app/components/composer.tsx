@@ -4,8 +4,10 @@ import { useRef, useState } from 'react';
 import { formatDuration } from '../lib/format';
 import { VoiceRecorder } from '../lib/recorder';
 import { findMentions } from '../lib/rich-text';
+import { useMentions } from '../lib/use-mentions';
 import { useUploads } from '../lib/use-uploads';
 import { AttachmentTray } from './attachment-tray';
+import { MentionPicker } from './mention-picker';
 
 interface ComposerProps {
   workspaceId: string;
@@ -28,6 +30,7 @@ export function Composer({
   const input = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const uploads = useUploads(workspaceId);
+  const mentions = useMentions(members);
 
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -55,6 +58,7 @@ export function Composer({
         attachments: uploads.ready,
       });
       setText('');
+      mentions.close();
       uploads.clear();
       resize();
     } catch {
@@ -107,6 +111,22 @@ export function Composer({
         </p>
       ) : null}
 
+      {mentions.open ? (
+        <MentionPicker
+          matches={mentions.matches}
+          active={mentions.active}
+          onPick={(member) => {
+            const chosen = mentions.choose(text, member);
+            if (!chosen) return;
+            setText(chosen.value);
+            requestAnimationFrame(() => {
+              input.current?.focus();
+              input.current?.setSelectionRange(chosen.caret, chosen.caret);
+            });
+          }}
+        />
+      ) : null}
+
       <AttachmentTray pending={uploads.pending} onRemove={uploads.remove} />
 
       <div className="flex items-end gap-2">
@@ -135,8 +155,16 @@ export function Composer({
           aria-label="Message"
           onChange={(event) => {
             setText(event.target.value);
+            mentions.update(event.target.value, event.target.selectionStart);
             onTyping();
             resize();
+          }}
+          onBlur={mentions.close}
+          onSelect={(event) => {
+            // Moving the caret out of a token closes the picker, which typing
+            // alone would not catch.
+            const field = event.currentTarget;
+            mentions.update(field.value, field.selectionStart);
           }}
           onPaste={(event) => {
             // A screenshot on the clipboard is the most common attachment
@@ -148,6 +176,33 @@ export function Composer({
             void uploads.add(files);
           }}
           onKeyDown={(event) => {
+            // While the picker is open the arrow keys and Enter belong to it.
+            if (mentions.open) {
+              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                mentions.move(event.key === 'ArrowDown' ? 1 : -1);
+                return;
+              }
+
+              if (event.key === 'Enter' || event.key === 'Tab') {
+                const chosen = mentions.choose(text);
+                if (chosen) {
+                  event.preventDefault();
+                  setText(chosen.value);
+                  requestAnimationFrame(() => {
+                    input.current?.setSelectionRange(chosen.caret, chosen.caret);
+                  });
+                  return;
+                }
+              }
+
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                mentions.close();
+                return;
+              }
+            }
+
             // Enter sends, Shift and Enter makes a line. On a touch keyboard
             // Enter is a newline, because there is a send button right there.
             if (event.key === 'Enter' && !event.shiftKey && !isTouch()) {

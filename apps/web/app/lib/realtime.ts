@@ -2,6 +2,14 @@ import { decodeServerEvent, encodeEvent, type ClientEvent, type ServerEvent } fr
 
 type Listener = (event: ServerEvent) => void;
 
+/**
+ * `connecting` covers both the first attempt and every retry, because to a
+ * reader they are the same thing: messages are not arriving right now.
+ */
+export type ConnectionStatus = 'connecting' | 'open' | 'closed';
+
+type StatusListener = (status: ConnectionStatus) => void;
+
 const BACKOFF_MS = [500, 1_000, 2_000, 5_000, 10_000, 20_000];
 const PING_INTERVAL_MS = 25_000;
 
@@ -16,6 +24,8 @@ const PING_INTERVAL_MS = 25_000;
 export class Realtime {
   private socket: WebSocket | null = null;
   private readonly listeners = new Set<Listener>();
+  private readonly statusListeners = new Set<StatusListener>();
+  private status: ConnectionStatus = 'connecting';
   private readonly cursors = new Map<string, number>();
   private attempt = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -24,6 +34,7 @@ export class Realtime {
 
   connect(): void {
     if (this.stopped || this.socket) return;
+    this.setStatus('connecting');
 
     const url = new URL('/api/realtime', window.location.href);
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -33,6 +44,7 @@ export class Realtime {
 
     socket.addEventListener('open', () => {
       this.attempt = 0;
+      this.setStatus('open');
       for (const [channelId, lastSeq] of this.cursors) {
         this.send({ type: 'subscribe', channelId, lastSeq });
       }
@@ -57,6 +69,7 @@ export class Realtime {
 
   stop(): void {
     this.stopped = true;
+    this.setStatus('closed');
     this.clearTimers();
     this.socket?.close();
     this.socket = null;
@@ -65,6 +78,14 @@ export class Realtime {
   on(listener: Listener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  onStatus(listener: StatusListener): () => void {
+    this.statusListeners.add(listener);
+    // Called at once, so a subscriber does not have to wait for a change to
+    // learn what is already true.
+    listener(this.status);
+    return () => this.statusListeners.delete(listener);
   }
 
   subscribe(channelId: string, lastSeq: number): void {
@@ -86,10 +107,18 @@ export class Realtime {
     if (seq > (this.cursors.get(channelId) ?? 0)) this.cursors.set(channelId, seq);
   }
 
+  private setStatus(status: ConnectionStatus): void {
+    if (this.status === status) return;
+    this.status = status;
+    for (const listener of this.statusListeners) listener(status);
+  }
+
   private retry(): void {
     this.clearTimers();
     this.socket = null;
     if (this.stopped) return;
+
+    this.setStatus('connecting');
 
     const delay = BACKOFF_MS[Math.min(this.attempt, BACKOFF_MS.length - 1)] ?? 20_000;
     this.attempt += 1;

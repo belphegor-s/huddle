@@ -94,7 +94,7 @@ export function MessageRow({
               in milliseconds and a spinner would flash.
             */}
             <div className={cx(pending && 'text-text-secondary')}>
-              <MessageBody body={message.body} />
+              <MessageBody body={message.body} members={members} meId={meId} />
               {message.editedAt === null ? null : (
                 <span className="text-text-muted text-2xs ml-1">edited</span>
               )}
