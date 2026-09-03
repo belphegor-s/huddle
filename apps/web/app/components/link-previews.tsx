@@ -47,7 +47,7 @@ export function LinkPreviews({ text }: { text: string }) {
             className="border-border bg-surface-raised hover:bg-surface-hover flex max-w-md overflow-hidden rounded-lg border no-underline transition-colors"
           >
             {/* The accent edge is what makes a card read as quoted rather than as chrome. */}
-            <span aria-hidden className="bg-border-strong w-1 shrink-0" />
+            <span aria-hidden className="bg-accent/60 w-1 shrink-0" />
 
             <span className="flex min-w-0 flex-1 gap-3 p-3">
               <span className="flex min-w-0 flex-1 flex-col gap-1">

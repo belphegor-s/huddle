@@ -88,45 +88,52 @@ export function MessageList({
   return (
     <div className="relative min-h-0 flex-1">
       <div ref={viewport} className="h-full overflow-y-auto overscroll-contain px-3 py-4 md:px-5">
-        <p className="text-text-muted py-2 text-center text-xs">
-          {hasMore ? 'Loading earlier messages' : 'This is the start of the channel'}
-        </p>
+        {/*
+          A conversation grows from the bottom. Anchoring it there means a
+          nearly empty channel does not leave the newest message stranded at
+          the top of a tall blank page.
+        */}
+        <div className="flex min-h-full flex-col justify-end">
+          <p className="text-text-muted py-2 text-center text-xs">
+            {hasMore ? 'Loading earlier messages' : 'This is the start of the channel'}
+          </p>
 
-        <ol aria-label="Messages" className="flex flex-col gap-0.5">
-          {visible.map((message, index) => {
-            const previous = visible[index - 1];
-            const newDay =
-              previous === undefined ||
-              !isSameDay(new Date(previous.createdAt), new Date(message.createdAt));
+          <ol aria-label="Messages" className="flex flex-col gap-0.5">
+            {visible.map((message, index) => {
+              const previous = visible[index - 1];
+              const newDay =
+                previous === undefined ||
+                !isSameDay(new Date(previous.createdAt), new Date(message.createdAt));
 
-            const grouped =
-              !newDay &&
-              previous !== undefined &&
-              previous.authorId === message.authorId &&
-              message.createdAt - previous.createdAt < GROUPING_WINDOW_MS &&
-              previous.deletedAt === null &&
-              message.id !== firstUnread?.id;
+              const grouped =
+                !newDay &&
+                previous !== undefined &&
+                previous.authorId === message.authorId &&
+                message.createdAt - previous.createdAt < GROUPING_WINDOW_MS &&
+                previous.deletedAt === null &&
+                message.id !== firstUnread?.id;
 
-            return (
-              <li key={message.id} className="contents">
-                {newDay ? <DayDivider at={message.createdAt} /> : null}
-                {message.id === firstUnread?.id ? <UnreadDivider /> : null}
+              return (
+                <li key={message.id} className="contents">
+                  {newDay ? <DayDivider at={message.createdAt} /> : null}
+                  {message.id === firstUnread?.id ? <UnreadDivider /> : null}
 
-                <MessageRow
-                  message={message}
-                  members={members}
-                  meId={meId}
-                  canModerate={canModerate}
-                  grouped={grouped}
-                  onReact={onReact}
-                  onOpenThread={onOpenThread}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                />
-              </li>
-            );
-          })}
-        </ol>
+                  <MessageRow
+                    message={message}
+                    members={members}
+                    meId={meId}
+                    canModerate={canModerate}
+                    grouped={grouped}
+                    onReact={onReact}
+                    onOpenThread={onOpenThread}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                  />
+                </li>
+              );
+            })}
+          </ol>
+        </div>
       </div>
 
       {atBottom ? null : (

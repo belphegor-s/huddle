@@ -1,8 +1,9 @@
 pnpm-lock.yaml
 .turbo/
-.wrangler/
 dist/
 build/
 .react-router/
-worker-configuration.d.ts
 packages/db/migrations/
+
+# Helm templates are Go templating inside YAML, which no YAML parser reads.
+deploy/helm/templates
