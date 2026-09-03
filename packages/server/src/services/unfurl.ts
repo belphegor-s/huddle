@@ -60,7 +60,7 @@ async function read(
 ): Promise<LinkPreview | null> {
   let page;
   try {
-    page = await safeFetch(input.url, { maxBytes: HTML_BYTES });
+    page = await safeFetch(input.url, { maxBytes: HTML_BYTES, truncate: true });
   } catch (error) {
     if (error instanceof RefusedError) return null;
     throw error;

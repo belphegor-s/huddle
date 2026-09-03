@@ -14,7 +14,7 @@ import { and, eq } from 'drizzle-orm';
 import type { AppContext } from '../context.js';
 import { requireMember, type AccessError } from './access.js';
 
-export type UploadError = AccessError | 'too_large' | 'rate_limited' | 'not_found';
+export type UploadError = AccessError | 'too_large' | 'rate_limited' | 'not_found' | 'unavailable';
 
 const MINUTE_SECONDS = 60;
 
@@ -32,6 +32,7 @@ export async function requestUpload(
     userId: input.userId,
   });
   if (!member.ok) return err(member.error);
+  if (!ctx.blobs.configured) return err('unavailable');
 
   if (input.size > LIMITS.fileBytesMax) return err('too_large');
 

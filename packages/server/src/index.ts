@@ -21,7 +21,14 @@ export { attachSocket, type Socket } from './realtime/socket.js';
 export * from './services/index.js';
 
 export { KeyValue } from './storage/kv.js';
-export { MemoryBlobs, S3Blobs, type BlobStore, type UploadTicket } from './storage/blobs.js';
+export {
+  createBlobStore,
+  MemoryBlobs,
+  noBlobs,
+  S3Blobs,
+  type BlobStore,
+  type UploadTicket,
+} from './storage/blobs.js';
 export {
   ConsoleMailer,
   createMailer,

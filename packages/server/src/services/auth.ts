@@ -75,12 +75,24 @@ export async function requestMagicLink(
   );
 
   const link = `${input.appUrl.replace(/\/$/, '')}/auth/callback?token=${encodeURIComponent(token)}`;
-  await ctx.mail.send({
-    to: input.email,
-    subject: 'Your huddle sign in link',
-    text: signInText(link),
-    html: signInHtml(link),
-  });
+
+  /*
+   * Sent after the response, and a failure never changes the answer.
+   *
+   * Two reasons. A provider that rejects an address would otherwise tell an
+   * attacker which addresses exist here, which is exactly the enumeration this
+   * flow is supposed to prevent. And a slow or broken mail host would make
+   * signing in slow or broken, when the only thing the caller needs to know is
+   * that a link is on its way if the address was real.
+   */
+  ctx.background('magic-link-email', () =>
+    ctx.mail.send({
+      to: input.email,
+      subject: 'Your huddle sign in link',
+      text: signInText(link),
+      html: signInHtml(link),
+    }),
+  );
 
   return ok({ expiresAt: now + MAGIC_LINK_TTL_SECONDS * 1000 });
 }

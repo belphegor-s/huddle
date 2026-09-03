@@ -61,3 +61,6 @@ export type { PushError, SavePushInput } from './notifications.js';
 
 export { unfurlLink } from './unfurl.js';
 export type { UnfurlError } from './unfurl.js';
+
+export { catchUp, summariseThread } from './assistant.js';
+export type { AssistantError } from './assistant.js';

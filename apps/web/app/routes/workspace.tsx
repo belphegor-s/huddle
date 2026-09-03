@@ -20,16 +20,17 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
   const slug = params.slug ?? '';
   const found = await api.workspaceBySlug(slug);
 
-  const [channels, members] = await Promise.all([
+  const [channels, members, features] = await Promise.all([
     api.channels(found.workspace.id),
     api.members(found.workspace.id),
+    api.capabilities(),
   ]);
 
-  return { me, workspace: found.workspace, role: found.role, channels, members };
+  return { me, workspace: found.workspace, role: found.role, channels, members, features };
 }
 
 export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
-  const { me, workspace, role, channels, members } = loaderData;
+  const { me, workspace, role, channels, members, features } = loaderData;
   const revalidator = useRevalidator();
   const params = useParams();
   const location = useLocation();
@@ -64,6 +65,7 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
     members,
     channels,
     realtime,
+    features,
     refresh,
   };
 

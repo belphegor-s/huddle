@@ -8,6 +8,12 @@ export interface AiMessage {
 export interface AiClient {
   readonly available: boolean;
   complete(input: { messages: AiMessage[]; maxTokens: number }): Promise<string>;
+  /**
+   * Checks the configured model exists before anyone relies on it. A wrong
+   * model id answers 404 on first use, which surfaces as a broken feature
+   * hours after the deploy rather than as a line in the boot log.
+   */
+  verify(): Promise<void>;
 }
 
 /**
@@ -21,7 +27,9 @@ export class OpenAiCompatibleClient implements AiClient {
   constructor(private readonly config: Config['ai']) {}
 
   async complete(input: { messages: AiMessage[]; maxTokens: number }): Promise<string> {
-    const response = await fetch(`${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+    const endpoint = `${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`;
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -35,7 +43,13 @@ export class OpenAiCompatibleClient implements AiClient {
     });
 
     if (!response.ok) {
-      throw new Error(`AI request failed with ${response.status}`);
+      // The provider's own message, because "failed with 404" tells an
+      // operator nothing about whether the model name or the base URL is
+      // wrong. The key is never part of this: only the endpoint and model are.
+      const detail = (await response.text().catch(() => '')).slice(0, 300);
+      throw new Error(
+        `AI request failed with ${response.status} at ${endpoint} for model ${this.config.model}: ${detail}`,
+      );
     }
 
     const body = (await response.json()) as {
@@ -43,12 +57,47 @@ export class OpenAiCompatibleClient implements AiClient {
     };
     return body.choices?.[0]?.message?.content ?? '';
   }
+
+  async verify(): Promise<void> {
+    const endpoint = `${this.config.baseUrl.replace(/\/$/, '')}/models`;
+
+    const response = await fetch(endpoint, {
+      headers: this.config.apiKey === '' ? {} : { authorization: `Bearer ${this.config.apiKey}` },
+    }).catch(() => null);
+
+    // Not every compatible server lists models. Silence here means the check
+    // could not run, not that the model is wrong.
+    if (!response?.ok) return;
+
+    const body = (await response.json().catch(() => null)) as {
+      data?: Array<{ id: string }>;
+    } | null;
+    const ids = (body?.data ?? []).map((model) => model.id);
+    if (ids.length === 0 || ids.includes(this.config.model)) return;
+
+    // A dated snapshot of the same family is almost always what was meant.
+    const family = this.config.model.split('/').at(-1) ?? this.config.model;
+    const near = ids.filter((id) => id.includes(family)).slice(0, 3);
+
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'ai_model_missing',
+        configured: this.config.model,
+        reason: 'The configured model is not one this key can reach',
+        didYouMean: near.length > 0 ? near : ids.slice(0, 5),
+      }),
+    );
+  }
 }
 
 export const disabledAi: AiClient = {
   available: false,
   async complete() {
     throw new Error('AI is not configured on this instance');
+  },
+  async verify() {
+    // Nothing to check.
   },
 };
 

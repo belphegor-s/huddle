@@ -16,6 +16,10 @@ export class Client {
   async signIn(email: string): Promise<void> {
     await this.post('/api/auth/magic-link', { email, redirectTo: null });
 
+    // The email is sent after the response, so the test has to let that turn
+    // of the loop finish before the link exists.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
     const mailer = this.app.ctx.mail;
     if (!(mailer instanceof ConsoleMailer)) throw new Error('Expected the console mailer');
 

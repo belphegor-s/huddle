@@ -1,7 +1,7 @@
-import { lookup as dnsLookup } from 'node:dns';
+import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
-import { isIP } from 'node:net';
+import { isIP, type LookupFunction } from 'node:net';
 
 export type FetchRefusal =
   | 'bad_url'
@@ -72,6 +72,19 @@ function isPrivateV6(address: string): boolean {
 }
 
 /**
+ * Keeps only addresses that are safe to dial, and answers in the shape the
+ * caller asked for. Node calls a custom lookup with `all: true` and expects an
+ * array back, so returning a bare address there fails the connection with an
+ * invalid address error rather than with anything that names the real problem.
+ */
+export function selectAddresses(
+  addresses: LookupAddress[],
+): { ok: true; allowed: LookupAddress[] } | { ok: false } {
+  const allowed = addresses.filter((entry) => !isPrivateAddress(entry.address));
+  return allowed.length === 0 ? { ok: false } : { ok: true, allowed };
+}
+
+/**
  * Resolution and connection use the same address.
  *
  * Validating a hostname and then letting the socket resolve it again leaves a
@@ -79,26 +92,25 @@ function isPrivateV6(address: string): boolean {
  * point of a DNS rebinding attack. Passing this as the connection's own lookup
  * closes that window: what was checked is what gets dialled.
  */
-function guardedLookup(
-  hostname: string,
-  options: unknown,
-  callback: (error: Error | null, address: string, family: number) => void,
-): void {
+const guardedLookup: LookupFunction = (hostname, options, callback) => {
   dnsLookup(hostname, { all: true }, (error, addresses) => {
     if (error) {
       callback(new RefusedError('unreachable'), '', 0);
       return;
     }
 
-    const allowed = addresses.find((entry) => !isPrivateAddress(entry.address));
-    if (!allowed) {
+    const selected = selectAddresses(addresses);
+    if (!selected.ok) {
       callback(new RefusedError('private_address'), '', 0);
       return;
     }
 
-    callback(null, allowed.address, allowed.family);
+    const [first] = selected.allowed;
+    if (options.all === true) callback(null, selected.allowed);
+    else if (first) callback(null, first.address, first.family);
+    else callback(new RefusedError('unreachable'), '', 0);
   });
-}
+};
 
 /**
  * Fetches a URL that a person supplied, which means it is hostile until
@@ -107,7 +119,17 @@ function guardedLookup(
  */
 export async function safeFetch(
   target: string,
-  options: { maxBytes: number; accept?: string; redirectsLeft?: number },
+  options: {
+    maxBytes: number;
+    accept?: string;
+    redirectsLeft?: number;
+    /**
+     * Stop at the cap and keep what arrived, rather than refusing. Right for
+     * HTML, where everything worth reading is in the head, and wrong for an
+     * image, where half a file is not a smaller file.
+     */
+    truncate?: boolean;
+  },
 ): Promise<SafeResponse> {
   const url = parseUrl(target);
   const redirectsLeft = options.redirectsLeft ?? MAX_REDIRECTS;
@@ -117,7 +139,7 @@ export async function safeFetch(
     throw new RefusedError('private_address');
   }
 
-  const response = await once(url, options.maxBytes, options.accept);
+  const response = await once(url, options);
 
   if (response.status >= 300 && response.status < 400 && response.location !== null) {
     if (redirectsLeft <= 0) throw new RefusedError('too_many_redirects');
@@ -159,7 +181,10 @@ interface RawResponse {
   body: Buffer;
 }
 
-function once(url: URL, maxBytes: number, accept?: string): Promise<RawResponse> {
+function once(
+  url: URL,
+  options: { maxBytes: number; accept?: string; truncate?: boolean },
+): Promise<RawResponse> {
   return new Promise((resolve, reject) => {
     const send = url.protocol === 'https:' ? httpsRequest : httpRequest;
 
@@ -173,33 +198,50 @@ function once(url: URL, maxBytes: number, accept?: string): Promise<RawResponse>
           // Named honestly. A server that does not want to be unfurled can
           // then say so, and an operator can see what reached them.
           'user-agent': 'huddle-link-preview/1.0 (+https://github.com/huddle)',
-          accept: accept ?? 'text/html,application/xhtml+xml',
+          accept: options.accept ?? 'text/html,application/xhtml+xml',
           'accept-encoding': 'identity',
         },
       },
       (response) => {
         const chunks: Buffer[] = [];
         let size = 0;
+        let settled = false;
 
-        response.on('data', (chunk: Buffer) => {
-          size += chunk.length;
-          if (size > maxBytes) {
-            // Stop reading rather than trusting a content-length header.
-            response.destroy();
-            reject(new RefusedError('too_large'));
-            return;
-          }
-          chunks.push(chunk);
-        });
-
-        response.on('end', () =>
+        const finish = () => {
+          if (settled) return;
+          settled = true;
           resolve({
             status: response.statusCode ?? 0,
             contentType: (response.headers['content-type'] ?? '').split(';')[0]?.trim() ?? '',
             location: response.headers.location ?? null,
             body: Buffer.concat(chunks),
-          }),
-        );
+          });
+        };
+
+        response.on('data', (chunk: Buffer) => {
+          // The cap is enforced on bytes actually read, never on a
+          // content-length header the other end chose.
+          if (size + chunk.length > options.maxBytes) {
+            if (options.truncate === true) {
+              chunks.push(chunk.subarray(0, options.maxBytes - size));
+              response.destroy();
+              finish();
+              return;
+            }
+
+            response.destroy();
+            if (!settled) {
+              settled = true;
+              reject(new RefusedError('too_large'));
+            }
+            return;
+          }
+
+          size += chunk.length;
+          chunks.push(chunk);
+        });
+
+        response.on('end', finish);
 
         response.on('error', () => reject(new RefusedError('unreachable')));
       },

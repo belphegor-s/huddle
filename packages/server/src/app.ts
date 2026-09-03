@@ -8,7 +8,7 @@ import { RealtimeHub } from './realtime/hub.js';
 import { PostgresRelay } from './realtime/relay.js';
 import { hydrateMessageEvent } from './services/messages.js';
 import { createAiClient } from './storage/ai.js';
-import { S3Blobs, type BlobStore } from './storage/blobs.js';
+import { createBlobStore, type BlobStore } from './storage/blobs.js';
 import { KeyValue } from './storage/kv.js';
 import { createMailer } from './storage/mail.js';
 import { createPushSender } from './storage/push.js';
@@ -51,7 +51,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<App> {
     db,
     kv,
     hub,
-    blobs: options.overrides?.blobs ?? new S3Blobs(config.s3),
+    blobs: options.overrides?.blobs ?? (await createBlobStore(config.s3)),
     mail: createMailer(config.mail),
     push: createPushSender(config.push),
     ai: createAiClient(config.ai),
@@ -59,6 +59,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<App> {
     now: Date.now,
     background: runInBackground,
   };
+
+  // After boot, never blocking it: a slow provider must not delay listening.
+  if (ctx.ai.available) runInBackground('verify-ai-model', () => ctx.ai.verify());
 
   let relay: PostgresRelay | null = null;
   if (options.clustered === true) {

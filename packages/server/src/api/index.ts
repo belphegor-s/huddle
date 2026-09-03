@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../context.js';
 import type { ApiEnv } from './env.js';
+import { assistantRoutes } from './routes/assistant.js';
 import { authCallbackRoutes, authRoutes } from './routes/auth.js';
 import { channelRoutes } from './routes/channels.js';
 import { fileRoutes } from './routes/files.js';
@@ -42,6 +43,7 @@ export function createApi(app: AppContext): Hono<ApiEnv> {
       time: app.now(),
       ai: app.ai.available,
       push: app.push.available,
+      files: app.blobs.configured,
     }),
   );
 
@@ -51,6 +53,7 @@ export function createApi(app: AppContext): Hono<ApiEnv> {
   api.route('/api', messageRoutes());
   api.route('/api', fileRoutes());
   api.route('/api', pushRoutes());
+  api.route('/api', assistantRoutes());
   api.route('/auth', authCallbackRoutes());
 
   api.onError((error, c) => {

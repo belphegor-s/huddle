@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -17,6 +18,8 @@ export interface UploadTicket {
 }
 
 export interface BlobStore {
+  /** False when no bucket is configured, so callers can refuse politely. */
+  readonly configured: boolean;
   createUploadTicket(input: {
     key: string;
     contentType: string;
@@ -42,6 +45,7 @@ const DOWNLOAD_TTL_SECONDS = 60 * 60;
  * or Wasabi because all of them speak the same signed PUT.
  */
 export class S3Blobs implements BlobStore {
+  readonly configured = true;
   private readonly client: S3Client;
 
   constructor(private readonly config: Config['s3']) {
@@ -49,6 +53,14 @@ export class S3Blobs implements BlobStore {
       region: config.region,
       endpoint: config.endpoint === '' ? undefined : config.endpoint,
       forcePathStyle: config.forcePathStyle,
+      /*
+       * A bucket in a region other than the configured one answers 301 with
+       * the region it actually lives in. Following that is the difference
+       * between "uploads are broken" and "the region setting was a guess", and
+       * getting the region right is the single most common thing a self hoster
+       * gets wrong.
+       */
+      followRegionRedirects: true,
       credentials: {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,
@@ -127,6 +139,7 @@ export class S3Blobs implements BlobStore {
 
 /** Used by the test suite, so the service tests need no bucket running. */
 export class MemoryBlobs implements BlobStore {
+  readonly configured = true;
   readonly objects = new Map<string, { size: number; contentType: string }>();
 
   async createUploadTicket(input: {
@@ -159,4 +172,81 @@ export class MemoryBlobs implements BlobStore {
   async put(key: string, body: Uint8Array, contentType: string): Promise<void> {
     this.objects.set(key, { size: body.byteLength, contentType });
   }
+}
+
+/**
+ * A deployment with no bucket. Uploads say so plainly instead of failing deep
+ * inside an S3 client with a message about credentials.
+ */
+export const noBlobs: BlobStore = {
+  configured: false,
+  async createUploadTicket() {
+    throw new Error('No object storage is configured');
+  },
+  async createDownloadUrl() {
+    throw new Error('No object storage is configured');
+  },
+  async head() {
+    return null;
+  },
+  async delete() {
+    // Nothing was ever stored.
+  },
+  async put() {
+    throw new Error('No object storage is configured');
+  },
+};
+
+/**
+ * Builds the store, and asks the bucket which region it is actually in.
+ *
+ * The region is the single thing a self hoster most often gets wrong, and it
+ * fails in a way that looks like nothing: server side calls follow the
+ * redirect and work, while presigned URLs keep 301ing, because a signature is
+ * bound to the region it was made for and cannot follow anything. One request
+ * at boot removes the whole class of problem.
+ */
+export async function createBlobStore(config: Config['s3']): Promise<BlobStore> {
+  if (config.accessKeyId === '' || config.secretAccessKey === '' || config.bucket === '') {
+    return noBlobs;
+  }
+
+  return new S3Blobs({ ...config, region: await resolveRegion(config) });
+}
+
+async function resolveRegion(config: Config['s3']): Promise<string> {
+  // A custom gateway has its own region conventions, and several ignore the
+  // value entirely. Only AWS is corrected.
+  if (config.endpoint !== '') return config.region;
+
+  try {
+    const probe = new S3Client({
+      region: config.region,
+      followRegionRedirects: true,
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+      },
+    });
+
+    const response = await probe.send(new HeadBucketCommand({ Bucket: config.bucket }));
+    const actual = response.BucketRegion ?? '';
+
+    if (actual !== '' && actual !== config.region) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 's3_region_corrected',
+          configured: config.region,
+          actual,
+          bucket: config.bucket,
+        }),
+      );
+      return actual;
+    }
+  } catch {
+    // Unreachable at boot is not fatal. The bucket may simply be starting.
+  }
+
+  return config.region;
 }

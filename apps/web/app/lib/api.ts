@@ -82,7 +82,14 @@ const patch = <T>(path: string, body: unknown): Promise<T> =>
 
 const remove = <T>(path: string): Promise<T> => call<T>(path, { method: 'DELETE' });
 
+export interface Capabilities {
+  ok: boolean;
+  ai: boolean;
+  push: boolean;
+}
+
 export const api = {
+  capabilities: () => call<Capabilities>('/api/health'),
   me: () => call<Me>('/api/me'),
   updateProfile: (patchBody: UpdateProfileInput) => patch<Me['user']>('/api/me', patchBody),
 
@@ -162,6 +169,11 @@ export const api = {
       method: 'DELETE',
       body: JSON.stringify({ endpoint }),
     }),
+
+  summariseThread: (channelId: string, parentId: string) =>
+    post<{ text: string }>(`/api/channels/${channelId}/threads/${parentId}/summary`),
+  catchUp: (channelId: string, sinceSeq: number) =>
+    post<{ text: string }>(`/api/channels/${channelId}/catch-up`, { sinceSeq }),
 
   signOut: () => post<{ ok: true }>('/api/auth/signout'),
   requestMagicLink: (email: string, redirectTo: string | null) =>

@@ -1,17 +1,21 @@
 import type { MemberProfile } from '@huddle/core';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Avatar, Icon } from '@huddle/ui';
 import type { ChannelStream } from '../lib/use-messages';
+import { api } from '../lib/api';
 import { memberName } from '../lib/workspace';
+import { AssistantPanel } from './assistant-panel';
 import { Attachments } from './attachments';
 import { MessageBody } from './message-body';
 import { Composer } from './composer';
 
 interface ThreadPanelProps {
   workspaceId: string;
+  channelId: string;
   parentId: string;
   members: MemberProfile[];
   stream: ChannelStream;
+  canUseAi: boolean;
   onClose(): void;
 }
 
@@ -20,7 +24,16 @@ interface ThreadPanelProps {
  * its own copy, so a reply arriving over the socket lands in both views at
  * once and neither can drift from the other.
  */
-export function ThreadPanel({ workspaceId, parentId, members, stream, onClose }: ThreadPanelProps) {
+export function ThreadPanel({
+  workspaceId,
+  channelId,
+  parentId,
+  members,
+  stream,
+  canUseAi,
+  onClose,
+}: ThreadPanelProps) {
+  const [summarising, setSummarising] = useState(false);
   const { loadThread } = stream;
 
   // The channel page carries top level messages only, so the thread fetches
@@ -36,6 +49,17 @@ export function ThreadPanel({ workspaceId, parentId, members, stream, onClose }:
     <aside className="border-border bg-surface absolute inset-0 z-10 flex flex-col border-l md:static md:z-auto md:w-96 md:shrink-0">
       <header className="border-border flex items-center gap-3 border-b px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))]">
         <h2 className="flex-1 text-base font-semibold">Thread</h2>
+        {canUseAi && replies.length > 2 ? (
+          <button
+            type="button"
+            onClick={() => setSummarising(true)}
+            aria-label="Summarise this thread"
+            title="Summarise this thread"
+            className="text-accent hover:bg-accent-soft grid size-9 place-items-center rounded-lg"
+          >
+            <Icon name="sparkle" className="size-4" />
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onClose}
@@ -45,6 +69,14 @@ export function ThreadPanel({ workspaceId, parentId, members, stream, onClose }:
           <Icon name="close" className="size-4" />
         </button>
       </header>
+
+      {summarising ? (
+        <AssistantPanel
+          title="Thread summary"
+          run={() => api.summariseThread(channelId, parentId)}
+          onClose={() => setSummarising(false)}
+        />
+      ) : null}
 
       <div className="flex-1 overflow-y-auto px-3 py-4">
         {parent ? (
