@@ -1,6 +1,6 @@
 import type { MemberProfile, Message } from '@huddle/core';
 import { Icon } from '@huddle/ui';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { formatDay, isSameDay } from '../lib/format';
 import { MessageRow } from './message-row';
 
@@ -152,7 +152,7 @@ export function MessageList({
 
 function DayDivider({ at }: { at: number }) {
   return (
-    <div className="flex items-center gap-3 py-3" role="separator">
+    <li className="flex items-center gap-3 py-3" role="separator">
       <span className="bg-border h-px flex-1" />
       <time
         dateTime={new Date(at).toISOString()}
@@ -161,15 +161,15 @@ function DayDivider({ at }: { at: number }) {
         {formatDay(at)}
       </time>
       <span className="bg-border h-px flex-1" />
-    </div>
+    </li>
   );
 }
 
 function UnreadDivider() {
   return (
-    <div className="flex items-center gap-3 py-2" role="separator" aria-label="New messages">
+    <li className="flex items-center gap-3 py-2" role="separator" aria-label="New messages">
       <span className="bg-accent h-px flex-1" />
       <span className="text-accent text-2xs font-semibold tracking-wide uppercase">New</span>
-    </div>
+    </li>
   );
 }
