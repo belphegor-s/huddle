@@ -114,7 +114,10 @@ export function MessageList({
                 message.id !== firstUnread?.id;
 
               return (
-                <li key={message.id} className="contents">
+                // A separator is a list item of its own. Wrapping the row in a
+                // second one nests an li inside an li, which is not valid and
+                // which the browser silently rearranges.
+                <Fragment key={message.id}>
                   {newDay ? <DayDivider at={message.createdAt} /> : null}
                   {message.id === firstUnread?.id ? <UnreadDivider /> : null}
 
@@ -129,7 +132,7 @@ export function MessageList({
                     onEdit={onEdit}
                     onDelete={onDelete}
                   />
-                </li>
+                </Fragment>
               );
             })}
           </ol>
