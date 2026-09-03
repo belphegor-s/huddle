@@ -1,0 +1,9 @@
+apiVersion: v2
+name: huddle
+description: Team chat you can host yourself. One container, a Postgres and an S3 bucket.
+type: application
+version: 0.1.0
+appVersion: '0.1.0'
+home: https://github.com/huddle
+sources:
+  - https://github.com/huddle

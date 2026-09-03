@@ -58,7 +58,7 @@ export async function requestMagicLink(
   if (perEmail > RATE_LIMITS.magicLinkPerHourPerEmail) return err('rate_limited');
 
   const perIp = await ctx.kv.increment(`rl:magic:ip:${input.clientIp}`, HOUR_SECONDS);
-  if (perIp > RATE_LIMITS.magicLinkPerHourPerIp) return err('rate_limited');
+  if (perIp > ctx.config.limits.magicLinksPerHourPerIp) return err('rate_limited');
 
   const now = ctx.now();
   const token = randomToken();

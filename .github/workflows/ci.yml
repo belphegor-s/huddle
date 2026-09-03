@@ -36,3 +36,47 @@ jobs:
       - run: pnpm test
 
       - run: pnpm build
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: huddle
+          POSTGRES_PASSWORD: huddle
+          POSTGRES_DB: huddle
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U huddle"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install the browser
+        run: pnpm --filter @huddle/web exec playwright install --with-deps chromium
+
+      # Runs against the built client and the real process, on one origin, so
+      # the socket, the session cookie and the SPA fallback are all exercised.
+      - run: pnpm e2e
+        env:
+          DATABASE_URL: postgres://huddle:huddle@localhost:5432/huddle
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7

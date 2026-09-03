@@ -40,6 +40,37 @@ PUBLIC_URL=https://chat.example.com
 
 `PUBLIC_URL` is the origin sign in links point back at, so it has to be the address people actually use.
 
+### The bucket
+
+Uploads go straight from the browser to the bucket, so the bucket has to allow
+that. This is the one setting that fails invisibly: every server side call
+works, presigning works, and only the browser sees the upload refused. huddle
+warns about it at boot, but it has to be fixed on the bucket.
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://chat.example.com"],
+    "AllowedMethods": ["PUT", "GET"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3000
+  }
+]
+```
+
+```bash
+aws s3api put-bucket-cors --bucket huddle --cors-configuration file://cors.json
+```
+
+`AllowedOrigins` must be exactly your `PUBLIC_URL`. The same shape works on R2,
+B2, Wasabi and MinIO.
+
+Get `S3_REGION` right too, or presigned URLs answer 301 forever: a signature is
+bound to the region it was made for and cannot follow a redirect. huddle reads
+the real region from the bucket at boot and logs the correction, so check the
+log if uploads misbehave.
+
 ### Notifications
 
 huddle installs from the browser and sends real push, with no app store account on either side. Generate a key pair once and put it in the environment:
@@ -55,13 +86,32 @@ VAPID_PRIVATE_KEY=...
 
 The toggle appears in the sidebar once the server has a pair. Push needs HTTPS everywhere except `localhost`, and on an iPhone the app has to be added to the home screen first, which is Apple's rule rather than ours.
 
+### AI, optional
+
+Off unless configured. It powers two things: summarising a thread, and telling
+you what you missed since your own read position. Nothing is stored, and no
+message content leaves the deployment while these are empty.
+
+Any OpenAI compatible endpoint works, including a local Ollama:
+
+```
+AI_BASE_URL=https://api.fireworks.ai/inference/v1
+AI_API_KEY=...
+AI_MODEL=accounts/fireworks/models/deepseek-v4-flash-0731
+```
+
+The base URL must include the version path, because `/chat/completions` is
+appended to it. Providers usually serve dated snapshots rather than a rolling
+name, so huddle checks the model against the provider at boot and logs what is
+actually reachable if the configured one is not.
+
 ## Deploy
 
 **Docker Compose.** The file in this repo. One app container, one Postgres, one named volume.
 
 **Railway, Render, Coolify, Fly.** Point them at this repo's Dockerfile, attach a Postgres, set `DATABASE_URL`, `PUBLIC_URL` and the S3 variables.
 
-**Kubernetes.** The image is a single stateless process. Run as many replicas as you like with `HUDDLE_CLUSTER=true`, which turns on the Postgres `LISTEN`/`NOTIFY` relay so instances see each other's realtime traffic.
+**Kubernetes.** A chart is in [`deploy/helm`](deploy/helm). The image is a single stateless process, so run as many replicas as you like: above one the chart sets `HUDDLE_CLUSTER=true`, which turns on the Postgres `LISTEN`/`NOTIFY` relay so instances see each other's realtime traffic. No Redis, and no sticky sessions, because a client reconnecting to any pod resumes from the sequence it holds.
 
 **Bare metal.** `pnpm build` then `node apps/server/dist/main.js` with `WEB_DIR` pointing at `apps/web/build/client`.
 

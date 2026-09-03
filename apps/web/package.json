@@ -19,6 +19,7 @@
     "isbot": "^5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@react-router/dev": "^8.3.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.2.17",

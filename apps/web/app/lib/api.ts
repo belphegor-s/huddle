@@ -121,6 +121,10 @@ export const api = {
     post<ChannelSummary>(`/api/workspaces/${workspaceId}/dms`, { userIds }),
 
   channel: (channelId: string) => call<ChannelAccess>(`/api/channels/${channelId}`),
+  channelByRef: (workspaceId: string, ref: string) =>
+    call<ChannelAccess>(
+      `/api/workspaces/${workspaceId}/channels/by-ref/${encodeURIComponent(ref)}`,
+    ),
   joinChannel: (channelId: string) => post<ChannelSummary>(`/api/channels/${channelId}/join`),
   leaveChannel: (channelId: string) =>
     remove<{ ok: true }>(`/api/channels/${channelId}/members/me`),

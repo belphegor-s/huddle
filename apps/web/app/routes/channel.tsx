@@ -1,6 +1,6 @@
 import type { ChannelSummary, MemberProfile, Me, Role, Workspace } from '@huddle/core';
-import { Avatar, Icon } from '@huddle/ui';
-import { useState } from 'react';
+import { Avatar, Button, Icon } from '@huddle/ui';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { AssistantPanel } from '../components/assistant-panel';
 import { ChannelMenu } from '../components/channel-menu';
@@ -16,21 +16,27 @@ import { channelTitle, memberName, useWorkspace } from '../lib/workspace';
 export default function ChannelRoute() {
   const { ref } = useParams();
   const { me, workspace, role, members, channels, realtime, features, refresh } = useWorkspace();
-
-  const summary = channels.find(
+  const joined = channels.find(
     (candidate) => candidate.channel.name === ref || candidate.channel.id === ref,
   );
+
+  const visiting = useVisitedChannel(workspace.id, ref, joined !== undefined);
+  const summary = joined ?? visiting.summary;
 
   if (!summary) {
     return (
       <section className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-        <h1 className="text-xl">Channel not found</h1>
-        <p className="text-text-secondary text-sm">
-          It may have been archived, or you may not be a member of it.
-        </p>
-        <Link to={`/w/${workspace.slug}`} className="text-accent text-sm">
-          Back to the workspace
-        </Link>
+        <h1 className="text-xl">{visiting.loading ? 'Opening' : 'Channel not found'}</h1>
+        {visiting.loading ? null : (
+          <>
+            <p className="text-text-secondary text-sm">
+              It may have been archived, or you may not be a member of it.
+            </p>
+            <Link to={`/w/${workspace.slug}`} className="text-accent text-sm">
+              Back to the workspace
+            </Link>
+          </>
+        )}
       </section>
     );
   }
@@ -47,6 +53,7 @@ export default function ChannelRoute() {
       summary={summary}
       realtime={realtime}
       canUseAi={features.ai}
+      joined={joined !== undefined}
       onChanged={refresh}
     />
   );
@@ -60,6 +67,7 @@ interface ChannelViewProps {
   summary: ChannelSummary;
   realtime: Realtime;
   canUseAi: boolean;
+  joined: boolean;
   onChanged(): void;
 }
 
@@ -71,6 +79,7 @@ function ChannelView({
   summary,
   realtime,
   canUseAi,
+  joined,
   onChanged,
 }: ChannelViewProps) {
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -128,6 +137,8 @@ function ChannelView({
 
           <ChannelMenu summary={summary} workspaceSlug={workspace.slug} onChanged={onChanged} />
         </header>
+
+        {joined ? null : <JoinBanner channelId={summary.channel.id} onJoined={onChanged} />}
 
         {catchingUp ? (
           <AssistantPanel
@@ -189,5 +200,87 @@ function TypingLine({ names }: { names: string[] }) {
           ? `${names[0]} is typing`
           : `${names.length} people are typing`}
     </p>
+  );
+}
+
+/**
+ * A public channel someone has not joined is still readable, and a link to one
+ * is the most common way anybody arrives. Resolving it here is what makes that
+ * link work instead of answering "not found" to a channel the server is
+ * perfectly willing to show.
+ */
+function useVisitedChannel(
+  workspaceId: string,
+  ref: string | undefined,
+  alreadyJoined: boolean,
+): { summary: ChannelSummary | null; loading: boolean } {
+  const [summary, setSummary] = useState<ChannelSummary | null>(null);
+  const [loading, setLoading] = useState(!alreadyJoined);
+
+  useEffect(() => {
+    if (alreadyJoined || ref === undefined) {
+      setSummary(null);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+
+    void api
+      .channelByRef(workspaceId, ref)
+      .then((access) => {
+        if (cancelled) return;
+        setSummary({
+          channel: access.channel,
+          lastSeq: access.lastSeq,
+          lastMessageAt: null,
+          // Arriving fresh means caught up: a badge for everything said before
+          // you got here is noise, not information.
+          readSeq: access.lastSeq,
+          unreadCount: 0,
+          mentionCount: 0,
+          notificationLevel: 'all',
+          muted: false,
+          memberIds: [],
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setSummary(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, ref, alreadyJoined]);
+
+  return { summary, loading };
+}
+
+function JoinBanner({ channelId, onJoined }: { channelId: string; onJoined(): void }) {
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <div className="border-border bg-surface-sunken flex items-center gap-3 border-b px-3 py-2 md:px-5">
+      <p className="text-text-secondary flex-1 text-sm">
+        You are browsing this channel. Sending a message joins it.
+      </p>
+      <Button
+        type="button"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          void api
+            .joinChannel(channelId)
+            .then(onJoined)
+            .finally(() => setBusy(false));
+        }}
+      >
+        Join
+      </Button>
+    </div>
   );
 }

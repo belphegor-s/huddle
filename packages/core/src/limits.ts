@@ -21,6 +21,12 @@ export const LIMITS = {
 export const RATE_LIMITS = {
   sendMessagePerMinute: 60,
   magicLinkPerHourPerEmail: 5,
-  magicLinkPerHourPerIp: 20,
+  /**
+   * Deliberately loose, and configurable, because a whole office behind one
+   * NAT address shares it. Tight enough to stop a sprayer, loose enough that
+   * a team arriving on a Monday morning can all sign in. The per address
+   * limit above is the one doing the real work.
+   */
+  magicLinkPerHourPerIp: 100,
   uploadsPerMinute: 30,
 } as const;

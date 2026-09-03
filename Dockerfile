@@ -25,7 +25,7 @@ WORKDIR /app
 # The bundle carries its dependencies, so the runtime image has no node_modules
 # and nothing to audit beyond Node itself.
 COPY --from=build /repo/apps/server/dist/main.js ./dist/main.js
-COPY --from=build /repo/packages/db/migrations ./migrations
+COPY --from=build /repo/apps/server/migrations ./migrations
 COPY --from=build /repo/apps/web/build/client ./web
 
 ENV NODE_ENV=production

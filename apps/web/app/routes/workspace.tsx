@@ -1,11 +1,18 @@
 import { CreateChannelInput } from '@huddle/core';
 import { cx } from '@huddle/ui';
 import { useCallback, useEffect, useState } from 'react';
-import { Outlet, useLocation, useParams, useRevalidator } from 'react-router';
+import {
+  isRouteErrorResponse,
+  Link,
+  Outlet,
+  useLocation,
+  useParams,
+  useRevalidator,
+} from 'react-router';
 import { NewChannelDialog } from '../components/new-channel-dialog';
 import { NewDmDialog } from '../components/new-dm-dialog';
 import { Sidebar } from '../components/sidebar';
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import { Realtime } from '../lib/realtime';
 import { requireMe } from '../lib/session';
 import type { WorkspaceContext } from '../lib/workspace';
@@ -116,5 +123,31 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * A route level boundary, so a workspace that cannot load leaves the rest of
+ * the app standing rather than replacing the whole page with the root error.
+ * The most likely cause by far is a link to a workspace you are not in, and
+ * that answers 404 on purpose.
+ */
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  const missing =
+    (error instanceof ApiError && error.status === 404) ||
+    (isRouteErrorResponse(error) && error.status === 404);
+
+  return (
+    <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-3 px-6">
+      <h1 className="text-2xl">{missing ? 'Workspace not found' : 'That did not load'}</h1>
+      <p className="text-text-secondary text-sm">
+        {missing
+          ? 'It may have been deleted, or you may not be a member of it.'
+          : 'The connection dropped or the server is unreachable. Reloading usually fixes it.'}
+      </p>
+      <Link to="/" className="text-accent text-sm">
+        Go to your workspaces
+      </Link>
+    </main>
   );
 }

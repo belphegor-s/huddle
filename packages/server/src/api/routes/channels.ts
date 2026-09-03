@@ -9,6 +9,7 @@ import { Hono } from 'hono';
 import {
   browseChannels,
   createChannel,
+  findChannelByRef,
   joinChannel,
   leaveChannel,
   listChannels,
@@ -99,6 +100,22 @@ export function channelRoutes(): Hono<ApiEnv> {
 
     if (!found.ok) return failure(c, found.error);
     return c.json(found.value);
+  });
+
+  /*
+   * A link to a channel carries its name, and the person following it may not
+   * be in it yet. The sidebar only lists channels you have joined, so this is
+   * how the client resolves everything else it is allowed to see.
+   */
+  routes.get('/workspaces/:workspaceId/channels/by-ref/:ref', async (c) => {
+    const access = await findChannelByRef(c.var.app, {
+      workspaceId: c.req.param('workspaceId'),
+      userId: currentUser(c).id,
+      ref: c.req.param('ref'),
+    });
+
+    if (!access.ok) return failure(c, access.error);
+    return c.json(access.value);
   });
 
   routes.get('/channels/:channelId', async (c) => {

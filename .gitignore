@@ -1,5 +1,6 @@
 node_modules/
 dist/
+apps/server/migrations/
 build/
 .turbo/
 *.local
@@ -12,4 +13,5 @@ test-results/
 .DS_Store
 Thumbs.db
 *.log
+e2e-server.log
 .claude/settings.local.json

@@ -1,0 +1,70 @@
+# The app is stateless. Everything that persists lives in Postgres and in the
+# bucket, so scaling is a replica count and nothing else.
+replicaCount: 1
+
+image:
+  repository: ghcr.io/huddle/huddle
+  tag: ''
+  pullPolicy: IfNotPresent
+
+# The origin people actually type. Sign in links point at it.
+publicUrl: https://chat.example.com
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: ''
+  annotations: {}
+  host: chat.example.com
+  tls:
+    enabled: true
+    secretName: huddle-tls
+
+# Secrets are referenced, never templated into the release. Create the secret
+# separately so the values file stays safe to commit.
+existingSecret: huddle
+
+postgres:
+  # A key in the secret above holding a full connection URL.
+  urlKey: DATABASE_URL
+
+s3:
+  bucket: huddle
+  region: us-east-1
+  # Empty means AWS. Set it for R2, MinIO, B2 or Spaces.
+  endpoint: ''
+  forcePathStyle: false
+  accessKeyIdKey: S3_ACCESS_KEY_ID
+  secretAccessKeyKey: S3_SECRET_ACCESS_KEY
+
+mail:
+  # Optional. Without it, sign in links go to the pod log.
+  urlKey: SMTP_URL
+  from: huddle <no-reply@example.com>
+
+push:
+  enabled: false
+  publicKeyKey: VAPID_PUBLIC_KEY
+  privateKeyKey: VAPID_PRIVATE_KEY
+  subject: mailto:admin@example.com
+
+ai:
+  enabled: false
+  baseUrl: ''
+  model: ''
+  apiKeyKey: AI_API_KEY
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

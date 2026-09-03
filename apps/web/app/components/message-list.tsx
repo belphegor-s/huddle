@@ -92,7 +92,7 @@ export function MessageList({
           {hasMore ? 'Loading earlier messages' : 'This is the start of the channel'}
         </p>
 
-        <ol className="flex flex-col gap-0.5">
+        <ol aria-label="Messages" className="flex flex-col gap-0.5">
           {visible.map((message, index) => {
             const previous = visible[index - 1];
             const newDay =

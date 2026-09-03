@@ -1,5 +1,6 @@
 import {
   DeleteObjectCommand,
+  GetBucketCorsCommand,
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
@@ -211,7 +212,61 @@ export async function createBlobStore(config: Config['s3']): Promise<BlobStore> 
     return noBlobs;
   }
 
-  return new S3Blobs({ ...config, region: await resolveRegion(config) });
+  const region = await resolveRegion(config);
+  const resolved = { ...config, region };
+
+  // After the store is built, never blocking it. A bucket that cannot answer
+  // right now is not a reason to refuse to start.
+  void checkBrowserUploads(resolved);
+
+  return new S3Blobs(resolved);
+}
+
+/**
+ * Uploads go straight from the browser to the bucket, so the bucket has to
+ * allow that origin. Without it the failure is invisible from the server: every
+ * server side call works, presigning works, and only the browser sees the
+ * upload refused. One check at boot turns that into a line in the log.
+ */
+async function checkBrowserUploads(config: Config['s3']): Promise<void> {
+  try {
+    const cors = await client(config).send(new GetBucketCorsCommand({ Bucket: config.bucket }));
+    const rules = cors.CORSRules ?? [];
+
+    const allowsPut = rules.some((rule) => (rule.AllowedMethods ?? []).includes('PUT'));
+    if (!allowsPut) warnAboutCors(config.bucket, 'no rule allows PUT');
+  } catch (error) {
+    const name = error instanceof Error ? error.name : '';
+    if (name === 'NoSuchCORSConfiguration') warnAboutCors(config.bucket, 'no rules are set');
+    // Anything else, including a gateway that has no CORS API at all, is not
+    // worth a warning: it says nothing about whether uploads work.
+  }
+}
+
+function warnAboutCors(bucket: string, reason: string): void {
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      event: 's3_cors_missing',
+      bucket,
+      reason,
+      consequence: 'Uploads will fail in the browser while working from the server',
+      fix: 'Allow PUT and GET from PUBLIC_URL on the bucket. See the README.',
+    }),
+  );
+}
+
+function client(config: Config['s3']): S3Client {
+  return new S3Client({
+    region: config.region,
+    endpoint: config.endpoint === '' ? undefined : config.endpoint,
+    forcePathStyle: config.forcePathStyle,
+    followRegionRedirects: true,
+    credentials: {
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+    },
+  });
 }
 
 async function resolveRegion(config: Config['s3']): Promise<string> {
@@ -220,16 +275,7 @@ async function resolveRegion(config: Config['s3']): Promise<string> {
   if (config.endpoint !== '') return config.region;
 
   try {
-    const probe = new S3Client({
-      region: config.region,
-      followRegionRedirects: true,
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-      },
-    });
-
-    const response = await probe.send(new HeadBucketCommand({ Bucket: config.bucket }));
+    const response = await client(config).send(new HeadBucketCommand({ Bucket: config.bucket }));
     const actual = response.BucketRegion ?? '';
 
     if (actual !== '' && actual !== config.region) {

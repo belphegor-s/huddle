@@ -1,3 +1,4 @@
+import { RATE_LIMITS } from '@huddle/core';
 import { z } from 'zod';
 
 /**
@@ -31,6 +32,13 @@ const Env = z.object({
   VAPID_PRIVATE_KEY: z.string().default(''),
   /** Push services want a way to contact the operator of a misbehaving sender. */
   VAPID_SUBJECT: z.string().default(''),
+
+  /** Raise it behind a shared address, lower it on a public instance. */
+  MAGIC_LINKS_PER_HOUR_PER_IP: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .default(RATE_LIMITS.magicLinkPerHourPerIp),
 });
 
 export interface Config {
@@ -49,6 +57,7 @@ export interface Config {
   mail: { smtpUrl: string; from: string };
   ai: { baseUrl: string; apiKey: string; model: string };
   push: { publicKey: string; privateKey: string; subject: string };
+  limits: { magicLinksPerHourPerIp: number };
 }
 
 export function loadConfig(source: Record<string, string | undefined> = process.env): Config {
@@ -74,5 +83,6 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       privateKey: env.VAPID_PRIVATE_KEY,
       subject: env.VAPID_SUBJECT === '' ? env.PUBLIC_URL : env.VAPID_SUBJECT,
     },
+    limits: { magicLinksPerHourPerIp: env.MAGIC_LINKS_PER_HOUR_PER_IP },
   };
 }
