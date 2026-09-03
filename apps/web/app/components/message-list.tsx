@@ -1,8 +1,9 @@
 import type { MemberProfile, Message } from '@huddle/core';
-import { Avatar, cx } from '@huddle/ui';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { Avatar, cx, Icon } from '@huddle/ui';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { memberAvatar, memberName } from '../lib/workspace';
 import { Attachments } from './attachments';
+import { EmojiPicker } from './emoji-picker';
 import { MessageBody } from './message-body';
 import { Reactions } from './reactions';
 
@@ -114,6 +115,7 @@ function MessageRow({
   onOpenThread,
   onDelete,
 }: MessageRowProps) {
+  const [picking, setPicking] = useState(false);
   const name = memberName(members, message.authorId);
   const pending = message.seq === Number.MAX_SAFE_INTEGER;
 
@@ -122,7 +124,7 @@ function MessageRow({
   }
 
   return (
-    <li className={cx('group flex gap-3 rounded-lg px-1 py-0.5', 'hover:bg-surface-hover')}>
+    <li className="group hover:bg-surface-hover relative flex gap-3 rounded-lg px-1 py-0.5">
       <div className="w-8 shrink-0">
         {grouped ? null : <Avatar name={name} url={memberAvatar(members, message.authorId)} />}
       </div>
@@ -166,16 +168,43 @@ function MessageRow({
         ) : null}
       </div>
 
-      <div className="flex shrink-0 items-start gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-        <RowAction label="React" onClick={() => onReact(message.id, '\u{1f44d}', true)}>
-          {'\u{1f44d}'}
-        </RowAction>
+      <div className="border-border bg-surface-raised shadow-popover absolute -top-3 right-2 flex items-center gap-0.5 rounded-lg border p-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
+        {QUICK_REACTIONS.map((emoji) => (
+          <RowAction
+            key={emoji}
+            label={`React with ${emoji}`}
+            onClick={() => onReact(message.id, emoji, true)}
+          >
+            <span className="text-sm">{emoji}</span>
+          </RowAction>
+        ))}
+
+        <div className="relative">
+          <RowAction
+            label="Add a reaction"
+            expanded={picking}
+            onClick={() => setPicking((open) => !open)}
+          >
+            <Icon name="emoji" />
+          </RowAction>
+          {picking ? (
+            <EmojiPicker
+              onClose={() => setPicking(false)}
+              onPick={(emoji) => {
+                onReact(message.id, emoji, true);
+                setPicking(false);
+              }}
+            />
+          ) : null}
+        </div>
+
         <RowAction label="Reply in thread" onClick={() => onOpenThread(message.id)}>
-          Reply
+          <Icon name="reply" />
         </RowAction>
+
         {message.authorId === meId ? (
           <RowAction label="Delete message" onClick={() => onDelete(message.id)}>
-            Delete
+            <Icon name="trash" />
           </RowAction>
         ) : null}
       </div>
@@ -183,13 +212,18 @@ function MessageRow({
   );
 }
 
+/** The three people reach for constantly, so they cost one click rather than two. */
+const QUICK_REACTIONS = ['\u{1f44d}', '\u{2705}', '\u{1f440}'];
+
 function RowAction({
   label,
   onClick,
+  expanded,
   children,
 }: {
   label: string;
   onClick(): void;
+  expanded?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -197,8 +231,9 @@ function RowAction({
       type="button"
       aria-label={label}
       title={label}
+      aria-expanded={expanded}
       onClick={onClick}
-      className="text-text-muted hover:text-text-primary hover:bg-surface-active min-h-8 rounded-md px-2 text-xs"
+      className="text-text-muted hover:text-text-primary hover:bg-surface-active grid size-8 place-items-center rounded-md text-sm"
     >
       {children}
     </button>

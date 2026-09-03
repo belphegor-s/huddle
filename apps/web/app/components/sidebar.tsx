@@ -1,8 +1,10 @@
 import type { ChannelSummary, MemberProfile, Me, Workspace } from '@huddle/core';
-import { Avatar, Button, cx } from '@huddle/ui';
+import type { IconName } from '@huddle/ui';
+import { Avatar, Button, cx, Icon } from '@huddle/ui';
 import { Form, Link, NavLink } from 'react-router';
 import { channelTitle } from '../lib/workspace';
 import { PushToggle } from './push-toggle';
+import { WorkspaceSwitcher } from './workspace-switcher';
 
 interface SidebarProps {
   me: Me;
@@ -33,15 +35,15 @@ export function Sidebar({
         className,
       )}
     >
-      <header className="flex items-center gap-2 px-2 py-3">
-        <Avatar name={workspace.name} size="md" />
-        <p className="min-w-0 flex-1 truncate font-medium">{workspace.name}</p>
+      <header className="py-2">
+        <WorkspaceSwitcher current={workspace} workspaces={me.workspaces} />
       </header>
 
       <Link
         to={`/w/${workspace.slug}/search`}
         className="text-text-secondary hover:bg-surface-hover mb-2 flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm no-underline"
       >
+        <Icon name="search" className="size-4" />
         Search messages
       </Link>
 
@@ -52,7 +54,8 @@ export function Sidebar({
             key={summary.channel.id}
             workspaceSlug={workspace.slug}
             summary={summary}
-            label={`# ${summary.channel.name ?? ''}`}
+            label={summary.channel.name ?? ''}
+            icon={summary.channel.isPrivate ? 'lock' : 'hash'}
           />
         ))}
         {rooms.length === 0 ? <Empty>No channels yet</Empty> : null}
@@ -66,6 +69,7 @@ export function Sidebar({
             workspaceSlug={workspace.slug}
             summary={summary}
             label={channelTitle(summary, members, me.user.id)}
+            icon="people"
           />
         ))}
         {direct.length === 0 ? <Empty>No conversations yet</Empty> : null}
@@ -105,9 +109,9 @@ function Section({
         onClick={onAction}
         aria-label={actionLabel}
         title={actionLabel}
-        className="text-text-muted hover:text-text-primary grid size-6 place-items-center rounded-md text-base leading-none"
+        className="text-text-muted hover:text-text-primary hover:bg-surface-hover grid size-6 place-items-center rounded-md"
       >
-        +
+        <Icon name="plus" className="size-4" />
       </button>
     </div>
   );
@@ -117,10 +121,12 @@ function ChannelRow({
   workspaceSlug,
   summary,
   label,
+  icon,
 }: {
   workspaceSlug: string;
   summary: ChannelSummary;
   label: string;
+  icon: IconName;
 }) {
   const unread = summary.unreadCount > 0;
 
@@ -140,6 +146,7 @@ function ChannelRow({
           )
         }
       >
+        <Icon name={icon} className="text-text-muted size-4" />
         <span className="min-w-0 flex-1 truncate">{label}</span>
         {summary.mentionCount > 0 ? (
           <span className="bg-accent text-on-accent text-2xs rounded-full px-1.5 py-0.5 font-semibold">

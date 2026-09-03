@@ -1,4 +1,5 @@
 import type { Attachment } from '@huddle/core';
+import { Icon, IconSolid } from '@huddle/ui';
 import { useEffect, useRef, useState } from 'react';
 
 /**
@@ -58,9 +59,15 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
         type="button"
         onClick={toggle}
         aria-label={playing ? 'Pause voice note' : 'Play voice note'}
-        className="bg-accent text-on-accent grid size-9 shrink-0 place-items-center rounded-full text-sm"
+        className="bg-accent text-on-accent hover:bg-accent-hover grid size-9 shrink-0 place-items-center rounded-full transition-colors"
       >
-        {playing ? '‖' : '▶'}
+        {playing ? (
+          <Icon name="pause" className="size-4" />
+        ) : (
+          // Filled, and nudged right, because an outlined triangle inside a
+          // circle reads as disabled and its optical centre sits left.
+          <IconSolid name="play" className="size-4 translate-x-px" />
+        )}
       </button>
 
       <div

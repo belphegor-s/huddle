@@ -1,5 +1,5 @@
 import type { Attachment, MemberProfile } from '@huddle/core';
-import { Button, cx } from '@huddle/ui';
+import { Button, cx, Icon } from '@huddle/ui';
 import { useRef, useState } from 'react';
 import { VoiceRecorder, type Recording } from '../lib/recorder';
 import { findMentions } from '../lib/rich-text';
@@ -123,7 +123,7 @@ export function Composer({ workspaceId, members, placeholder, onSend, onTyping }
                 }
                 className="text-text-muted hover:text-text-primary"
               >
-                ×
+                <Icon name="close" className="size-3.5" />
               </button>
             </li>
           ))}
@@ -140,7 +140,7 @@ export function Composer({ workspaceId, members, placeholder, onSend, onTyping }
         />
 
         <IconButton label="Attach a file" onClick={() => picker.current?.click()}>
-          +
+          <Icon name="attach" />
         </IconButton>
 
         <textarea
@@ -162,20 +162,26 @@ export function Composer({ workspaceId, members, placeholder, onSend, onTyping }
               void send();
             }
           }}
-          className="border-border bg-surface-sunken leading-message max-h-50 min-h-11 flex-1 resize-none rounded-xl border px-3 py-2.5 text-base"
+          className="border-border bg-surface-sunken leading-message max-h-50 min-h-11 flex-1 resize-none overflow-y-auto rounded-xl border px-3 py-2.5 text-base"
         />
 
         {text.trim() === '' && attachments.length === 0 ? (
           <IconButton
             label={recording ? 'Stop recording' : 'Record a voice note'}
             onClick={() => void (recording ? finishRecording() : startRecording())}
-            className={cx(recording && 'bg-accent text-on-accent')}
+            className={cx(recording && 'bg-accent text-on-accent border-accent')}
           >
-            {recording ? '■' : '🎙'}
+            <Icon name={recording ? 'stop' : 'mic'} />
           </IconButton>
         ) : (
-          <Button type="button" onClick={() => void send()} disabled={busy}>
-            Send
+          <Button
+            type="button"
+            onClick={() => void send()}
+            disabled={busy}
+            aria-label="Send"
+            className="size-11 px-0"
+          >
+            <Icon name="send" />
           </Button>
         )}
       </div>

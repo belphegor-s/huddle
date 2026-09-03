@@ -1,6 +1,6 @@
 import type { MemberProfile } from '@huddle/core';
 import { useEffect } from 'react';
-import { Avatar } from '@huddle/ui';
+import { Avatar, Icon } from '@huddle/ui';
 import type { ChannelStream } from '../lib/use-messages';
 import { memberName } from '../lib/workspace';
 import { Attachments } from './attachments';
@@ -42,7 +42,7 @@ export function ThreadPanel({ workspaceId, parentId, members, stream, onClose }:
           aria-label="Close thread"
           className="text-text-secondary hover:bg-surface-hover grid size-9 place-items-center rounded-lg"
         >
-          ×
+          <Icon name="close" className="size-4" />
         </button>
       </header>
 
