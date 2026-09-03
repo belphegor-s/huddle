@@ -2,7 +2,7 @@ import { Avatar } from '@huddle/ui';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { api, type SearchResult } from '../lib/api';
-import { memberName, useWorkspace } from '../lib/workspace';
+import { channelLabel, memberName, useWorkspace } from '../lib/workspace';
 
 /**
  * The server sends match markers, not markup, so a message containing angle
@@ -12,7 +12,7 @@ const MATCH_START = '';
 const MATCH_END = '';
 
 export default function Search() {
-  const { workspace, members, channels } = useWorkspace();
+  const { me, workspace, members, channels } = useWorkspace();
   const [params, setParams] = useSearchParams();
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -65,12 +65,22 @@ export default function Search() {
     };
   }, [query, author, channel, files, workspace.id]);
 
+  /**
+   * The server sends a channel name, which a direct message does not have. It
+   * is named here instead, where the roster is, so a result reads as the
+   * conversation it came from rather than as a generic label.
+   */
+  function whereFrom(channelId: string): string {
+    const summary = channels.find((candidate) => candidate.channel.id === channelId);
+    return summary ? channelLabel(summary, members, me.user.id) : 'A conversation';
+  }
+
   return (
     <section className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
       <header className="flex items-center gap-3">
         <Link
           to={`/w/${workspace.slug}`}
-          aria-label="Back to channels"
+          aria-label="Back to conversations"
           className="text-text-secondary grid size-9 place-items-center rounded-lg no-underline md:hidden"
         >
           {'‹'}
@@ -114,10 +124,10 @@ export default function Search() {
           onChange={(event) => setFilter('channel', event.target.value)}
           className="border-border bg-surface min-h-9 rounded-lg border px-2 text-sm"
         >
-          <option value="">Any channel</option>
+          <option value="">Anywhere</option>
           {channels.map((summary) => (
             <option key={summary.channel.id} value={summary.channel.id}>
-              {summary.channel.name === null ? 'Direct message' : `#${summary.channel.name}`}
+              {channelLabel(summary, members, me.user.id)}
             </option>
           ))}
         </select>
@@ -150,7 +160,7 @@ export default function Search() {
                   <span className="text-text-primary font-medium">
                     {memberName(members, hit.authorId)}
                   </span>
-                  <span>{hit.channelName ? `#${hit.channelName}` : 'Direct message'}</span>
+                  <span>{whereFrom(hit.channelId)}</span>
                   <span>{new Date(hit.createdAt).toLocaleDateString()}</span>
                 </p>
                 <p className="leading-message text-base">{highlight(hit.snippet)}</p>

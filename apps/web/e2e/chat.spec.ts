@@ -162,7 +162,7 @@ test('a private channel is invisible to a member who is not in it', async ({ bro
   await expect(guestPage).toHaveURL(new RegExp(`/w/${slug}$`));
 
   await guestPage.goto(`/w/${slug}/c/leadership`);
-  await expect(guestPage.getByText('Channel not found')).toBeVisible();
+  await expect(guestPage.getByText('Conversation not found')).toBeVisible();
 
   await closeAll(owner, guest);
 });

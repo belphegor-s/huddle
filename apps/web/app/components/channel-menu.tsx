@@ -74,7 +74,9 @@ export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: Ch
         onClick={() => setOpen((was) => !was)}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label="Channel settings"
+        aria-label={
+          summary.channel.kind === 'channel' ? 'Channel settings' : 'Conversation settings'
+        }
         className="text-text-secondary hover:bg-surface-hover grid size-9 place-items-center rounded-lg"
       >
         <Icon name={summary.muted ? 'bell' : 'more'} className="size-4" />
@@ -175,7 +177,7 @@ export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: Ch
             className="text-critical border-border hover:bg-surface-hover mt-1 flex min-h-11 items-center gap-2 rounded-lg border-t px-2 text-left text-sm"
           >
             <Icon name="close" className="size-4" />
-            Leave channel
+            {summary.channel.kind === 'channel' ? 'Leave channel' : 'Close conversation'}
           </button>
         </div>
       ) : null}

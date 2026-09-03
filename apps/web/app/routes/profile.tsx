@@ -59,7 +59,7 @@ export default function Profile() {
       <header className="flex items-center gap-3">
         <Link
           to={`/w/${workspace.slug}`}
-          aria-label="Back to channels"
+          aria-label="Back to conversations"
           className="text-text-secondary hover:bg-surface-hover grid size-9 place-items-center rounded-lg no-underline md:hidden"
         >
           <Icon name="chevronLeft" className="size-5" />

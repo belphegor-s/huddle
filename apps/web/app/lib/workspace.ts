@@ -40,3 +40,49 @@ export function channelTitle(
   if (others.length === 0) return 'You';
   return others.map((id) => memberName(members, id)).join(', ');
 }
+
+/**
+ * What to call a room in a sentence. A direct message is not a channel, and
+ * copy that says otherwise reads as though the app has not noticed who you are
+ * talking to.
+ */
+export function isDirect(summary: ChannelSummary): boolean {
+  return summary.channel.kind !== 'channel';
+}
+
+/** The name with its marker, for a heading or a placeholder. */
+export function channelLabel(
+  summary: ChannelSummary,
+  members: MemberProfile[],
+  meId: string,
+): string {
+  const title = channelTitle(summary, members, meId);
+  return isDirect(summary) ? title : `#${title}`;
+}
+
+/** How a conversation introduces itself at the top of its own history. */
+export function startOfConversation(
+  summary: ChannelSummary,
+  members: MemberProfile[],
+  meId: string,
+): string {
+  if (!isDirect(summary)) return 'This is the start of the channel';
+
+  const others = summary.memberIds.filter((id) => id !== meId);
+  if (others.length === 0) return 'Messages to yourself. Nobody else can see these.';
+  if (others.length === 1) {
+    return `This is the start of your conversation with ${memberName(members, others[0] ?? '')}`;
+  }
+
+  return 'This is the start of this conversation';
+}
+
+/** The other person's picture, for a one to one conversation. */
+export function dmAvatar(
+  summary: ChannelSummary,
+  members: MemberProfile[],
+  meId: string,
+): string | null {
+  const others = summary.memberIds.filter((id) => id !== meId);
+  return others.length === 1 ? memberAvatar(members, others[0] ?? '') : null;
+}

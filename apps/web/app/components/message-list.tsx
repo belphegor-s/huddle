@@ -12,6 +12,8 @@ interface MessageListProps {
   hasMore: boolean;
   /** Where the reader was when they arrived. Frozen, so the line stays put. */
   readSeq: number;
+  /** What this conversation is, for the line above its oldest message. */
+  startLabel: string;
   onLoadOlder(): void;
   onReact(messageId: string, emoji: string, on: boolean): void;
   onOpenThread(messageId: string): void;
@@ -32,6 +34,7 @@ export function MessageList({
   canModerate,
   hasMore,
   readSeq,
+  startLabel,
   onLoadOlder,
   onReact,
   onOpenThread,
@@ -95,7 +98,7 @@ export function MessageList({
         */}
         <div className="flex min-h-full flex-col justify-end">
           <p className="text-text-muted py-2 text-center text-xs">
-            {hasMore ? 'Loading earlier messages' : 'This is the start of the channel'}
+            {hasMore ? 'Loading earlier messages' : startLabel}
           </p>
 
           <ol aria-label="Messages" className="flex flex-col gap-0.5">

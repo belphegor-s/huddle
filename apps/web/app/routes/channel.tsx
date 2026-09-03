@@ -11,7 +11,15 @@ import type { Realtime } from '../lib/realtime';
 import { useMessages } from '../lib/use-messages';
 import { api } from '../lib/api';
 import { outranksMember } from '../lib/roles';
-import { channelTitle, memberName, useWorkspace } from '../lib/workspace';
+import {
+  channelLabel,
+  channelTitle,
+  dmAvatar,
+  isDirect,
+  memberName,
+  startOfConversation,
+  useWorkspace,
+} from '../lib/workspace';
 
 export default function ChannelRoute() {
   const { ref } = useParams();
@@ -26,11 +34,11 @@ export default function ChannelRoute() {
   if (!summary) {
     return (
       <section className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-        <h1 className="text-xl">{visiting.loading ? 'Opening' : 'Channel not found'}</h1>
+        <h1 className="text-xl">{visiting.loading ? 'Opening' : 'Conversation not found'}</h1>
         {visiting.loading ? null : (
           <>
             <p className="text-text-secondary text-sm">
-              It may have been archived, or you may not be a member of it.
+              It may have been archived, or you may not be in it.
             </p>
             <Link to={`/w/${workspace.slug}`} className="text-accent text-sm">
               Back to the workspace
@@ -90,7 +98,8 @@ function ChannelView({
   const canModerate = outranksMember(role, 'admin');
   const stream = useMessages(realtime, summary.channel.id, me.user.id);
   const title = channelTitle(summary, members, me.user.id);
-  const label = summary.channel.kind === 'channel' ? `#${title}` : title;
+  const label = channelLabel(summary, members, me.user.id);
+  const direct = isDirect(summary);
 
   return (
     <section className="flex min-w-0 flex-1">
@@ -98,20 +107,26 @@ function ChannelView({
         <header className="border-border bg-surface flex items-center gap-3 border-b px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] md:px-5">
           <Link
             to={`/w/${workspace.slug}`}
-            aria-label="Back to channels"
+            aria-label="Back to conversations"
             className="text-text-secondary hover:bg-surface-hover -ml-1 grid size-9 place-items-center rounded-lg no-underline md:hidden"
           >
             <Icon name="chevronLeft" className="size-5" />
           </Link>
 
           <div className="min-w-0 flex-1">
-            <h1 className="flex min-w-0 items-center gap-1 text-base font-semibold">
-              {summary.channel.kind === 'channel' ? (
+            {/*
+              A channel is marked by a hash or a lock. A conversation is marked
+              by whoever is in it, which is the only thing that identifies one.
+            */}
+            <h1 className="flex min-w-0 items-center gap-1.5 text-base font-semibold">
+              {direct ? (
+                <Avatar name={title} url={dmAvatar(summary, members, me.user.id)} size="sm" />
+              ) : (
                 <Icon
                   name={summary.channel.isPrivate ? 'lock' : 'hash'}
                   className="text-text-muted size-4"
                 />
-              ) : null}
+              )}
               <span className="truncate">{title}</span>
             </h1>
             {summary.channel.topic ? (
@@ -150,7 +165,7 @@ function ChannelView({
 
         {catchingUp ? (
           <AssistantPanel
-            title={`What you missed in ${label}`}
+            title={direct ? `What you missed from ${title}` : `What you missed in ${label}`}
             run={() => api.catchUp(summary.channel.id, summary.readSeq)}
             onClose={() => setCatchingUp(false)}
           />
@@ -162,6 +177,7 @@ function ChannelView({
           meId={me.user.id}
           canModerate={canModerate}
           readSeq={summary.readSeq}
+          startLabel={startOfConversation(summary, members, me.user.id)}
           hasMore={stream.hasMore}
           onLoadOlder={() => void stream.loadOlder()}
           onReact={(messageId, emoji, on) => void stream.react(messageId, emoji, on)}

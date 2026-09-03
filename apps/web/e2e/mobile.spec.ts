@@ -63,8 +63,8 @@ test('the channel list and the conversation are two screens', async ({ page }) =
 
   // In the conversation the list is gone, and the way back is a visible
   // control rather than a swipe.
-  await expect(page.getByRole('link', { name: 'Back to channels' })).toBeVisible();
-  await page.getByRole('link', { name: 'Back to channels' }).click();
+  await expect(page.getByRole('link', { name: 'Back to conversations' })).toBeVisible();
+  await page.getByRole('link', { name: 'Back to conversations' }).click();
 
   await expect(page).toHaveURL(new RegExp(`/w/${slug}$`));
   await expect(page.getByRole('link', { name: /general/ })).toBeVisible();
