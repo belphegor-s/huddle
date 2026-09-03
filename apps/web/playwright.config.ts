@@ -1,7 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 
-const PORT = 3100;
+/*
+ * Defaults to the port a normal install uses, because the upload test sends
+ * bytes from the browser straight to the bucket and the bucket's CORS rules
+ * name an exact origin. A different port here is a different origin, and the
+ * upload is refused before it starts.
+ */
+const PORT = Number(process.env.HUDDLE_E2E_PORT ?? 3000);
 const BASE_URL = `http://localhost:${PORT}`;
 
 /**
@@ -47,14 +53,23 @@ export default defineConfig({
       DATABASE_URL: process.env.DATABASE_URL ?? '',
       // Every test signs in, from one address.
       MAGIC_LINKS_PER_HOUR_PER_IP: '10000',
-      // No mail provider, no bucket, no model: the flows under test need none
-      // of them, and a test that depends on a third party is not a test.
+      // No mail provider and no model: the flows under test need neither, and
+      // a test that depends on a third party is not a test.
       SMTP_URL: '',
-      S3_ACCESS_KEY_ID: '',
-      S3_SECRET_ACCESS_KEY: '',
       AI_BASE_URL: '',
       VAPID_PUBLIC_KEY: '',
       VAPID_PRIVATE_KEY: '',
+
+      // The bucket is passed through rather than blanked. Uploads go from the
+      // browser straight to it, which is the one path a server side test can
+      // never cover, so it runs wherever credentials exist and skips itself
+      // where they do not.
+      S3_BUCKET: process.env.S3_BUCKET ?? '',
+      S3_REGION: process.env.S3_REGION ?? 'us-east-1',
+      S3_ENDPOINT: process.env.S3_ENDPOINT ?? '',
+      S3_FORCE_PATH_STYLE: process.env.S3_FORCE_PATH_STYLE ?? 'false',
+      S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID ?? '',
+      S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY ?? '',
     },
   },
 });

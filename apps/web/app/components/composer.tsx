@@ -25,11 +25,16 @@ export function Composer({ workspaceId, members, placeholder, onSend, onTyping }
   const [dragging, setDragging] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
-  const empty = text.trim() === '' && uploads.ready.length === 0;
+  const hasText = text.trim() !== '';
+  // Anything in the tray counts, including a file still going up and one that
+  // failed. Swapping the send button away mid upload leaves someone holding an
+  // attachment with no way to send it and no way to tell what went wrong.
+  const composing = hasText || uploads.pending.length > 0;
+  const sendable = hasText || uploads.ready.length > 0;
 
   async function send() {
     const body = text.trim();
-    if (empty || uploads.busy) return;
+    if (!sendable || uploads.busy) return;
 
     setSending(true);
     setProblem(null);
@@ -141,23 +146,24 @@ export function Composer({ workspaceId, members, placeholder, onSend, onTyping }
           className="border-border bg-surface-sunken leading-message max-h-50 min-h-11 flex-1 resize-none overflow-y-auto rounded-xl border px-3 py-2.5 text-base"
         />
 
-        {empty ? (
+        {composing ? (
+          <Button
+            type="button"
+            onClick={() => void send()}
+            disabled={uploads.busy || sending || !sendable}
+            aria-label="Send"
+            title={uploads.busy ? 'Waiting for the attachments to finish' : 'Send'}
+            className="size-11 px-0"
+          >
+            <Icon name="send" />
+          </Button>
+        ) : (
           <VoiceButton
             onRecorded={async (file, meta) => {
               await uploads.add([file], meta);
             }}
             onProblem={setProblem}
           />
-        ) : (
-          <Button
-            type="button"
-            onClick={() => void send()}
-            disabled={sending || uploads.busy}
-            aria-label={uploads.busy ? 'Waiting for attachments' : 'Send'}
-            className="size-11 px-0"
-          >
-            <Icon name="send" />
-          </Button>
         )}
       </div>
     </div>
