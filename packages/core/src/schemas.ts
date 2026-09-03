@@ -326,3 +326,16 @@ export const UploadTicket = z.object({
   attachment: Attachment,
 });
 export type UploadTicket = z.infer<typeof UploadTicket>;
+
+/**
+ * A link, read by the server so the client never touches the linked site.
+ * `imageUrl` is always a path on this deployment, never the original host.
+ */
+export const LinkPreview = z.object({
+  url: z.string(),
+  title: z.string(),
+  description: z.string().nullable(),
+  siteName: z.string(),
+  imageUrl: z.string().nullable(),
+});
+export type LinkPreview = z.infer<typeof LinkPreview>;

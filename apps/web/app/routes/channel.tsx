@@ -1,4 +1,4 @@
-import type { ChannelSummary, MemberProfile, Me, Workspace } from '@huddle/core';
+import type { ChannelSummary, MemberProfile, Me, Role, Workspace } from '@huddle/core';
 import { Avatar } from '@huddle/ui';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
@@ -7,11 +7,12 @@ import { MessageList } from '../components/message-list';
 import { ThreadPanel } from '../components/thread-panel';
 import type { Realtime } from '../lib/realtime';
 import { useMessages } from '../lib/use-messages';
+import { outranksMember } from '../lib/roles';
 import { channelTitle, memberName, useWorkspace } from '../lib/workspace';
 
 export default function ChannelRoute() {
   const { ref } = useParams();
-  const { me, workspace, members, channels, realtime, refresh } = useWorkspace();
+  const { me, workspace, role, members, channels, realtime, refresh } = useWorkspace();
 
   const summary = channels.find(
     (candidate) => candidate.channel.name === ref || candidate.channel.id === ref,
@@ -38,6 +39,7 @@ export default function ChannelRoute() {
       key={summary.channel.id}
       me={me}
       workspace={workspace}
+      role={role}
       members={members}
       summary={summary}
       realtime={realtime}
@@ -49,14 +51,24 @@ export default function ChannelRoute() {
 interface ChannelViewProps {
   me: Me;
   workspace: Workspace;
+  role: Role;
   members: MemberProfile[];
   summary: ChannelSummary;
   realtime: Realtime;
   onSent(): void;
 }
 
-function ChannelView({ me, workspace, members, summary, realtime, onSent }: ChannelViewProps) {
+function ChannelView({
+  me,
+  workspace,
+  role,
+  members,
+  summary,
+  realtime,
+  onSent,
+}: ChannelViewProps) {
   const [threadId, setThreadId] = useState<string | null>(null);
+  const canModerate = outranksMember(role, 'admin');
   const stream = useMessages(realtime, summary.channel.id, me.user.id);
   const title = channelTitle(summary, members, me.user.id);
   const label = summary.channel.kind === 'channel' ? `#${title}` : title;
@@ -93,10 +105,13 @@ function ChannelView({ me, workspace, members, summary, realtime, onSent }: Chan
           messages={stream.messages}
           members={members}
           meId={me.user.id}
+          canModerate={canModerate}
+          readSeq={summary.readSeq}
           hasMore={stream.hasMore}
           onLoadOlder={() => void stream.loadOlder()}
           onReact={(messageId, emoji, on) => void stream.react(messageId, emoji, on)}
           onOpenThread={setThreadId}
+          onEdit={stream.edit}
           onDelete={(messageId) => void stream.remove(messageId)}
         />
 

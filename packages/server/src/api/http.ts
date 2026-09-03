@@ -21,6 +21,7 @@ const STATUS: Record<string, ContentfulStatusCode> = {
   archived: 409,
   too_large: 413,
   unavailable: 503,
+  not_previewable: 422,
   expired: 410,
   used_up: 410,
   rate_limited: 429,

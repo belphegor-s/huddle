@@ -5,6 +5,7 @@ import type {
   CreateUploadInput,
   CreateWorkspaceInput,
   DraftMessage,
+  LinkPreview,
   MemberProfile,
   Me,
   Message,
@@ -144,6 +145,11 @@ export const api = {
     if (params.author) query.set('author', params.author);
     return call<SearchResult[]>(`/api/workspaces/${workspaceId}/search?${query.toString()}`);
   },
+
+  unfurl: (workspaceId: string, url: string) =>
+    call<LinkPreview | null>(
+      `/api/workspaces/${workspaceId}/unfurl?url=${encodeURIComponent(url)}`,
+    ),
 
   requestUpload: (workspaceId: string, input: CreateUploadInput) =>
     post<UploadTicket>(`/api/workspaces/${workspaceId}/uploads`, input),

@@ -1,6 +1,7 @@
 import type { Attachment } from '@huddle/core';
 import { Icon, IconSolid } from '@huddle/ui';
 import { useEffect, useRef, useState } from 'react';
+import { formatDuration } from '../lib/format';
 
 /**
  * The waveform is drawn from peaks computed at record time and carried on the
@@ -89,9 +90,4 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
       <span className="text-text-muted shrink-0 font-mono text-xs">{formatDuration(total)}</span>
     </div>
   );
-}
-
-function formatDuration(ms: number): string {
-  const seconds = Math.round(ms / 1000);
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }

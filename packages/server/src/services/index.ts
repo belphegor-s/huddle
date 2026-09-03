@@ -58,3 +58,6 @@ export type { UploadError } from './files.js';
 
 export { notifyNewMessage, removePushSubscription, savePushSubscription } from './notifications.js';
 export type { PushError, SavePushInput } from './notifications.js';
+
+export { unfurlLink } from './unfurl.js';
+export type { UnfurlError } from './unfurl.js';

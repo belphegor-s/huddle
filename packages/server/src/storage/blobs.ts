@@ -25,6 +25,11 @@ export interface BlobStore {
   createDownloadUrl(key: string, expiresInSeconds?: number): Promise<string>;
   head(key: string): Promise<{ size: number; contentType: string } | null>;
   delete(key: string): Promise<void>;
+  /**
+   * Writes bytes the server itself produced. Uploads never use this: they are
+   * signed and go straight from the browser to the bucket.
+   */
+  put(key: string, body: Uint8Array, contentType: string): Promise<void>;
 }
 
 const UPLOAD_TTL_SECONDS = 600;
@@ -106,6 +111,18 @@ export class S3Blobs implements BlobStore {
   async delete(key: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: key }));
   }
+
+  async put(key: string, body: Uint8Array, contentType: string): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.config.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+        ContentLength: body.byteLength,
+      }),
+    );
+  }
 }
 
 /** Used by the test suite, so the service tests need no bucket running. */
@@ -137,5 +154,9 @@ export class MemoryBlobs implements BlobStore {
 
   async delete(key: string): Promise<void> {
     this.objects.delete(key);
+  }
+
+  async put(key: string, body: Uint8Array, contentType: string): Promise<void> {
+    this.objects.set(key, { size: body.byteLength, contentType });
   }
 }
