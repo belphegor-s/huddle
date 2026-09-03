@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router';
 import { api, ApiError } from '../lib/api';
 import { outranksMember } from '../lib/roles';
 import { useWorkspace } from '../lib/workspace';
+import { InvitePanel } from '../components/invite-panel';
 
 /** Highest first, which is how the select reads. */
 const ROLES: Array<{ value: Role; label: string }> = [
@@ -147,6 +148,12 @@ export default function Members() {
           );
         })}
       </ul>
+
+      {canManage ? (
+        <div className="border-border border-t pt-4">
+          <InvitePanel workspaceId={workspace.id} />
+        </div>
+      ) : null}
 
       <div className="border-border flex flex-col gap-2 border-t pt-4">
         <h2 className="text-text-muted text-2xs font-semibold tracking-wide uppercase">Leaving</h2>

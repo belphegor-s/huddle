@@ -12,6 +12,7 @@ export {
   createWorkspace,
   describeInvite,
   findWorkspaceBySlug,
+  listInvites,
   listWorkspaces,
   revokeInvite,
 } from './workspaces.js';

@@ -20,8 +20,9 @@ test('an @ opens the picker and the mention lands highlighted', async ({ browser
   await expect(ownerPage).toHaveURL(/\/c\/general$/);
 
   // A second person, so there is somebody to mention.
-  await ownerPage.goto(`/w/${slug}`);
+  await ownerPage.goto(`/w/${slug}/people`);
   await ownerPage.getByRole('button', { name: 'Create an invite link' }).click();
+  await expect(ownerPage.locator('output')).toBeVisible();
   const invitePath = new URL((await ownerPage.locator('output').textContent()) ?? '').pathname;
 
   const guest = await browser.newContext();

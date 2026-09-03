@@ -138,7 +138,12 @@ function ChannelView({
             </button>
           ) : null}
 
-          <ChannelMenu summary={summary} workspaceSlug={workspace.slug} onChanged={onChanged} />
+          <ChannelMenu
+            summary={summary}
+            workspaceSlug={workspace.slug}
+            canManage={canModerate || summary.channel.createdBy === me.user.id}
+            onChanged={onChanged}
+          />
         </header>
 
         {joined ? null : <JoinBanner channelId={summary.channel.id} onJoined={onChanged} />}

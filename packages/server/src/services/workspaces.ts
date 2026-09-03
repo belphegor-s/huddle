@@ -5,13 +5,14 @@ import {
   randomToken,
   ulid,
   type CreateInviteInput,
+  type InviteSummary,
   type Result,
   type Role,
   type Workspace,
   type WorkspaceMembership,
 } from '@huddle/core';
 import { invites, memberships, workspaces } from '@huddle/db';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { requireMember, type AccessError } from './access.js';
 import type { AppContext } from '../context.js';
 
@@ -167,6 +168,41 @@ export async function acceptInvite(
     .where(eq(invites.id, invite.id));
 
   return ok({ workspace, role: invite.role });
+}
+
+/**
+ * Live invitations, so an admin can see what is outstanding and cut one off.
+ * The link itself is absent by design: it was only ever available once.
+ */
+export async function listInvites(
+  ctx: AppContext,
+  input: { workspaceId: string; actorId: string },
+): Promise<Result<InviteSummary[], AccessError>> {
+  const member = await requireMember(ctx.db, {
+    workspaceId: input.workspaceId,
+    userId: input.actorId,
+    minimumRole: 'admin',
+  });
+  if (!member.ok) return err(member.error);
+
+  const now = ctx.now();
+  const rows = await ctx.db
+    .select()
+    .from(invites)
+    .where(and(eq(invites.workspaceId, input.workspaceId), isNull(invites.revokedAt)))
+    .orderBy(desc(invites.createdAt));
+
+  return ok(
+    rows.map((row) => ({
+      id: row.id,
+      role: row.role,
+      createdAt: row.createdAt,
+      expiresAt: row.expiresAt,
+      maxUses: row.maxUses,
+      useCount: row.useCount,
+      expired: row.expiresAt <= now || (row.maxUses !== null && row.useCount >= row.maxUses),
+    })),
+  );
 }
 
 export async function revokeInvite(

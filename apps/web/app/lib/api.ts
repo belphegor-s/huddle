@@ -5,12 +5,14 @@ import type {
   CreateUploadInput,
   CreateWorkspaceInput,
   DraftMessage,
+  InviteSummary,
   LinkPreview,
   MemberProfile,
   Me,
   Message,
   Reaction,
   Role,
+  UpdateChannelInput,
   UpdateChannelPrefsInput,
   UpdateProfileInput,
   UploadTicket,
@@ -104,6 +106,9 @@ export const api = {
       `/api/workspaces/${workspaceId}/invites`,
       {},
     ),
+  invites: (workspaceId: string) => call<InviteSummary[]>(`/api/workspaces/${workspaceId}/invites`),
+  revokeInvite: (workspaceId: string, inviteId: string) =>
+    remove<{ ok: true }>(`/api/workspaces/${workspaceId}/invites/${inviteId}`),
   describeInvite: (token: string) =>
     call<{ workspace: Pick<Workspace, 'name' | 'slug'>; role: Role }>(
       `/api/invites/${encodeURIComponent(token)}`,
@@ -132,7 +137,7 @@ export const api = {
   joinChannel: (channelId: string) => post<ChannelSummary>(`/api/channels/${channelId}/join`),
   leaveChannel: (channelId: string) =>
     remove<{ ok: true }>(`/api/channels/${channelId}/members/me`),
-  updateChannel: (channelId: string, body: { name?: string; topic?: string | null }) =>
+  updateChannel: (channelId: string, body: UpdateChannelInput) =>
     patch<Channel>(`/api/channels/${channelId}`, body),
   setChannelPrefs: (channelId: string, body: UpdateChannelPrefsInput) =>
     patch<{ ok: true }>(`/api/channels/${channelId}/prefs`, body),
@@ -154,10 +159,14 @@ export const api = {
   markRead: (channelId: string, seq: number) =>
     post<{ readSeq: number }>(`/api/channels/${channelId}/read`, { seq }),
 
-  search: (workspaceId: string, params: { q: string; channel?: string; author?: string }) => {
+  search: (
+    workspaceId: string,
+    params: { q: string; channel?: string; author?: string; files?: boolean },
+  ) => {
     const query = new URLSearchParams({ q: params.q });
     if (params.channel) query.set('channel', params.channel);
     if (params.author) query.set('author', params.author);
+    if (params.files === true) query.set('files', 'true');
     return call<SearchResult[]>(`/api/workspaces/${workspaceId}/search?${query.toString()}`);
   },
 

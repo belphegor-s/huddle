@@ -12,12 +12,23 @@ const MATCH_START = '';
 const MATCH_END = '';
 
 export default function Search() {
-  const { workspace, members } = useWorkspace();
+  const { workspace, members, channels } = useWorkspace();
   const [params, setParams] = useSearchParams();
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
   const query = params.get('q') ?? '';
+  const author = params.get('author') ?? '';
+  const channel = params.get('channel') ?? '';
+  const files = params.get('files') === 'true';
+
+  /** Keeps the other filters when one of them changes. */
+  function setFilter(name: string, value: string) {
+    const next = new URLSearchParams(params);
+    if (value === '') next.delete(name);
+    else next.set(name, value);
+    setParams(next);
+  }
 
   useEffect(() => {
     if (query.trim() === '') {
@@ -31,7 +42,12 @@ export default function Search() {
     // Debounced, so typing a word does not spend one query per keystroke.
     const timer = setTimeout(() => {
       void api
-        .search(workspace.id, { q: query })
+        .search(workspace.id, {
+          q: query,
+          author: author === '' ? undefined : author,
+          channel: channel === '' ? undefined : channel,
+          files: files ? true : undefined,
+        })
         .then((found) => {
           if (!cancelled) setResults(found);
         })
@@ -47,7 +63,7 @@ export default function Search() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [query, workspace.id]);
+  }, [query, author, channel, files, workspace.id]);
 
   return (
     <section className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
@@ -64,12 +80,58 @@ export default function Search() {
 
       <input
         value={query}
-        onChange={(event) => setParams(event.target.value === '' ? {} : { q: event.target.value })}
+        onChange={(event) => setFilter('q', event.target.value)}
         placeholder="Words in a message"
         autoFocus
         aria-label="Search messages"
         className="border-border bg-surface-sunken min-h-12 rounded-xl border px-4 text-base"
       />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="sr-only" htmlFor="search-author">
+          From
+        </label>
+        <select
+          id="search-author"
+          value={author}
+          onChange={(event) => setFilter('author', event.target.value)}
+          className="border-border bg-surface min-h-9 rounded-lg border px-2 text-sm"
+        >
+          <option value="">Anyone</option>
+          {members.map((member) => (
+            <option key={member.id} value={member.id}>
+              {member.displayName}
+            </option>
+          ))}
+        </select>
+
+        <label className="sr-only" htmlFor="search-channel">
+          In
+        </label>
+        <select
+          id="search-channel"
+          value={channel}
+          onChange={(event) => setFilter('channel', event.target.value)}
+          className="border-border bg-surface min-h-9 rounded-lg border px-2 text-sm"
+        >
+          <option value="">Any channel</option>
+          {channels.map((summary) => (
+            <option key={summary.channel.id} value={summary.channel.id}>
+              {summary.channel.name === null ? 'Direct message' : `#${summary.channel.name}`}
+            </option>
+          ))}
+        </select>
+
+        <label className="border-border flex min-h-9 items-center gap-2 rounded-lg border px-2 text-sm">
+          <input
+            type="checkbox"
+            checked={files}
+            onChange={(event) => setFilter('files', event.target.checked ? 'true' : '')}
+            className="size-4"
+          />
+          With a file
+        </label>
+      </div>
 
       {query.trim() !== '' && !searching && results.length === 0 ? (
         <p className="text-text-secondary text-sm">Nothing matches that.</p>

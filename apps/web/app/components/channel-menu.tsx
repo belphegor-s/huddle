@@ -1,13 +1,16 @@
 import type { ChannelSummary, NotificationLevel } from '@huddle/core';
-import { cx, Icon } from '@huddle/ui';
+import { Button, cx, Icon, TextField } from '@huddle/ui';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { api } from '../lib/api';
 import { useDismiss } from '../lib/use-dismiss';
+import { Dialog } from './dialog';
 
 interface ChannelMenuProps {
   summary: ChannelSummary;
   workspaceSlug: string;
+  /** Admins, and whoever made the channel. Matches the rule on the server. */
+  canManage: boolean;
   onChanged(): void;
 }
 
@@ -23,7 +26,8 @@ const MUTES = [
   { label: 'For a week', ms: 7 * 24 * 60 * 60 * 1000 },
 ];
 
-export function ChannelMenu({ summary, workspaceSlug, onChanged }: ChannelMenuProps) {
+export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: ChannelMenuProps) {
+  const [topic, setTopic] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -37,6 +41,22 @@ export function ChannelMenu({ summary, workspaceSlug, onChanged }: ChannelMenuPr
     mutedUntil?: number | null;
   }) {
     await api.setChannelPrefs(channelId, patch);
+    onChanged();
+  }
+
+  async function archive() {
+    // Archiving hides it from every sidebar, so whoever did it should not be
+    // left staring at a channel that no longer exists for anyone.
+    await api.updateChannel(channelId, { archived: true });
+    setOpen(false);
+    onChanged();
+    await navigate(`/w/${workspaceSlug}`);
+  }
+
+  async function saveTopic(next: string) {
+    await api.updateChannel(channelId, { topic: next.trim() === '' ? null : next.trim() });
+    setTopic(null);
+    setOpen(false);
     onChanged();
   }
 
@@ -120,6 +140,34 @@ export function ChannelMenu({ summary, workspaceSlug, onChanged }: ChannelMenuPr
             ))
           )}
 
+          {canManage && summary.channel.kind === 'channel' ? (
+            <>
+              <p className="border-border text-text-muted text-2xs mt-1 border-t px-2 pt-2 pb-1 font-semibold tracking-wide uppercase">
+                Channel
+              </p>
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => setTopic(summary.channel.topic ?? '')}
+                className="hover:bg-surface-hover flex min-h-11 items-center gap-2 rounded-lg px-2 text-left text-sm"
+              >
+                <Icon name="edit" className="size-4" />
+                {summary.channel.topic ? 'Edit the topic' : 'Add a topic'}
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => void archive()}
+                className="hover:bg-surface-hover flex min-h-11 items-center gap-2 rounded-lg px-2 text-left text-sm"
+              >
+                <Icon name="file" className="size-4" />
+                Archive channel
+              </button>
+            </>
+          ) : null}
+
           <button
             type="button"
             role="menuitem"
@@ -131,6 +179,36 @@ export function ChannelMenu({ summary, workspaceSlug, onChanged }: ChannelMenuPr
           </button>
         </div>
       ) : null}
+
+      {topic === null ? null : (
+        <Dialog
+          title={summary.channel.topic ? 'Edit the topic' : 'Add a topic'}
+          onClose={() => setTopic(null)}
+        >
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveTopic(topic);
+            }}
+          >
+            <TextField
+              label="Topic"
+              value={topic}
+              autoFocus
+              maxLength={280}
+              onChange={(event) => setTopic(event.target.value)}
+              hint="What this channel is for. Shown under its name."
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setTopic(null)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </div>
+          </form>
+        </Dialog>
+      )}
     </div>
   );
 }

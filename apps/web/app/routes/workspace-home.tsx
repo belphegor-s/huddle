@@ -15,8 +15,6 @@ export default function WorkspaceHome() {
   const { workspace, role, channels, refresh } = useWorkspace();
   const navigate = useNavigate();
   const [browsable, setBrowsable] = useState<Channel[]>([]);
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     void api
@@ -24,16 +22,6 @@ export default function WorkspaceHome() {
       .then(setBrowsable)
       .catch(() => setBrowsable([]));
   }, [workspace.id, channels.length]);
-
-  async function createInvite() {
-    setBusy(true);
-    try {
-      const invite = await api.createInvite(workspace.id);
-      setInviteUrl(`${window.location.origin}/join/${invite.token}`);
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function join(channel: Channel) {
     await api.joinChannel(channel.id);
@@ -79,20 +67,9 @@ export default function WorkspaceHome() {
       ) : null}
 
       {outranksMember(role, 'admin') ? (
-        <div className="flex flex-col gap-3">
-          <h2 className="text-text-muted text-2xs font-semibold tracking-wide uppercase">
-            Invite people
-          </h2>
-          <Button variant="secondary" onClick={() => void createInvite()} disabled={busy}>
-            {busy ? 'Creating link' : 'Create an invite link'}
-          </Button>
-
-          {inviteUrl ? (
-            <output className="border-border bg-surface-raised rounded-lg border px-3 py-2 font-mono text-xs break-all">
-              {inviteUrl}
-            </output>
-          ) : null}
-        </div>
+        <Link to={`/w/${workspace.slug}/people`} className="text-accent text-sm">
+          Invite people to {workspace.name}
+        </Link>
       ) : null}
 
       <Link to={`/w/${workspace.slug}/search`} className="text-accent text-sm">

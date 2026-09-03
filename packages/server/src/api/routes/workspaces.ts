@@ -11,6 +11,7 @@ import {
   describeInvite,
   describeMe,
   findWorkspaceBySlug,
+  listInvites,
   listWorkspaces,
   removeMember,
   revokeInvite,
@@ -70,6 +71,16 @@ export function workspaceRoutes(): Hono<ApiEnv> {
 
     if (!invite.ok) return failure(c, invite.error);
     return c.json(invite.value, 201);
+  });
+
+  routes.get('/workspaces/:workspaceId/invites', async (c) => {
+    const listed = await listInvites(c.var.app, {
+      workspaceId: c.req.param('workspaceId'),
+      actorId: currentUser(c).id,
+    });
+
+    if (!listed.ok) return failure(c, listed.error);
+    return c.json(listed.value);
   });
 
   routes.delete('/workspaces/:workspaceId/invites/:inviteId', async (c) => {

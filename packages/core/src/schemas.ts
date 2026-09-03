@@ -344,3 +344,20 @@ export const SetMemberRoleInput = z.object({
   role: z.enum(['admin', 'member', 'guest']),
 });
 export type SetMemberRoleInput = z.infer<typeof SetMemberRoleInput>;
+
+/**
+ * An invite as it can be shown after the fact. The token is not here and
+ * cannot be: only its hash is stored, so the link exists exactly once, at the
+ * moment it is created. Anything else would mean a database leak handing out
+ * working invitations.
+ */
+export const InviteSummary = z.object({
+  id: Id,
+  role: Role,
+  createdAt: z.number().int(),
+  expiresAt: z.number().int(),
+  maxUses: z.number().int().nullable(),
+  useCount: z.number().int(),
+  expired: z.boolean(),
+});
+export type InviteSummary = z.infer<typeof InviteSummary>;
