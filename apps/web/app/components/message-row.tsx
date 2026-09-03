@@ -1,7 +1,7 @@
 import type { MemberProfile, Message } from '@huddle/core';
 import { Avatar, cx, Icon } from '@huddle/ui';
 import { useState } from 'react';
-import { formatTime } from '../lib/format';
+import { formatClock, formatTime } from '../lib/format';
 import { memberAvatar, memberName } from '../lib/workspace';
 import { Attachments } from './attachments';
 import { EmojiPicker } from './emoji-picker';
@@ -56,9 +56,9 @@ export function MessageRow({
         {grouped ? (
           <time
             dateTime={new Date(message.createdAt).toISOString()}
-            className="text-text-muted text-2xs block pt-1 text-right opacity-0 transition-opacity group-hover:opacity-100"
+            className="text-text-muted text-2xs block pt-1 text-right whitespace-nowrap tabular-nums opacity-0 transition-opacity group-hover:opacity-100"
           >
-            {formatTime(message.createdAt)}
+            {formatClock(message.createdAt)}
           </time>
         ) : (
           <Avatar name={name} url={memberAvatar(members, message.authorId)} />

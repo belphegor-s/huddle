@@ -35,7 +35,8 @@ const PATHS = {
   image: 'M4.5 5h15v14h-15zM4.5 15.5 9 11l4 4 2.5-2.5 3.5 3.5M15 8.75v.5',
   file: 'M13.5 3.5H7a1.5 1.5 0 0 0-1.5 1.5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8.5l-5-5ZM13.5 3.5v5h5',
   download: 'M12 4v11M7.5 10.5 12 15l4.5-4.5M4.5 19.5h15',
-  more: 'M6 12v.01M12 12v.01M18 12v.01',
+  copy: 'M9 9V5.5h10.5V16H16M4.5 9H15v10.5H4.5V9Z',
+  more: 'M7.4 12a1.4 1.4 0 1 1-2.8 0 1.4 1.4 0 0 1 2.8 0ZM13.4 12a1.4 1.4 0 1 1-2.8 0 1.4 1.4 0 0 1 2.8 0ZM19.4 12a1.4 1.4 0 1 1-2.8 0 1.4 1.4 0 0 1 2.8 0Z',
   people:
     'M9 11.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7ZM2.5 20a6.5 6.5 0 0 1 13 0M16 5.2a3.5 3.5 0 0 1 0 6.6M18 14.5a6.5 6.5 0 0 1 3.5 5.5',
   link: 'M10.5 13.5a4 4 0 0 0 5.7 0l3-3a4 4 0 1 0-5.7-5.7l-1.6 1.6M13.5 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 1 0 5.7 5.7l1.6-1.6',
@@ -43,6 +44,13 @@ const PATHS = {
   sparkle:
     'M12 4l1.8 4.7L18.5 10l-4.7 1.8L12 16.5l-1.8-4.7L5.5 10l4.7-1.3L12 4ZM18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z',
 } as const;
+
+/**
+ * Drawn as shapes rather than as strokes. A dot made from a zero length line
+ * with a round cap antialiases into a smudge with a soft edge, which is why
+ * the overflow control looked blurred against every other icon.
+ */
+const FILLED = new Set<string>(['more', 'play']);
 
 export type IconName = keyof typeof PATHS;
 
@@ -54,11 +62,13 @@ export interface IconProps {
 }
 
 export function Icon({ name, className, label }: IconProps) {
+  const filled = FILLED.has(name);
+
   return (
     <svg
       viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke={filled ? 'none' : 'currentColor'}
       strokeWidth={1.75}
       strokeLinecap="round"
       strokeLinejoin="round"

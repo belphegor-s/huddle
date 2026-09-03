@@ -14,6 +14,21 @@ export function formatTime(at: number): string {
 }
 
 /**
+ * The same time without the day period, for the narrow gutter beside a grouped
+ * message. Built from parts rather than by trimming letters off the end, so it
+ * is right in a locale that puts the period first, or uses no period at all.
+ */
+export function formatClock(at: number): string {
+  return new Intl.DateTimeFormat([], { hour: 'numeric', minute: '2-digit' })
+    .formatToParts(new Date(at))
+    .filter((part) => part.type === 'hour' || part.type === 'minute' || part.type === 'literal')
+    .map((part) => part.value)
+    .join('')
+    .replace(/[^\d:.٠-٩]+$/, '')
+    .trim();
+}
+
+/**
  * Today and yesterday are named rather than dated, because a date someone has
  * to convert in their head is worse than no date at all.
  */

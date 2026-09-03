@@ -6,8 +6,21 @@ import { VoiceRecorder } from '../lib/recorder';
 import { findMentions } from '../lib/rich-text';
 import { useMentions } from '../lib/use-mentions';
 import { useUploads } from '../lib/use-uploads';
+import { AttachmentMenu } from './attachment-menu';
+import { MarkdownInput } from './markdown-input';
 import { AttachmentTray } from './attachment-tray';
+import { ComposerPreview } from './composer-preview';
 import { MentionPicker } from './mention-picker';
+
+/** The marks worth a shortcut. The rest are quicker to type than to reach for. */
+const SHORTCUTS: Record<string, { before: string; after: string }> = {
+  b: { before: '**', after: '**' },
+  i: { before: '_', after: '_' },
+  e: { before: '`', after: '`' },
+};
+
+/** Roughly eight lines, after which the field scrolls instead of growing. */
+const MAX_COMPOSER_PX = 200;
 
 interface ComposerProps {
   workspaceId: string;
@@ -28,7 +41,6 @@ export function Composer({
   onTyping,
 }: ComposerProps) {
   const input = useRef<HTMLTextAreaElement>(null);
-  const picker = useRef<HTMLInputElement>(null);
   const uploads = useUploads(workspaceId);
   const mentions = useMentions(members);
 
@@ -43,6 +55,27 @@ export function Composer({
   // attachment with no way to send it and no way to tell what went wrong.
   const composing = hasText || uploads.pending.length > 0;
   const sendable = hasText || uploads.ready.length > 0;
+
+  /**
+   * Wraps the selection, or opens an empty pair and puts the caret inside it,
+   * which is what every editor does and what fingers already expect.
+   */
+  function applyWrap({ before, after }: { before: string; after: string }) {
+    const element = input.current;
+    if (!element) return;
+
+    const from = element.selectionStart;
+    const to = element.selectionEnd;
+    const selected = text.slice(from, to);
+
+    setText(`${text.slice(0, from)}${before}${selected}${after}${text.slice(to)}`);
+
+    requestAnimationFrame(() => {
+      element.focus();
+      const caret = from + before.length + selected.length;
+      element.setSelectionRange(caret, caret);
+    });
+  }
 
   async function send() {
     const body = text.trim();
@@ -60,20 +93,12 @@ export function Composer({
       setText('');
       mentions.close();
       uploads.clear();
-      resize();
     } catch {
       setProblem('That did not send. Check your connection and try again.');
     } finally {
       setSending(false);
       input.current?.focus();
     }
-  }
-
-  function resize() {
-    const element = input.current;
-    if (!element) return;
-    element.style.height = 'auto';
-    element.style.height = `${Math.min(element.scrollHeight, 200)}px`;
   }
 
   return (
@@ -127,37 +152,22 @@ export function Composer({
         />
       ) : null}
 
+      <ComposerPreview workspaceId={workspaceId} text={text} />
+
       <AttachmentTray pending={uploads.pending} onRemove={uploads.remove} />
 
       <div className="flex items-end gap-2">
-        <input
-          ref={picker}
-          type="file"
-          multiple
-          hidden
-          onChange={(event) => {
-            if (event.target.files) void uploads.add(event.target.files);
-            event.target.value = '';
-          }}
-        />
+        {canAttach ? <AttachmentMenu onFiles={(files) => void uploads.add(files)} /> : null}
 
-        {canAttach ? (
-          <IconButton label="Attach a file" onClick={() => picker.current?.click()}>
-            <Icon name="attach" />
-          </IconButton>
-        ) : null}
-
-        <textarea
-          ref={input}
+        <MarkdownInput
+          inputRef={input}
           value={text}
-          rows={1}
           placeholder={placeholder}
-          aria-label="Message"
+          maxHeight={MAX_COMPOSER_PX}
           onChange={(event) => {
             setText(event.target.value);
             mentions.update(event.target.value, event.target.selectionStart);
             onTyping();
-            resize();
           }}
           onBlur={mentions.close}
           onSelect={(event) => {
@@ -176,6 +186,15 @@ export function Composer({
             void uploads.add(files);
           }}
           onKeyDown={(event) => {
+            if (event.metaKey || event.ctrlKey) {
+              const wrap = SHORTCUTS[event.key.toLowerCase()];
+              if (wrap) {
+                event.preventDefault();
+                applyWrap(wrap);
+                return;
+              }
+            }
+
             // While the picker is open the arrow keys and Enter belong to it.
             if (mentions.open) {
               if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -210,7 +229,6 @@ export function Composer({
               void send();
             }
           }}
-          className="border-border bg-surface-sunken leading-message max-h-50 min-h-11 flex-1 resize-none overflow-y-auto rounded-xl border px-3 py-2.5 text-base"
         />
 
         {composing ? (
