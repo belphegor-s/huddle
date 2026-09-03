@@ -103,6 +103,7 @@ function messageFrom(channel: Channel, authorId: string, text: string, mentions:
     body: '{"type":"doc","content":[]}',
     text,
     parentId: null,
+    replyCount: 0,
     attachments: [],
     reactions: [],
     mentions,

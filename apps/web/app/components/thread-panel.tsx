@@ -1,4 +1,5 @@
 import type { MemberProfile } from '@huddle/core';
+import { useEffect } from 'react';
 import { Avatar } from '@huddle/ui';
 import type { ChannelStream } from '../lib/use-messages';
 import { memberName } from '../lib/workspace';
@@ -20,6 +21,14 @@ interface ThreadPanelProps {
  * once and neither can drift from the other.
  */
 export function ThreadPanel({ workspaceId, parentId, members, stream, onClose }: ThreadPanelProps) {
+  const { loadThread } = stream;
+
+  // The channel page carries top level messages only, so the thread fetches
+  // itself the first time it opens.
+  useEffect(() => {
+    void loadThread(parentId).catch(() => undefined);
+  }, [parentId, loadThread]);
+
   const parent = stream.messages.find((message) => message.id === parentId);
   const replies = stream.messages.filter((message) => message.parentId === parentId);
 

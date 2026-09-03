@@ -11,7 +11,7 @@ import {
   type ServerEvent,
 } from '@huddle/core';
 import { channelMembers, channels, messages, type Database, type MessageRow } from '@huddle/db';
-import { and, asc, desc, eq, gt, inArray, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm';
 import type { AppContext } from '../context.js';
 import { outranks } from './access.js';
 import { requireChannel, type ChannelError } from './channels.js';
@@ -99,6 +99,16 @@ export async function sendMessage(
 
     const row = inserted[0];
     if (!row) throw new Error('Insert did not persist');
+
+    // The parent carries the count, in the same transaction, so a reply and
+    // the number next to it can never disagree.
+    if (input.draft.parentId !== null) {
+      await tx
+        .update(messages)
+        .set({ replyCount: sql`${messages.replyCount} + 1` })
+        .where(and(eq(messages.id, input.draft.parentId), eq(messages.channelId, channel.id)));
+    }
+
     return toMessage(row);
   });
 
@@ -111,6 +121,19 @@ export async function sendMessage(
     message,
     ref: input.draft.id,
   });
+
+  // The channel view shows the parent, not the reply, so the count beside it
+  // has to be told that it moved.
+  if (message.parentId !== null) {
+    const parent = await readMessage(ctx, channel.id, message.parentId);
+    if (parent) {
+      ctx.hub.publish(channel.id, {
+        type: 'message_updated',
+        channelId: channel.id,
+        message: parent,
+      });
+    }
+  }
 
   // After the response, never before it. A slow push service must not be able
   // to hold up the send.
@@ -248,6 +271,9 @@ export async function fetchHistory(
     .where(
       and(
         eq(messages.channelId, input.channelId),
+        // A thread reply belongs to its thread. Letting it into the channel
+        // view would also make every page a different size than it claims.
+        isNull(messages.parentId),
         input.before === undefined ? undefined : lt(messages.seq, input.before),
       ),
     )
@@ -265,7 +291,10 @@ export async function fetchHistory(
 }
 
 /**
- * The reconnect path. A client that has been away sends the last sequence it
+ * The reconnect path. Replies are included, unlike the channel view, because a
+ * client with a thread open has to catch up on it too and routes by parent id.
+ *
+ * A client that has been away sends the last sequence it
  * holds and gets the delta, which is the same mechanism that covers a
  * backgrounded phone and a dropped train connection.
  */
@@ -390,6 +419,7 @@ export function toMessage(row: MessageRow): Message {
     body: row.body,
     text: row.text,
     parentId: row.parentId,
+    replyCount: row.replyCount,
     attachments: row.attachments as Attachment[],
     reactions: row.reactions as Reaction[],
     mentions: row.mentions as string[],
@@ -419,6 +449,21 @@ function applyReaction(
   }
 
   return reactions.filter((entry) => entry.userIds.length > 0);
+}
+
+async function readMessage(
+  ctx: AppContext,
+  channelId: string,
+  messageId: string,
+): Promise<Message | null> {
+  const rows = await ctx.db
+    .select()
+    .from(messages)
+    .where(and(eq(messages.id, messageId), eq(messages.channelId, channelId)))
+    .limit(1);
+
+  const row = rows[0];
+  return row ? toMessage(row) : null;
 }
 
 async function markCaughtUp(

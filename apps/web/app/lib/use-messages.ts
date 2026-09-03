@@ -11,6 +11,7 @@ export interface ChannelStream {
   typing: string[];
   present: string[];
   loadOlder(): Promise<void>;
+  loadThread(parentId: string): Promise<void>;
   send(input: {
     text: string;
     mentions: string[];
@@ -132,6 +133,24 @@ export function useMessages(realtime: Realtime, channelId: string, userId: strin
     });
   }, [channelId, messages]);
 
+  /**
+   * Replies are not in the channel page, so opening a thread fetches it. Live
+   * replies still arrive over the socket, which is why this only ever adds.
+   */
+  const loadThread = useCallback(
+    async (parentId: string) => {
+      const thread = await api.thread(channelId, parentId);
+      setMessages((current) => {
+        const known = new Set(current.map((message) => message.id));
+        const added = [thread.parent, ...thread.page.messages].filter(
+          (message) => !known.has(message.id),
+        );
+        return added.length === 0 ? current : [...current, ...added].sort(bySeq);
+      });
+    },
+    [channelId],
+  );
+
   const send = useCallback<ChannelStream['send']>(
     async (input) => {
       const draft = {
@@ -150,6 +169,7 @@ export function useMessages(realtime: Realtime, channelId: string, userId: strin
         channelId,
         seq: PENDING_SEQ,
         authorId: userId,
+        replyCount: 0,
         reactions: [],
         createdAt: Date.now(),
         editedAt: null,
@@ -205,6 +225,7 @@ export function useMessages(realtime: Realtime, channelId: string, userId: strin
     typing,
     present,
     loadOlder,
+    loadThread,
     send,
     react,
     edit,

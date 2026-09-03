@@ -133,6 +133,12 @@ export const messages = pgTable(
     /** Flattened text for search, notifications and accessibility. */
     text: text('text').notNull(),
     parentId: text('parent_id'),
+    /**
+     * Kept on the parent rather than counted on read, because the channel view
+     * loads top level messages only and would otherwise have to count rows it
+     * deliberately did not fetch.
+     */
+    replyCount: integer('reply_count').notNull().default(0),
     attachments: jsonb('attachments')
       .notNull()
       .default(sql`'[]'::jsonb`),

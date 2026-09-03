@@ -65,6 +65,15 @@ export class WebPushSender implements PushSender {
   }
 }
 
+/**
+ * Push services identify the sender by a contact address, and only accept an
+ * `https:` URL or a `mailto:`. A local `PUBLIC_URL` is neither, so the subject
+ * is checked here rather than being discovered as a crash on boot.
+ */
+function usableSubject(subject: string): boolean {
+  return subject.startsWith('mailto:') || subject.startsWith('https://');
+}
+
 /** The default. Push is off until a VAPID pair is configured. */
 export const disabledPush: PushSender = {
   available: false,
@@ -75,7 +84,21 @@ export const disabledPush: PushSender = {
 };
 
 export function createPushSender(config: Config['push']): PushSender {
-  return config.publicKey === '' || config.privateKey === ''
-    ? disabledPush
-    : new WebPushSender(config);
+  if (config.publicKey === '' || config.privateKey === '') return disabledPush;
+
+  // Misconfigured push turns push off. It never takes the process down: the
+  // rest of the app works perfectly well without notifications.
+  if (!usableSubject(config.subject)) {
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'push_disabled',
+        reason: 'VAPID_SUBJECT must be a mailto: address or an https: URL',
+        subject: config.subject,
+      }),
+    );
+    return disabledPush;
+  }
+
+  return new WebPushSender(config);
 }

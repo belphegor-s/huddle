@@ -124,6 +124,8 @@ export const Message = z.object({
   /** Flattened text for search, notifications and accessibility. */
   text: z.string(),
   parentId: Id.nullable(),
+  /** Replies to this message. Zero for a reply itself: threads are one deep. */
+  replyCount: z.number().int().nonnegative(),
   attachments: z.array(Attachment),
   reactions: z.array(Reaction),
   mentions: z.array(Id),

@@ -84,7 +84,6 @@ export function MessageList({
               members={members}
               meId={meId}
               grouped={grouped}
-              replies={messages.filter((other) => other.parentId === message.id).length}
               onReact={onReact}
               onOpenThread={onOpenThread}
               onDelete={onDelete}
@@ -101,7 +100,6 @@ interface MessageRowProps {
   members: MemberProfile[];
   meId: string;
   grouped: boolean;
-  replies: number;
   onReact(messageId: string, emoji: string, on: boolean): void;
   onOpenThread(messageId: string): void;
   onDelete(messageId: string): void;
@@ -112,7 +110,6 @@ function MessageRow({
   members,
   meId,
   grouped,
-  replies,
   onReact,
   onOpenThread,
   onDelete,
@@ -158,13 +155,13 @@ function MessageRow({
           onToggle={(emoji, on) => onReact(message.id, emoji, on)}
         />
 
-        {replies > 0 ? (
+        {message.replyCount > 0 ? (
           <button
             type="button"
             onClick={() => onOpenThread(message.id)}
             className="text-accent mt-1 text-xs"
           >
-            {replies} {replies === 1 ? 'reply' : 'replies'}
+            {message.replyCount} {message.replyCount === 1 ? 'reply' : 'replies'}
           </button>
         ) : null}
       </div>

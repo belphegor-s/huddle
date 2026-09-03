@@ -384,4 +384,69 @@ describe('threads', () => {
     expect(thread.parent.id).toBe(parent.id);
     expect(thread.page.messages.map((message) => message.text)).toEqual(['search, then files']);
   });
+
+  it('never lets a reply into the channel view', async () => {
+    const client = new Client(app);
+    await client.signIn('ada@example.com');
+
+    const workspace = await workspaceFor(client, 'acme');
+    const channelId = await channelIn(client, workspace.id, 'general');
+
+    const parent = await asJson<Message>(
+      await client.post(`/api/channels/${channelId}/messages`, draft('what do we ship first')),
+    );
+    await client.post(
+      `/api/channels/${channelId}/messages`,
+      draft('search, then files', { parentId: parent.id }),
+    );
+
+    const page = await client.json<{ messages: Message[] }>(`/api/channels/${channelId}/messages`);
+
+    expect(page.messages).toHaveLength(1);
+    expect(page.messages[0]?.id).toBe(parent.id);
+  });
+
+  it('counts replies on the parent so the channel view can say how many', async () => {
+    const client = new Client(app);
+    await client.signIn('ada@example.com');
+
+    const workspace = await workspaceFor(client, 'acme');
+    const channelId = await channelIn(client, workspace.id, 'general');
+
+    const parent = await asJson<Message>(
+      await client.post(`/api/channels/${channelId}/messages`, draft('worth discussing')),
+    );
+    expect(parent.replyCount).toBe(0);
+
+    for (const text of ['one', 'two']) {
+      await client.post(
+        `/api/channels/${channelId}/messages`,
+        draft(text, { parentId: parent.id }),
+      );
+    }
+
+    const page = await client.json<{ messages: Message[] }>(`/api/channels/${channelId}/messages`);
+    expect(page.messages[0]?.replyCount).toBe(2);
+  });
+
+  it('still replays replies to a reconnecting client', async () => {
+    const client = new Client(app);
+    await client.signIn('ada@example.com');
+
+    const workspace = await workspaceFor(client, 'acme');
+    const channelId = await channelIn(client, workspace.id, 'general');
+
+    const parent = await asJson<Message>(
+      await client.post(`/api/channels/${channelId}/messages`, draft('parent')),
+    );
+    await client.post(
+      `/api/channels/${channelId}/messages`,
+      draft('a reply', { parentId: parent.id }),
+    );
+
+    const delta = await client.json<{ messages: Message[] }>(
+      `/api/channels/${channelId}/messages/since?seq=1`,
+    );
+    expect(delta.messages.map((message) => message.text)).toEqual(['a reply']);
+  });
 });

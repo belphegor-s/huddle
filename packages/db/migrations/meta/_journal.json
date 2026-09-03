@@ -15,6 +15,13 @@
       "when": 1788366613759,
       "tag": "0001_message_search",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788406985469,
+      "tag": "0002_reply_count",
+      "breakpoints": true
     }
   ]
 }
