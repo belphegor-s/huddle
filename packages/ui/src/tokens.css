@@ -181,4 +181,5 @@
   --color-positive: var(--positive);
   --color-caution: var(--caution);
   --color-critical: var(--critical);
+  --color-focus-ring: var(--focus-ring);
 }
