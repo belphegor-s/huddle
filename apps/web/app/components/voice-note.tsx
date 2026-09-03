@@ -65,9 +65,10 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
         {playing ? (
           <Icon name="pause" className="size-4" />
         ) : (
-          // Filled, and nudged right, because an outlined triangle inside a
-          // circle reads as disabled and its optical centre sits left.
-          <IconSolid name="play" className="size-4 translate-x-px" />
+          // Filled, because an outlined triangle inside a circle reads as
+          // disabled. The nudge it used to carry is gone: the glyph is centred
+          // in its own box now.
+          <IconSolid name="play" className="size-4" />
         )}
       </button>
 
