@@ -51,6 +51,8 @@ export default defineConfig({
             // machine never find each other. On a real network mDNS works and
             // this flag is not wanted.
             '--disable-features=WebRtcHideLocalIpsWithMdns',
+            // getDisplayMedia opens a picker, which no test can answer.
+            '--auto-select-desktop-capture-source=Entire screen',
           ],
         },
       },

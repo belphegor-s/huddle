@@ -100,7 +100,7 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <ConnectionBanner realtime={realtime} />
-      <CallDock call={call} channels={channels} workspaceSlug={workspace.slug} />
+      <CallDock call={call} workspaceSlug={workspace.slug} />
 
       <div className="flex min-h-0 flex-1">
         <Sidebar

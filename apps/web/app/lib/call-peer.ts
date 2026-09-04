@@ -15,6 +15,16 @@ export type Signal =
 
 export type PeerLink = 'connecting' | 'connected' | 'failed';
 
+/**
+ * A connection that never reports a failure and never connects either is the
+ * hard case: candidates were lost rather than rejected, so nothing fires. This
+ * is how long to wait before assuming that happened.
+ */
+const STALLED_MS = 8_000;
+
+/** Retries past this are not going to help, and the tile says so instead. */
+const RESTART_ATTEMPTS = 3;
+
 interface PeerOptions {
   /** Lower session id yields on a collision. Deterministic on both ends. */
   polite: boolean;
@@ -40,11 +50,21 @@ export class CallPeer {
   private makingOffer = false;
   private ignoringOffer = false;
   private closed = false;
+  /** True once a description has been exchanged in either direction. */
+  private negotiated = false;
+  private stalled: ReturnType<typeof setTimeout> | null = null;
+  private restarts = 0;
 
   constructor(private readonly options: PeerOptions) {
     this.connection = new RTCPeerConnection({ iceServers: options.iceServers });
 
     this.connection.onnegotiationneeded = () => {
+      // Both ends add their tracks at the same moment, so both would offer and
+      // every call would open with a collision for the politeness rule to
+      // unpick. One end owns the first offer instead. From then on either may
+      // renegotiate, which is what starting a screen share does, and the rule
+      // is there for exactly that.
+      if (options.polite && !this.negotiated) return;
       void this.negotiate();
     };
 
@@ -76,10 +96,14 @@ export class CallPeer {
 
       // A path that dies mid call usually comes back, and restarting ICE is
       // cheaper and far less visible than tearing the call down.
-      if (state === 'failed' && !this.closed) this.connection.restartIce();
+      if (state === 'failed') this.restart();
+      if (state === 'connected') this.clearWatchdog();
+      else this.armWatchdog();
 
       options.onChange();
     };
+
+    this.armWatchdog();
   }
 
   /** Announced explicitly rather than guessed from track order. */
@@ -126,6 +150,8 @@ export class CallPeer {
     if (this.ignoringOffer) return;
 
     await this.connection.setRemoteDescription(description);
+    this.negotiated = true;
+
     if (description.type !== 'offer') return;
 
     await this.connection.setLocalDescription();
@@ -134,11 +160,42 @@ export class CallPeer {
 
   close(): void {
     this.closed = true;
+    this.clearWatchdog();
     this.connection.onnegotiationneeded = null;
     this.connection.onicecandidate = null;
     this.connection.ontrack = null;
     this.connection.onconnectionstatechange = null;
     this.connection.close();
+  }
+
+  /**
+   * Only the impolite end restarts. Both doing it at once is a collision that
+   * the politeness rule then has to unpick, which is slower than one of them
+   * simply owning the retry.
+   */
+  private armWatchdog(): void {
+    if (this.closed || this.options.polite || this.stalled !== null) return;
+    if (this.restarts >= RESTART_ATTEMPTS) return;
+
+    this.stalled = setTimeout(() => {
+      this.stalled = null;
+      if (this.connection.connectionState === 'connected') return;
+
+      this.restarts += 1;
+      this.restart();
+      this.armWatchdog();
+    }, STALLED_MS);
+  }
+
+  private clearWatchdog(): void {
+    if (this.stalled !== null) clearTimeout(this.stalled);
+    this.stalled = null;
+    this.restarts = 0;
+  }
+
+  private restart(): void {
+    if (this.closed) return;
+    this.connection.restartIce();
   }
 
   private async negotiate(): Promise<void> {

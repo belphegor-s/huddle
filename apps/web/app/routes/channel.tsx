@@ -165,7 +165,13 @@ function ChannelView({
           <HuddleButton
             inCall={call.channelId === summary.channel.id}
             others={inCall}
-            onJoin={() => join(summary.channel.id, { video: false })}
+            onJoin={() =>
+              join(summary.channel.id, {
+                video: false,
+                ref: summary.channel.name ?? summary.channel.id,
+                name: label,
+              })
+            }
           />
 
           <ChannelMenu

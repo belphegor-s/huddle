@@ -34,6 +34,13 @@ export interface PeerView {
 
 export interface CallView {
   channelId: string | null;
+  /**
+   * How the channel appears in a URL, and what to call it. Carried on the call
+   * rather than looked up, because somebody reading a public channel they have
+   * not joined does not have it in their channel list at all.
+   */
+  channelRef: string;
+  channelName: string;
   status: CallStatus;
   /** Shown to the caller, so it is a sentence rather than a code. */
   error: string | null;
@@ -48,6 +55,8 @@ export interface CallView {
 
 const IDLE: CallView = {
   channelId: null,
+  channelRef: '',
+  channelName: '',
   status: 'idle',
   error: null,
   muted: false,
@@ -89,9 +98,19 @@ export class CallSession {
 
   snapshot = (): CallView => this.view;
 
-  async join(channelId: string, options: { video: boolean }): Promise<void> {
+  async join(
+    channelId: string,
+    options: { video: boolean; ref: string; name: string },
+  ): Promise<void> {
     if (this.view.channelId !== null) this.leave();
-    this.update({ ...IDLE, channelId, status: 'joining', video: options.video });
+    this.update({
+      ...IDLE,
+      channelId,
+      channelRef: options.ref,
+      channelName: options.name,
+      status: 'joining',
+      video: options.video,
+    });
 
     try {
       this.local = await navigator.mediaDevices.getUserMedia({

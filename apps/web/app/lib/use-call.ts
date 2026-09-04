@@ -4,7 +4,7 @@ import type { Realtime } from './realtime';
 
 export interface CallControls {
   call: CallView;
-  join(channelId: string, options: { video: boolean }): void;
+  join(channelId: string, options: { video: boolean; ref: string; name: string }): void;
   leave(): void;
   toggleMuted(): void;
   toggleVideo(): void;
