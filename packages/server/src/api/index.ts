@@ -4,6 +4,7 @@ import type { AppContext } from '../context.js';
 import type { ApiEnv } from './env.js';
 import { assistantRoutes } from './routes/assistant.js';
 import { authCallbackRoutes, authRoutes } from './routes/auth.js';
+import { callRoutes } from './routes/calls.js';
 import { channelRoutes } from './routes/channels.js';
 import { fileRoutes } from './routes/files.js';
 import { messageRoutes } from './routes/messages.js';
@@ -54,6 +55,7 @@ export function createApi(app: AppContext): Hono<ApiEnv> {
   api.route('/api', fileRoutes());
   api.route('/api', pushRoutes());
   api.route('/api', assistantRoutes());
+  api.route('/api', callRoutes());
   api.route('/auth', authCallbackRoutes());
 
   api.onError((error, c) => {

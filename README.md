@@ -86,6 +86,34 @@ VAPID_PRIVATE_KEY=...
 
 The toggle appears in the sidebar once the server has a pair. Push needs HTTPS everywhere except `localhost`, and on an iPhone the app has to be added to the home screen first, which is Apple's rule rather than ours.
 
+### Huddles
+
+Voice, camera and screen sharing, in any channel or conversation. Nothing to
+configure and no media server: the browsers connect to each other directly and
+this process only says who is in the call and passes the descriptions between
+them.
+
+That is a mesh, so each person sends one copy of their camera to every other
+person. It is capped at eight, which is roughly where a normal home connection
+stops keeping up. A room larger than that needs a server that forwards streams,
+and that is a second service, so it is deliberately not here.
+
+Calls work as they are on a LAN or an open network. What they cannot cross on
+their own is a strict NAT, where neither end is reachable from outside. For
+that, point huddle at a relay of your own:
+
+```
+TURN_URLS=turn:relay.example.com:3478
+TURN_SECRET=...
+```
+
+With `TURN_SECRET` set, huddle mints each caller a credential that expires
+within the hour, which is what coturn's `use-auth-secret` mode expects.
+`TURN_USERNAME` and `TURN_PASSWORD` work instead if your relay uses a fixed
+pair. There is no public STUN server configured by default, because a page
+reaching out to somebody else's server is exactly what this project does not
+do.
+
 ### AI, optional
 
 Off unless configured. It powers two things: summarising a thread, and telling
@@ -147,6 +175,10 @@ packages/db     drizzle schema and migrations
 packages/server services, routes, realtime hub, storage clients
 packages/ui     design tokens, fonts, components
 ```
+
+A call is a roster in Postgres and a relay over the same socket everything else
+uses. No media passes through the server, which is why huddles cost it almost
+nothing and why they need no service of their own.
 
 Message order comes from a per channel sequence number claimed inside the same transaction that writes the message, so ordering holds no matter how many instances are running. Clients reconnect by sending the last sequence they hold and receiving the delta, which is the same code path that covers a backgrounded phone and a dropped connection.
 

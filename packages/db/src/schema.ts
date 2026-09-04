@@ -158,6 +158,37 @@ export const messages = pgTable(
   ],
 );
 
+/**
+ * Who is in a call, right now.
+ *
+ * In Postgres rather than in the hub's memory because every instance has to
+ * agree on the roster: a caller connected to one instance must see somebody
+ * connected to another, and a crash must not leave a room that looks occupied
+ * forever. Rows are heartbeated and swept, so the worst case is a ghost for a
+ * few seconds rather than a call nobody can rejoin.
+ *
+ * Keyed by session, not by user, because the same person on a laptop and a
+ * phone is two participants with two peer connections.
+ */
+export const callParticipants = pgTable(
+  'call_participants',
+  {
+    sessionId: text('session_id').primaryKey(),
+    channelId: text('channel_id')
+      .notNull()
+      .references(() => channels.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    muted: boolean('muted').notNull().default(false),
+    videoOn: boolean('video_on').notNull().default(false),
+    sharing: boolean('sharing').notNull().default(false),
+    joinedAt: ms('joined_at').notNull(),
+    lastSeenAt: ms('last_seen_at').notNull(),
+  },
+  (t) => [index('call_participants_channel_idx').on(t.channelId)],
+);
+
 export const invites = pgTable(
   'invites',
   {
@@ -248,6 +279,7 @@ export type Membership = typeof memberships.$inferSelect;
 export type Channel = typeof channels.$inferSelect;
 export type ChannelMember = typeof channelMembers.$inferSelect;
 export type MessageRow = typeof messages.$inferSelect;
+export type CallParticipantRow = typeof callParticipants.$inferSelect;
 export type Invite = typeof invites.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type FileRow = typeof files.$inferSelect;

@@ -22,6 +22,12 @@ const PING_INTERVAL_MS = 25_000;
  * server restart are therefore the same case, handled once.
  */
 export class Realtime {
+  /**
+   * This connection, as the server named it. A call roster is keyed by it, so
+   * without it a caller cannot tell which participant is itself.
+   */
+  sessionId = '';
+
   private socket: WebSocket | null = null;
   private readonly listeners = new Set<Listener>();
   private readonly statusListeners = new Set<StatusListener>();
@@ -57,6 +63,7 @@ export class Realtime {
 
       // The cursor is kept here rather than in a component, so a reconnect
       // resumes correctly even while the channel is not on screen.
+      if (event.type === 'ready') this.sessionId = event.sessionId;
       if (event.type === 'message') this.advance(event.channelId, event.message.seq);
       if (event.type === 'synced') this.advance(event.channelId, event.seq);
 

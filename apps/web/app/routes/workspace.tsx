@@ -11,9 +11,11 @@ import {
 } from 'react-router';
 import { NewChannelDialog } from '../components/new-channel-dialog';
 import { NewDmDialog } from '../components/new-dm-dialog';
+import { CallDock } from '../components/call-dock';
 import { ConnectionBanner } from '../components/connection-banner';
 import { Sidebar } from '../components/sidebar';
 import { api, ApiError } from '../lib/api';
+import { CallSession } from '../lib/call';
 import { Realtime } from '../lib/realtime';
 import { requireMe } from '../lib/session';
 import type { WorkspaceContext } from '../lib/workspace';
@@ -49,10 +51,17 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
   // it are per channel. Switching rooms never costs a reconnect.
   const [realtime] = useState(() => new Realtime());
 
+  // The call belongs to the session, not to the screen. Walking from the
+  // huddle to another channel to paste a link must not hang up on everybody.
+  const [call] = useState(() => new CallSession(realtime));
+
   useEffect(() => {
     realtime.connect();
-    return () => realtime.stop();
-  }, [realtime]);
+    return () => {
+      call.leave();
+      realtime.stop();
+    };
+  }, [call, realtime]);
 
   const refresh = useCallback(() => {
     void revalidator.revalidate();
@@ -68,6 +77,7 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
   useEffect(() => {
     return realtime.on((event) => {
       if (event.type === 'unread' && event.channelId !== params.ref) refresh();
+      if (event.type === 'call_activity') refresh();
     });
   }, [params.ref, realtime, refresh]);
 
@@ -78,6 +88,7 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
     members,
     channels,
     realtime,
+    call,
     features,
     refresh,
   };
@@ -89,6 +100,7 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <ConnectionBanner realtime={realtime} />
+      <CallDock call={call} channels={channels} workspaceSlug={workspace.slug} />
 
       <div className="flex min-h-0 flex-1">
         <Sidebar

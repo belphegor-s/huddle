@@ -15,6 +15,10 @@ import { channelMembers, channels, memberships } from '@huddle/db';
 import { and, asc, desc, eq, inArray, isNull, notInArray } from 'drizzle-orm';
 import type { AppContext } from '../context.js';
 import { outranks, requireMember, type AccessError } from './access.js';
+// Calls reach back for requireChannel, so these two import each other. Both
+// export function declarations and nothing runs at module load, which is the
+// case the cycle is safe in.
+import { callCounts } from './calls.js';
 
 export type ChannelError = AccessError | 'not_found' | 'name_taken' | 'archived';
 
@@ -185,6 +189,10 @@ export async function listChannels(
 
   const dmIds = rows.filter((row) => row.channel.kind !== 'channel').map((row) => row.channel.id);
   const dmMembers = await membersOf(ctx, dmIds);
+  const calls = await callCounts(
+    ctx,
+    rows.map((row) => row.channel.id),
+  );
   const now = ctx.now();
 
   return ok(
@@ -198,6 +206,7 @@ export async function listChannels(
       notificationLevel: row.membership.notificationLevel,
       muted: (row.membership.mutedUntil ?? 0) > now,
       memberIds: dmMembers.get(row.channel.id) ?? [],
+      callCount: calls.get(row.channel.id) ?? 0,
     })),
   );
 }
@@ -464,6 +473,7 @@ function emptySummary(channel: Channel): ChannelSummary {
     mentionCount: 0,
     notificationLevel: 'all',
     muted: false,
+    callCount: 0,
     memberIds: [],
   };
 }

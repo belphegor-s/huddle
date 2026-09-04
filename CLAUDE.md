@@ -37,6 +37,8 @@ packages/
 
 **Realtime** is an in process hub: a map from channel to connected subscribers. Running more than one instance sets `HUDDLE_CLUSTER=true`, which adds a Postgres `LISTEN`/`NOTIFY` relay so instances see each other's traffic. No Redis. A message too large for a `NOTIFY` payload travels as a pointer and the receiving instance reads the row it already has.
 
+**Huddles are a mesh.** The server keeps a roster in `call_participants` and relays session descriptions between browsers over the existing socket. No media touches the process, so a call adds no service and no CPU. The cost of a mesh grows with the room, so it is capped at `LIMITS.callParticipantsMax`. Going past that needs an SFU, which is a second service, which is why it is not here. Relay credentials are minted per call from `TURN_SECRET`, and no STUN server is configured by default because that would be a third party request from the client.
+
 **Every frame that changes anything** goes through the same service function the HTTP route calls. There is one place permission is decided and one place a message is written.
 
 **Search** is Postgres full text: a GIN index on `to_tsvector('simple', text)` and `ts_headline` for snippets. The snippet carries control character markers rather than HTML, so message content can never become markup in the client.

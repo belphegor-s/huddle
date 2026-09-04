@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DraftMessage, Id, JsonString, Message, Reaction } from './schemas.js';
+import { CallParticipant, DraftMessage, Id, JsonString, Message, Reaction } from './schemas.js';
 
 export const WIRE_VERSION = 1;
 
@@ -40,6 +40,27 @@ export const ClientEvent = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('typing'), channelId: Id }),
   z.object({ type: z.literal('read'), channelId: Id, seq: z.number().int().nonnegative() }),
+  z.object({ type: z.literal('call_join'), channelId: Id, video: z.boolean(), ...withRef }),
+  z.object({ type: z.literal('call_leave'), channelId: Id }),
+  z.object({
+    type: z.literal('call_update'),
+    channelId: Id,
+    muted: z.boolean(),
+    video: z.boolean(),
+    sharing: z.boolean(),
+  }),
+  /**
+   * Session description and candidates, opaque to the server. It checks that
+   * the sender is in the call and forwards, and never parses the payload:
+   * the negotiation is between the two browsers.
+   */
+  z.object({
+    type: z.literal('call_signal'),
+    channelId: Id,
+    to: Id,
+    data: z.string().max(64_000),
+  }),
+  z.object({ type: z.literal('call_heartbeat'), channelId: Id }),
   z.object({ type: z.literal('ping'), ...withRef }),
 ]);
 export type ClientEvent = z.infer<typeof ClientEvent>;
@@ -49,6 +70,8 @@ export const ServerEvent = z.discriminatedUnion('type', [
     type: z.literal('ready'),
     version: z.number().int(),
     userId: Id,
+    /** This connection, so a caller can tell itself apart on a call roster. */
+    sessionId: Id,
     serverTime: z.number().int(),
   }),
   z.object({
@@ -101,6 +124,25 @@ export const ServerEvent = z.discriminatedUnion('type', [
     code: z.enum(['unauthorized', 'forbidden', 'not_found', 'rate_limited', 'invalid', 'internal']),
     message: z.string(),
     ref: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal('call_roster'),
+    channelId: Id,
+    participants: z.array(CallParticipant),
+  }),
+  z.object({
+    type: z.literal('call_signal'),
+    channelId: Id,
+    from: Id,
+    fromUserId: Id,
+    to: Id,
+    data: z.string(),
+  }),
+  /** The sidebar dot. Sent to members who are not looking at the channel. */
+  z.object({
+    type: z.literal('call_activity'),
+    channelId: Id,
+    count: z.number().int().nonnegative(),
   }),
   z.object({ type: z.literal('pong'), ref: z.string().optional() }),
 ]);

@@ -33,6 +33,25 @@ const Env = z.object({
   /** Push services want a way to contact the operator of a misbehaving sender. */
   VAPID_SUBJECT: z.string().default(''),
 
+  /**
+   * Where a browser should look for a relay, comma separated. Empty is a valid
+   * deployment: calls then work wherever the two ends can reach each other
+   * directly, which on a LAN or an open network is most of the time. There is
+   * no default public STUN server on purpose, because that would be a third
+   * party request from the client.
+   */
+  TURN_URLS: z.string().default(''),
+  /**
+   * Preferred over a fixed password. coturn started with `use-auth-secret`
+   * accepts a username of `expiry:anything` with the HMAC of it as the
+   * password, so the credential handed to a browser stops working within the
+   * hour rather than being a permanent one shared by everybody.
+   */
+  TURN_SECRET: z.string().default(''),
+  TURN_USERNAME: z.string().default(''),
+  TURN_PASSWORD: z.string().default(''),
+  TURN_TTL_SECONDS: z.coerce.number().int().min(60).default(3600),
+
   /** Raise it behind a shared address, lower it on a public instance. */
   MAGIC_LINKS_PER_HOUR_PER_IP: z.coerce
     .number()
@@ -57,6 +76,13 @@ export interface Config {
   mail: { smtpUrl: string; from: string };
   ai: { baseUrl: string; apiKey: string; model: string };
   push: { publicKey: string; privateKey: string; subject: string };
+  turn: {
+    urls: string[];
+    secret: string;
+    username: string;
+    password: string;
+    ttlSeconds: number;
+  };
   limits: { magicLinksPerHourPerIp: number };
 }
 
@@ -82,6 +108,15 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       publicKey: env.VAPID_PUBLIC_KEY,
       privateKey: env.VAPID_PRIVATE_KEY,
       subject: env.VAPID_SUBJECT === '' ? env.PUBLIC_URL : env.VAPID_SUBJECT,
+    },
+    turn: {
+      urls: env.TURN_URLS.split(',')
+        .map((url) => url.trim())
+        .filter((url) => url !== ''),
+      secret: env.TURN_SECRET,
+      username: env.TURN_USERNAME,
+      password: env.TURN_PASSWORD,
+      ttlSeconds: env.TURN_TTL_SECONDS,
     },
     limits: { magicLinksPerHourPerIp: env.MAGIC_LINKS_PER_HOUR_PER_IP },
   };

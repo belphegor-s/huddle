@@ -16,6 +16,16 @@ export const LIMITS = {
   /** Replay window for a reconnecting client before it falls back to a fetch. */
   reconnectReplayMax: 500,
   typingTtlMs: 5_000,
+  /**
+   * A mesh call sends one copy of your video to every other person, so the
+   * upload cost grows with the room. Eight is about where a normal home
+   * connection stops keeping up. Past this the answer is an SFU, not a
+   * bigger number here.
+   */
+  callParticipantsMax: 8,
+  /** Missed heartbeats past this and the roster drops you as gone. */
+  callHeartbeatMs: 15_000,
+  callStaleMs: 45_000,
 } as const;
 
 export const RATE_LIMITS = {

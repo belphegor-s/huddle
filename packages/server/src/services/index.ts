@@ -67,3 +67,14 @@ export type { AssistantError } from './assistant.js';
 
 export { listMembers, removeMember, setMemberRole } from './members.js';
 export type { MemberError } from './members.js';
+
+export {
+  callCounts,
+  heartbeatCall,
+  joinCall,
+  leaveCall,
+  relaySignal,
+  roster,
+  updateCallState,
+} from './calls.js';
+export type { CallError } from './calls.js';

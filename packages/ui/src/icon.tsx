@@ -43,6 +43,13 @@ const PATHS = {
   thread: 'M4.5 5.5h15v10h-9l-6 4v-14Z',
   sparkle:
     'M9.8 2.8l1.9 5.2 5.2 1.9-5.2 1.9-1.9 5.2-1.9-5.2-5.2-1.9 5.2-1.9 1.9-5.2ZM18 14.2l.9 2.5 2.5.9-2.5.9-.9 2.5-.9-2.5-2.5-.9 2.5-.9.9-2.5Z',
+  micOff:
+    'M9 6.5a3 3 0 0 1 6 0v4M15 14.2a3 3 0 0 1-6-2.2v-1M5.5 11a6.5 6.5 0 0 0 10 5.5M18.5 11v.5M12 17.5V21M4.5 4.5l15 15',
+  video: 'M4 7.5h10.5v9H4zM14.5 11.5 20 8.5v7l-5.5-3Z',
+  videoOff: 'M4 7.5h10.5v9H4zM14.5 11.5 20 8.5v7l-5.5-3ZM4.5 4.5l15 15',
+  screen: 'M3.5 4.5h17v11h-17zM12 15.5v4M8.5 19.5h7',
+  hangUp:
+    'M4 12.6a11.5 11.5 0 0 1 16 0l-2.5 2.9-2.6-1.6v-2.2a9.5 9.5 0 0 0-5.8 0v2.2L6.5 15.5 4 12.6Z',
 } as const;
 
 /**
@@ -50,7 +57,7 @@ const PATHS = {
  * with a round cap antialiases into a smudge with a soft edge, which is why
  * the overflow control looked blurred against every other icon.
  */
-const FILLED = new Set<string>(['more', 'play']);
+const FILLED = new Set<string>(['more', 'play', 'hangUp']);
 
 export type IconName = keyof typeof PATHS;
 

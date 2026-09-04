@@ -33,7 +33,29 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
 
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        // A call test needs a camera and a microphone. These give Chromium a
+        // synthetic one and stop it asking, which is the only way the mesh can
+        // be exercised end to end rather than mocked.
+        permissions: ['microphone', 'camera'],
+        launchOptions: {
+          args: [
+            '--use-fake-device-for-media-stream',
+            '--use-fake-ui-for-media-stream',
+            // Chrome publishes host candidates as .local mDNS names, which
+            // nothing resolves inside a test browser, so two peers on this
+            // machine never find each other. On a real network mDNS works and
+            // this flag is not wanted.
+            '--disable-features=WebRtcHideLocalIpsWithMdns',
+          ],
+        },
+      },
+    },
+  ],
 
   webServer: {
     // Built, not the dev server: a bug that only appears in the real bundle is

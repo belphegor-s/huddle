@@ -3,11 +3,14 @@ import { Avatar, Button, Icon } from '@huddle/ui';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { AssistantPanel } from '../components/assistant-panel';
+import { CallStage } from '../components/call-stage';
 import { ChannelMenu } from '../components/channel-menu';
 import { Composer } from '../components/composer';
 import { MessageList } from '../components/message-list';
 import { ThreadPanel } from '../components/thread-panel';
+import type { CallSession } from '../lib/call';
 import type { Realtime } from '../lib/realtime';
+import { useCall, useCallRoster } from '../lib/use-call';
 import { useMessages } from '../lib/use-messages';
 import { api } from '../lib/api';
 import { outranksMember } from '../lib/roles';
@@ -23,7 +26,8 @@ import {
 
 export default function ChannelRoute() {
   const { ref } = useParams();
-  const { me, workspace, role, members, channels, realtime, features, refresh } = useWorkspace();
+  const { me, workspace, role, members, channels, realtime, call, features, refresh } =
+    useWorkspace();
   const joined = channels.find(
     (candidate) => candidate.channel.name === ref || candidate.channel.id === ref,
   );
@@ -60,6 +64,7 @@ export default function ChannelRoute() {
       members={members}
       summary={summary}
       realtime={realtime}
+      call={call}
       canUseAi={features.ai}
       canAttach={features.files}
       joined={joined !== undefined}
@@ -75,6 +80,7 @@ interface ChannelViewProps {
   members: MemberProfile[];
   summary: ChannelSummary;
   realtime: Realtime;
+  call: CallSession;
   canUseAi: boolean;
   canAttach: boolean;
   joined: boolean;
@@ -88,11 +94,14 @@ function ChannelView({
   members,
   summary,
   realtime,
+  call: session,
   canUseAi,
   canAttach,
   joined,
   onChanged,
 }: ChannelViewProps) {
+  const { call, join, leave, toggleMuted, toggleVideo, toggleSharing } = useCall(session);
+  const inCall = useCallRoster(realtime, summary.channel.id, summary.callCount);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [catchingUp, setCatchingUp] = useState(false);
   const canModerate = outranksMember(role, 'admin');
@@ -153,6 +162,12 @@ function ChannelView({
             </button>
           ) : null}
 
+          <HuddleButton
+            inCall={call.channelId === summary.channel.id}
+            others={inCall}
+            onJoin={() => join(summary.channel.id, { video: false })}
+          />
+
           <ChannelMenu
             summary={summary}
             workspaceSlug={workspace.slug}
@@ -162,6 +177,22 @@ function ChannelView({
         </header>
 
         {joined ? null : <JoinBanner channelId={summary.channel.id} onJoined={onChanged} />}
+
+        {call.channelId === summary.channel.id ? (
+          <CallStage
+            call={call}
+            members={members}
+            meId={me.user.id}
+            onToggleMuted={toggleMuted}
+            onToggleVideo={toggleVideo}
+            onToggleSharing={toggleSharing}
+            onLeave={leave}
+          />
+        ) : null}
+
+        {call.error !== null && call.channelId === null ? (
+          <p className="bg-critical-soft text-critical px-3 py-2 text-sm md:px-5">{call.error}</p>
+        ) : null}
 
         {catchingUp ? (
           <AssistantPanel
@@ -269,6 +300,7 @@ function useVisitedChannel(
           mentionCount: 0,
           notificationLevel: 'all',
           muted: false,
+          callCount: 0,
           memberIds: [],
         });
       })
@@ -309,5 +341,36 @@ function JoinBanner({ channelId, onJoined }: { channelId: string; onJoined(): vo
         Join
       </Button>
     </div>
+  );
+}
+
+/**
+ * One control for two things, because to a person they are one thing: there is
+ * a huddle here, and you are either in it or you are not.
+ */
+function HuddleButton({
+  inCall,
+  others,
+  onJoin,
+}: {
+  inCall: boolean;
+  others: number;
+  onJoin(): void;
+}) {
+  if (inCall) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={onJoin}
+      className={
+        others > 0
+          ? 'bg-positive flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-white'
+          : 'text-text-secondary hover:bg-surface-hover flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-medium'
+      }
+    >
+      <Icon name="mic" className="size-4" />
+      <span className="hidden sm:inline">{others > 0 ? `Join (${String(others)})` : 'Huddle'}</span>
+    </button>
   );
 }

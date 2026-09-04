@@ -1,6 +1,7 @@
 import type { ChannelSummary, MemberProfile, Me, Role, Workspace } from '@huddle/core';
 import { useOutletContext } from 'react-router';
 import type { Capabilities } from './api';
+import type { CallSession } from './call';
 import type { Realtime } from './realtime';
 
 export interface WorkspaceContext {
@@ -10,6 +11,8 @@ export interface WorkspaceContext {
   members: MemberProfile[];
   channels: ChannelSummary[];
   realtime: Realtime;
+  /** Lives with the workspace, so walking to another channel keeps the call. */
+  call: CallSession;
   /** What this deployment has configured. Drawn from, never assumed. */
   features: Capabilities;
   /** Re-reads the sidebar after something changes its contents or its badges. */

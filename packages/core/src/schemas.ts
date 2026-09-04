@@ -257,8 +257,36 @@ export const ChannelSummary = z.object({
   muted: z.boolean(),
   /** Filled for DMs only, where the name is the other people. */
   memberIds: z.array(Id),
+  /** How many people are in a call here right now. Zero means no call. */
+  callCount: z.number().int().nonnegative(),
 });
 export type ChannelSummary = z.infer<typeof ChannelSummary>;
+
+/**
+ * One person in a call, keyed by connection rather than by user, because the
+ * same person joining from a laptop and a phone is two peers with two streams.
+ */
+export const CallParticipant = z.object({
+  sessionId: Id,
+  userId: Id,
+  muted: z.boolean(),
+  video: z.boolean(),
+  sharing: z.boolean(),
+  joinedAt: z.number().int(),
+});
+export type CallParticipant = z.infer<typeof CallParticipant>;
+
+/**
+ * Where the browser should look for a relay. Empty by default: a public STUN
+ * server would be a third party request from the client, so a deployment that
+ * wants calls to cross a strict NAT points this at its own.
+ */
+export const IceServer = z.object({
+  urls: z.array(z.string()),
+  username: z.string().optional(),
+  credential: z.string().optional(),
+});
+export type IceServer = z.infer<typeof IceServer>;
 
 export const MemberProfile = z.object({
   id: Id,

@@ -178,6 +178,8 @@ export const api = {
   requestUpload: (workspaceId: string, input: CreateUploadInput) =>
     post<UploadTicket>(`/api/workspaces/${workspaceId}/uploads`, input),
 
+  iceServers: async () => (await call<{ iceServers: RTCIceServer[] }>('/api/calls/ice')).iceServers,
+
   pushKey: () => call<{ available: boolean; publicKey: string }>('/api/push/key'),
   subscribePush: (subscription: PushSubscriptionJSON) =>
     post<{ ok: true }>('/api/push/subscriptions', subscription),

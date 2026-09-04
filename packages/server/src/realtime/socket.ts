@@ -3,12 +3,18 @@ import type { AppContext } from '../context.js';
 import {
   deleteMessage,
   editMessage,
+  heartbeatCall,
+  joinCall,
+  leaveCall,
   markRead,
   markTyping,
+  relaySignal,
   requireChannel,
+  roster,
   sendMessage,
   syncSince,
   toggleReaction,
+  updateCallState,
 } from '../services/index.js';
 import type { Subscriber } from './hub.js';
 
@@ -52,6 +58,7 @@ export function attachSocket(ctx: AppContext, socket: Socket, userId: string): v
     type: 'ready',
     version: WIRE_VERSION,
     userId,
+    sessionId: subscriber.id,
     serverTime: ctx.now(),
   });
 
@@ -59,13 +66,16 @@ export function attachSocket(ctx: AppContext, socket: Socket, userId: string): v
     void handle(ctx, subscriber, String(data));
   });
 
-  socket.on('close', () => {
+  function disconnect() {
     ctx.hub.remove(subscriber);
-  });
+    // Dropping the connection is how most calls end: a closed tab, a phone
+    // going to sleep. Leaving the roster has to happen here rather than only
+    // on an explicit frame, or the call keeps a ghost until it goes stale.
+    ctx.background('call_leave', () => leaveCall(ctx, { sessionId: subscriber.id }));
+  }
 
-  socket.on('error', () => {
-    ctx.hub.remove(subscriber);
-  });
+  socket.on('close', disconnect);
+  socket.on('error', disconnect);
 }
 
 async function handle(ctx: AppContext, subscriber: Subscriber, raw: string): Promise<void> {
@@ -109,6 +119,16 @@ async function handle(ctx: AppContext, subscriber: Subscriber, raw: string): Pro
       }
 
       subscriber.send({ type: 'synced', channelId: event.channelId, seq, ref: event.ref });
+
+      // Whether a call is happening here cannot be left to the channel list,
+      // which is a snapshot taken when the page loaded. Anyone opening the
+      // channel is told the truth as part of arriving.
+      subscriber.send({
+        type: 'call_roster',
+        channelId: event.channelId,
+        participants: await roster(ctx, event.channelId),
+      });
+
       ctx.hub.publish(event.channelId, {
         type: 'presence',
         channelId: event.channelId,
@@ -180,6 +200,56 @@ async function handle(ctx: AppContext, subscriber: Subscriber, raw: string): Pro
         userId: subscriber.userId,
         seq: event.seq,
       });
+      return;
+
+    case 'call_join': {
+      const joined = await joinCall(ctx, {
+        channelId: event.channelId,
+        userId: subscriber.userId,
+        sessionId: subscriber.id,
+        video: event.video,
+      });
+      if (!joined.ok) subscriber.send(fail(joined.error, event.ref));
+      // The roster went out to the channel, but only subscribers of it. A
+      // caller who joined without the channel open would otherwise never see
+      // the answer to the frame it just sent.
+      else {
+        subscriber.send({
+          type: 'call_roster',
+          channelId: event.channelId,
+          participants: joined.value,
+        });
+      }
+      return;
+    }
+
+    case 'call_leave':
+      await leaveCall(ctx, { sessionId: subscriber.id });
+      return;
+
+    case 'call_update':
+      await updateCallState(ctx, {
+        sessionId: subscriber.id,
+        muted: event.muted,
+        video: event.video,
+        sharing: event.sharing,
+      });
+      return;
+
+    case 'call_signal': {
+      const relayed = await relaySignal(ctx, {
+        channelId: event.channelId,
+        userId: subscriber.userId,
+        sessionId: subscriber.id,
+        to: event.to,
+        data: event.data,
+      });
+      if (!relayed.ok) subscriber.send(fail(relayed.error, undefined));
+      return;
+    }
+
+    case 'call_heartbeat':
+      await heartbeatCall(ctx, { sessionId: subscriber.id });
       return;
   }
 }

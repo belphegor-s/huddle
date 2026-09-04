@@ -163,6 +163,17 @@ function ChannelRow({
       >
         <Icon name={icon} className="text-text-muted size-4" />
         <span className="min-w-0 flex-1 truncate">{label}</span>
+        {/*
+          A call is happening whether or not you have read the channel, so it
+          reads before the unread badge rather than replacing it.
+        */}
+        {summary.callCount > 0 ? (
+          <span
+            className="bg-positive size-2 rounded-full motion-safe:animate-pulse"
+            aria-label={`${String(summary.callCount)} in a huddle`}
+          />
+        ) : null}
+
         {summary.mentionCount > 0 ? (
           <span className="bg-accent text-on-accent text-2xs rounded-full px-1.5 py-0.5 font-semibold">
             {summary.mentionCount}
