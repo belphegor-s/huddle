@@ -97,6 +97,39 @@ test('two people huddle, see each other and hang up', async ({ browser }) => {
   await expect(guestStage.getByText('Connecting')).toHaveCount(0, { timeout: 30_000 });
   await expect(ownerStage.getByText('Connecting')).toHaveCount(0, { timeout: 30_000 });
 
+  // Sound has to work with every camera off, which is how a huddle usually
+  // runs. The tile used to double as the speaker, so with no video there was
+  // no element holding the stream and the room was silent until somebody
+  // turned a camera on.
+  const heard = async (page: Page) => {
+    const first = await page.evaluate(() =>
+      [...document.querySelectorAll('audio')].map((el) => {
+        const stream = el.srcObject as MediaStream | null;
+        return {
+          tracks: stream
+            ? stream.getAudioTracks().filter((t) => t.readyState === 'live').length
+            : 0,
+          paused: el.paused,
+          at: el.currentTime,
+        };
+      }),
+    );
+
+    await page.waitForTimeout(1200);
+
+    const second = await page.evaluate(() =>
+      [...document.querySelectorAll('audio')].map((el) => el.currentTime),
+    );
+
+    return first.map((one, index) => ({ ...one, advanced: (second[index] ?? 0) > one.at }));
+  };
+
+  for (const page of [ownerPage, guestPage]) {
+    const players = await heard(page);
+    expect(players.length).toBeGreaterThan(0);
+    expect(players.some((one) => one.tracks > 0 && !one.paused && one.advanced)).toBe(true);
+  }
+
   // Expanded, the call takes the screen rather than a strip of it.
   const strip = (await ownerStage.boundingBox())?.height ?? 0;
   await ownerPage.getByRole('button', { name: 'Expand the huddle' }).click();
