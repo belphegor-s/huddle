@@ -1,9 +1,17 @@
 import type { ChannelSummary, NotificationLevel } from '@huddle/core';
-import { Button, cx, Icon, TextField } from '@huddle/ui';
-import { useRef, useState } from 'react';
+import {
+  Button,
+  Icon,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuLabel,
+  MenuSeparator,
+  TextField,
+} from '@huddle/ui';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { api } from '../lib/api';
-import { useDismiss } from '../lib/use-dismiss';
 import { Dialog } from './dialog';
 
 interface ChannelMenuProps {
@@ -28,11 +36,7 @@ const MUTES = [
 
 export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: ChannelMenuProps) {
   const [topic, setTopic] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
-  const panel = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-
-  useDismiss(panel, () => setOpen(false));
 
   const channelId = summary.channel.id;
 
@@ -48,7 +52,6 @@ export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: Ch
     // Archiving hides it from every sidebar, so whoever did it should not be
     // left staring at a channel that no longer exists for anyone.
     await api.updateChannel(channelId, { archived: true });
-    setOpen(false);
     onChanged();
     await navigate(`/w/${workspaceSlug}`);
   }
@@ -56,131 +59,82 @@ export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: Ch
   async function saveTopic(next: string) {
     await api.updateChannel(channelId, { topic: next.trim() === '' ? null : next.trim() });
     setTopic(null);
-    setOpen(false);
     onChanged();
   }
 
   async function leave() {
     await api.leaveChannel(channelId);
-    setOpen(false);
     onChanged();
     await navigate(`/w/${workspaceSlug}`);
   }
 
   return (
-    <div ref={panel} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((was) => !was)}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-label={
-          summary.channel.kind === 'channel' ? 'Channel settings' : 'Conversation settings'
+    <>
+      <Menu
+        label={summary.channel.kind === 'channel' ? 'Channel settings' : 'Conversation settings'}
+        align="end"
+        className="w-64"
+        trigger={
+          <MenuButton
+            aria-label={
+              summary.channel.kind === 'channel' ? 'Channel settings' : 'Conversation settings'
+            }
+            className="text-text-secondary hover:bg-surface-hover grid size-9 place-items-center rounded-lg"
+          >
+            <Icon name={summary.muted ? 'bell' : 'more'} className="size-4" />
+          </MenuButton>
         }
-        className="text-text-secondary hover:bg-surface-hover grid size-9 place-items-center rounded-lg"
       >
-        <Icon name={summary.muted ? 'bell' : 'more'} className="size-4" />
-      </button>
-
-      {open ? (
-        <div
-          role="menu"
-          className="border-border bg-surface-raised shadow-popover absolute top-11 right-0 z-30 flex w-64 flex-col rounded-xl border p-1"
-        >
-          <p className="text-text-muted text-2xs px-2 pt-2 pb-1 font-semibold tracking-wide uppercase">
-            Notify me about
-          </p>
-
+        <>
+          <MenuLabel>Notify me about</MenuLabel>
           {LEVELS.map((level) => (
-            <button
+            <MenuItem
               key={level.value}
-              type="button"
-              role="menuitemradio"
-              aria-checked={summary.notificationLevel === level.value}
-              onClick={() => void save({ notificationLevel: level.value })}
-              className={cx(
-                'flex min-h-11 items-center gap-2 rounded-lg px-2 text-left text-sm',
-                summary.notificationLevel === level.value
-                  ? 'bg-surface-active'
-                  : 'hover:bg-surface-hover',
-              )}
+              selected={summary.notificationLevel === level.value}
+              hint={level.hint}
+              onSelect={() => void save({ notificationLevel: level.value })}
             >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate">{level.label}</span>
-                <span className="text-text-muted block truncate text-xs">{level.hint}</span>
-              </span>
-              {summary.notificationLevel === level.value ? (
-                <Icon name="check" className="text-accent size-4" />
-              ) : null}
-            </button>
+              {level.label}
+            </MenuItem>
           ))}
 
-          <p className="border-border text-text-muted text-2xs mt-1 border-t px-2 pt-2 pb-1 font-semibold tracking-wide uppercase">
-            Mute
-          </p>
+          <MenuSeparator />
+          <MenuLabel>Mute</MenuLabel>
 
           {summary.muted ? (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => void save({ mutedUntil: null })}
-              className="hover:bg-surface-hover flex min-h-11 items-center rounded-lg px-2 text-left text-sm"
-            >
-              Unmute
-            </button>
+            <MenuItem onSelect={() => void save({ mutedUntil: null })}>Unmute</MenuItem>
           ) : (
             MUTES.map((mute) => (
-              <button
+              <MenuItem
                 key={mute.label}
-                type="button"
-                role="menuitem"
-                onClick={() => void save({ mutedUntil: Date.now() + mute.ms })}
-                className="hover:bg-surface-hover flex min-h-11 items-center rounded-lg px-2 text-left text-sm"
+                onSelect={() => void save({ mutedUntil: Date.now() + mute.ms })}
               >
                 {mute.label}
-              </button>
+              </MenuItem>
             ))
           )}
 
           {canManage && summary.channel.kind === 'channel' ? (
             <>
-              <p className="border-border text-text-muted text-2xs mt-1 border-t px-2 pt-2 pb-1 font-semibold tracking-wide uppercase">
-                Channel
-              </p>
+              <MenuSeparator />
+              <MenuLabel>Channel</MenuLabel>
 
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => setTopic(summary.channel.topic ?? '')}
-                className="hover:bg-surface-hover flex min-h-11 items-center gap-2 rounded-lg px-2 text-left text-sm"
-              >
-                <Icon name="edit" className="size-4" />
+              <MenuItem icon="edit" onSelect={() => setTopic(summary.channel.topic ?? '')}>
                 {summary.channel.topic ? 'Edit the topic' : 'Add a topic'}
-              </button>
+              </MenuItem>
 
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => void archive()}
-                className="hover:bg-surface-hover flex min-h-11 items-center gap-2 rounded-lg px-2 text-left text-sm"
-              >
-                <Icon name="file" className="size-4" />
+              <MenuItem icon="file" onSelect={() => void archive()}>
                 Archive channel
-              </button>
+              </MenuItem>
             </>
           ) : null}
 
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => void leave()}
-            className="text-critical border-border hover:bg-surface-hover mt-1 flex min-h-11 items-center gap-2 rounded-lg border-t px-2 text-left text-sm"
-          >
-            <Icon name="close" className="size-4" />
+          <MenuSeparator />
+          <MenuItem icon="close" danger onSelect={() => void leave()}>
             {summary.channel.kind === 'channel' ? 'Leave channel' : 'Close conversation'}
-          </button>
-        </div>
-      ) : null}
+          </MenuItem>
+        </>
+      </Menu>
 
       {topic === null ? null : (
         <Dialog
@@ -211,6 +165,6 @@ export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: Ch
           </form>
         </Dialog>
       )}
-    </div>
+    </>
   );
 }

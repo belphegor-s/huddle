@@ -4,7 +4,7 @@ export type { AccessError, Member } from './access.js';
 export { createSession, loadSession, requestMagicLink, signOut, verifyMagicLink } from './auth.js';
 export type { IssuedSession, MagicLinkRequest } from './auth.js';
 
-export { describeMe, updateProfile } from './profile.js';
+export { describeMe, touchLastSeen, updateProfile } from './profile.js';
 
 export {
   acceptInvite,
@@ -15,6 +15,7 @@ export {
   listInvites,
   listWorkspaces,
   revokeInvite,
+  updateWorkspace,
 } from './workspaces.js';
 export type { InviteError } from './workspaces.js';
 

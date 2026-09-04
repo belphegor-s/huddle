@@ -1,4 +1,11 @@
-import { err, ok, type MemberProfile, type Result, type Role } from '@huddle/core';
+import { err, ok, type MemberProfile, type Presence, type Result, type Role } from '@huddle/core';
+
+/**
+ * A socket refreshes its user's timestamp on connect and on every ping, and
+ * pings run every 25 seconds, so this is comfortably more than one missed
+ * beat and comfortably less than a stale row looking present.
+ */
+const ONLINE_WINDOW_MS = 70_000;
 import { channelMembers, channels, memberships, users } from '@huddle/db';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { AppContext } from '../context.js';
@@ -23,13 +30,23 @@ export async function listMembers(
       displayName: users.displayName,
       avatarUrl: users.avatarUrl,
       role: memberships.role,
+      presence: users.presence,
+      statusEmoji: users.statusEmoji,
+      statusText: users.statusText,
+      lastSeenAt: users.lastSeenAt,
     })
     .from(memberships)
     .innerJoin(users, eq(users.id, memberships.userId))
     .where(eq(memberships.workspaceId, input.workspaceId))
     .orderBy(asc(users.displayName));
 
-  return ok(rows);
+  const now = ctx.now();
+  return ok(
+    rows.map(({ lastSeenAt, ...row }) => ({
+      ...row,
+      online: isOnline(row.presence, lastSeenAt, now),
+    })),
+  );
 }
 
 /**
@@ -140,7 +157,15 @@ async function countOwners(ctx: AppContext, workspaceId: string): Promise<number
 
 async function profileOf(ctx: AppContext, userId: string, role: Role): Promise<MemberProfile> {
   const rows = await ctx.db
-    .select({ id: users.id, displayName: users.displayName, avatarUrl: users.avatarUrl })
+    .select({
+      id: users.id,
+      displayName: users.displayName,
+      avatarUrl: users.avatarUrl,
+      presence: users.presence,
+      statusEmoji: users.statusEmoji,
+      statusText: users.statusText,
+      lastSeenAt: users.lastSeenAt,
+    })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
@@ -148,5 +173,16 @@ async function profileOf(ctx: AppContext, userId: string, role: Role): Promise<M
   const user = rows[0];
   if (!user) throw new Error('Member vanished between update and read');
 
-  return { ...user, role };
+  const { lastSeenAt, ...profile } = user;
+  return { ...profile, role, online: isOnline(user.presence, lastSeenAt, ctx.now()) };
+}
+
+/**
+ * Connected recently, and not hiding. Derived from a timestamp rather than
+ * from the hub's memory so that several instances agree on the answer and a
+ * restart does not declare everybody offline.
+ */
+export function isOnline(presence: Presence, lastSeenAt: number | null, now: number): boolean {
+  if (presence === 'invisible' || lastSeenAt === null) return false;
+  return now - lastSeenAt < ONLINE_WINDOW_MS;
 }

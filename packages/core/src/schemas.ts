@@ -52,6 +52,9 @@ export const User = z.object({
   displayName: z.string().min(1).max(80),
   avatarUrl: z.url().nullable(),
   timezone: z.string().max(64).nullable(),
+  presence: z.enum(['active', 'away', 'busy', 'invisible']),
+  statusEmoji: z.string().nullable(),
+  statusText: z.string().nullable(),
   createdAt: z.number().int(),
 });
 export type User = z.infer<typeof User>;
@@ -70,6 +73,17 @@ export const Workspace = z.object({
   createdAt: z.number().int(),
 });
 export type Workspace = z.infer<typeof Workspace>;
+
+/**
+ * The slug is deliberately not here. Every link anybody has bookmarked or
+ * pasted into a message carries it, and quietly breaking those is worse than
+ * living with a name chosen in a hurry.
+ */
+export const UpdateWorkspaceInput = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  iconUrl: z.url().nullable().optional(),
+});
+export type UpdateWorkspaceInput = z.infer<typeof UpdateWorkspaceInput>;
 
 export const Membership = z.object({
   workspaceId: Id,
@@ -164,10 +178,27 @@ export const CreateInviteInput = z.object({
 });
 export type CreateInviteInput = z.infer<typeof CreateInviteInput>;
 
+/**
+ * What somebody chose to appear as, which is not the same as whether they are
+ * connected. Invisible is a choice to look offline while being here.
+ */
+export const Presence = z.enum(['active', 'away', 'busy', 'invisible']);
+export type Presence = z.infer<typeof Presence>;
+
+export const UserStatus = z.object({
+  presence: Presence,
+  emoji: z.string().max(16).nullable(),
+  text: z.string().max(80).nullable(),
+});
+export type UserStatus = z.infer<typeof UserStatus>;
+
 export const UpdateProfileInput = z.object({
   displayName: z.string().trim().min(1).max(80).optional(),
   timezone: z.string().max(64).nullable().optional(),
   avatarUrl: z.url().nullable().optional(),
+  presence: Presence.optional(),
+  statusEmoji: z.string().trim().max(16).nullable().optional(),
+  statusText: z.string().trim().max(80).nullable().optional(),
 });
 export type UpdateProfileInput = z.infer<typeof UpdateProfileInput>;
 
@@ -293,6 +324,11 @@ export const MemberProfile = z.object({
   displayName: z.string(),
   avatarUrl: z.url().nullable(),
   role: Role,
+  presence: Presence,
+  statusEmoji: z.string().nullable(),
+  statusText: z.string().nullable(),
+  /** Connected recently. Always false for somebody who chose to be invisible. */
+  online: z.boolean(),
 });
 export type MemberProfile = z.infer<typeof MemberProfile>;
 

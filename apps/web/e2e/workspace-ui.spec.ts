@@ -1,0 +1,139 @@
+import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { SERVER_LOG } from './server-log';
+
+async function signIn(page: Page, email: string): Promise<void> {
+  await page.goto('/signin');
+  await page.getByLabel('Email').fill(email);
+  await page.getByRole('button', { name: 'Email me a link' }).click();
+  await expect(page.getByText('Check your email')).toBeVisible();
+
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const lines = readFileSync(SERVER_LOG, 'utf8')
+      .split('\n')
+      .filter((line) => line.includes('email_not_sent') && line.includes(email));
+
+    const last = lines.at(-1);
+    if (last !== undefined) {
+      const parsed = JSON.parse(last.slice(last.indexOf('{'))) as { text: string };
+      const found = /https?:\/\/\S+/.exec(parsed.text)?.[0];
+      if (found) {
+        await page.goto(found);
+        return;
+      }
+    }
+
+    await page.waitForTimeout(250);
+  }
+
+  throw new Error('No sign in link was written');
+}
+
+function unique(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+test('a public channel is visible to a member who has not joined it', async ({ browser }) => {
+  const slug = unique('open');
+
+  const owner = await browser.newContext();
+  const ownerPage = await owner.newPage();
+  await signIn(ownerPage, `owner-${slug}@example.com`);
+
+  await ownerPage.getByLabel('Team name').fill('Open');
+  await ownerPage.getByLabel('Address').fill(slug);
+  await ownerPage.getByRole('button', { name: 'Create workspace' }).click();
+
+  await ownerPage.getByRole('button', { name: 'New channel' }).click();
+  await ownerPage.getByLabel('Name').fill('announcements');
+  await ownerPage.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(ownerPage).toHaveURL(/\/c\/announcements$/);
+
+  await ownerPage.goto(`/w/${slug}/people`);
+  await ownerPage.getByRole('button', { name: 'New link' }).click();
+  const invite = new URL((await ownerPage.locator('output').first().textContent()) ?? '').pathname;
+
+  const guest = await browser.newContext();
+  const guestPage = await guest.newPage();
+  await signIn(guestPage, `guest-${slug}@example.com`);
+  await guestPage.goto(invite);
+  await guestPage.getByRole('button', { name: 'Join workspace' }).click();
+  await expect(guestPage).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  // The channel is public and the guest is a member of the workspace, so it
+  // has to be reachable. It used to be invisible to anybody not added to it
+  // by hand, which made a workspace of open channels look empty.
+  const nav = guestPage.getByRole('navigation');
+  await expect(nav.getByRole('link', { name: /announcements/ })).toBeVisible();
+
+  await nav.getByRole('link', { name: /announcements/ }).click();
+  await expect(guestPage).toHaveURL(/\/c\/announcements$/);
+
+  await guest.close();
+  await owner.close();
+});
+
+test('status, presence and settings are reachable from the sidebar', async ({ page }) => {
+  const slug = unique('status');
+  await signIn(page, `${slug}@example.com`);
+
+  await page.getByLabel('Team name').fill('Statuses');
+  await page.getByLabel('Address').fill(slug);
+  await page.getByRole('button', { name: 'Create workspace' }).click();
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  // The menu renders in the top layer, so it has to paint above the sidebar
+  // whatever stacking contexts exist between them.
+  await page
+    .getByRole('button', { name: /Sign out|Active/ })
+    .first()
+    .click();
+  const menu = page.getByRole('menu', { name: 'Your status' });
+  await expect(menu).toBeVisible();
+
+  const above = await menu.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const at = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    return element.contains(at);
+  });
+  expect(above).toBe(true);
+
+  await menu.getByRole('menuitem', { name: 'Do not disturb' }).click();
+  await expect(menu).toBeHidden();
+
+  // The choice survives a reload, which is the only proof it was stored.
+  await page.reload();
+  await expect(page.getByRole('img', { name: 'Do not disturb' })).toBeVisible();
+
+  // Workspace settings had no way in at all before.
+  await page.getByRole('button', { name: 'Statuses' }).first().click();
+  await page.getByRole('menuitem', { name: 'Workspace settings' }).click();
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}/settings$`));
+
+  const name = page.getByLabel('Name');
+  await name.fill('Renamed');
+  await name.press('Enter');
+  await expect(page.getByText('Saved')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Renamed' }).first()).toBeVisible();
+});
+
+test('a profile saves on Enter', async ({ page }) => {
+  const slug = unique('profile');
+  await signIn(page, `${slug}@example.com`);
+
+  await page.getByLabel('Team name').fill('Profiles');
+  await page.getByLabel('Address').fill(slug);
+  await page.getByRole('button', { name: 'Create workspace' }).click();
+  // Creating has to have landed before navigating, or the next page load races
+  // the membership and the workspace reads as one this person is not in.
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  await page.goto(`/w/${slug}/you`);
+  const field = page.getByLabel('Display name');
+  await field.fill('Ada Lovelace');
+  await field.press('Enter');
+
+  await expect(page.getByText('Saved')).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel('Display name')).toHaveValue('Ada Lovelace');
+});

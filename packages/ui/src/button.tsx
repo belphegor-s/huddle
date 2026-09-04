@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from 'react';
 import { cx } from './cx.js';
 
-type Variant = 'primary' | 'secondary' | 'ghost';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'md' | 'lg';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -23,6 +23,12 @@ const VARIANTS: Record<Variant, string> = {
   primary: 'bg-accent text-on-accent hover:bg-accent-hover',
   secondary: 'border border-border-strong bg-surface-raised hover:bg-surface-hover',
   ghost: 'text-text-secondary hover:bg-surface-hover hover:text-text-primary',
+  /*
+   * Outlined rather than filled. A solid red button beside a neutral one pulls
+   * the eye to the destructive choice, which is the wrong thing to make
+   * easiest, so it reads as serious without asking to be pressed.
+   */
+  danger: 'border border-critical text-critical hover:bg-critical-soft',
 };
 
 const SIZES: Record<Size, string> = {

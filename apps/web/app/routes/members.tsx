@@ -1,8 +1,19 @@
 import type { MemberProfile, Role } from '@huddle/core';
-import { Avatar, Button, cx, Icon } from '@huddle/ui';
+import {
+  Avatar,
+  Button,
+  cx,
+  Icon,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuLabel,
+  MenuSeparator,
+} from '@huddle/ui';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { api, ApiError } from '../lib/api';
+import { presenceOf, statusLine } from '../lib/presence';
 import { outranksMember } from '../lib/roles';
 import { useWorkspace } from '../lib/workspace';
 import { InvitePanel } from '../components/invite-panel';
@@ -94,55 +105,73 @@ export default function Members() {
               key={member.id}
               className="border-border bg-surface-raised flex items-center gap-3 rounded-lg border px-3 py-2"
             >
-              <Avatar name={member.displayName} url={member.avatarUrl} size="md" />
+              <Avatar
+                name={member.displayName}
+                url={member.avatarUrl}
+                size="md"
+                presence={presenceOf(member)}
+              />
 
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">
                   {member.displayName}
                   {isMe ? <span className="text-text-muted font-normal"> (you)</span> : null}
                 </span>
-                <span className="text-text-muted text-xs capitalize">{member.role}</span>
+                {/* Whatever they wrote about themselves reads before their role,
+                    because it is the part that changes and the part people look
+                    for. */}
+                <span className="text-text-muted block truncate text-xs">
+                  {statusLine(member) ?? <span className="capitalize">{member.role}</span>}
+                </span>
               </span>
 
               {editable ? (
-                <>
-                  <label className="sr-only" htmlFor={`role-${member.id}`}>
-                    Role for {member.displayName}
-                  </label>
-                  <select
-                    id={`role-${member.id}`}
-                    value={member.role}
-                    disabled={busy === member.id}
-                    onChange={(event) =>
-                      void act(member.id, () =>
-                        api.setMemberRole(workspace.id, member.id, event.target.value as Role),
-                      )
-                    }
-                    className="border-border bg-surface min-h-9 rounded-lg border px-2 text-sm"
-                  >
+                <Menu
+                  label={`Manage ${member.displayName}`}
+                  align="end"
+                  trigger={
+                    <MenuButton
+                      aria-label={`Manage ${member.displayName}`}
+                      disabled={busy === member.id}
+                      className={cx(
+                        'border-border bg-surface hover:bg-surface-hover flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-sm capitalize',
+                        busy === member.id && 'opacity-50',
+                      )}
+                    >
+                      {member.role}
+                      <Icon name="chevronDown" className="text-text-muted size-4" />
+                    </MenuButton>
+                  }
+                >
+                  <>
+                    <MenuLabel>Role</MenuLabel>
                     {ROLES.filter((option) => outranksMember(role, option.value)).map((option) => (
-                      <option key={option.value} value={option.value}>
+                      <MenuItem
+                        key={option.value}
+                        selected={member.role === option.value}
+                        onSelect={() =>
+                          void act(member.id, () =>
+                            api.setMemberRole(workspace.id, member.id, option.value),
+                          )
+                        }
+                      >
                         {option.label}
-                      </option>
+                      </MenuItem>
                     ))}
-                  </select>
 
-                  <button
-                    type="button"
-                    aria-label={`Remove ${member.displayName}`}
-                    title={`Remove ${member.displayName}`}
-                    disabled={busy === member.id}
-                    onClick={() =>
-                      void act(member.id, () => api.removeMember(workspace.id, member.id))
-                    }
-                    className={cx(
-                      'text-text-muted hover:text-critical hover:bg-surface-hover grid size-9 place-items-center rounded-lg',
-                      busy === member.id && 'opacity-50',
-                    )}
-                  >
-                    <Icon name="trash" className="size-4" />
-                  </button>
-                </>
+                    <MenuSeparator />
+
+                    <MenuItem
+                      icon="trash"
+                      danger
+                      onSelect={() =>
+                        void act(member.id, () => api.removeMember(workspace.id, member.id))
+                      }
+                    >
+                      Remove from workspace
+                    </MenuItem>
+                  </>
+                </Menu>
               ) : null}
             </li>
           );
@@ -163,7 +192,7 @@ export default function Members() {
         </p>
         <Button
           type="button"
-          variant="secondary"
+          variant="danger"
           className="self-start"
           onClick={() =>
             void leave().catch((error: unknown) => {

@@ -87,6 +87,8 @@
   --accent: var(--cobalt-600);
   --accent-hover: var(--cobalt-700);
   --accent-soft: #e7eeff;
+  /* A destructive action needs a hover that reads as a warning, not a shout. */
+  --critical-soft: #fdeceb;
   --on-accent: #ffffff;
 
   --focus-ring: var(--cobalt-500);
@@ -121,6 +123,7 @@
     --accent: var(--cobalt-400);
     --accent-hover: #8fb2ff;
     --accent-soft: #16233f;
+    --critical-soft: #3a1e1c;
     --on-accent: var(--sand-950);
 
     --positive: #5cb27c;
@@ -152,6 +155,7 @@
   --accent: var(--cobalt-400);
   --accent-hover: #8fb2ff;
   --accent-soft: #16233f;
+  --critical-soft: #3a1e1c;
   --on-accent: var(--sand-950);
 
   --positive: #5cb27c;
@@ -181,5 +185,6 @@
   --color-positive: var(--positive);
   --color-caution: var(--caution);
   --color-critical: var(--critical);
+  --color-critical-soft: var(--critical-soft);
   --color-focus-ring: var(--focus-ring);
 }

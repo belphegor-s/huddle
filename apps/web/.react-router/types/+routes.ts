@@ -54,6 +54,11 @@ type Pages = {
       "slug": string;
     };
   };
+  "/w/:slug/settings": {
+    params: {
+      "slug": string;
+    };
+  };
   "/specimen": {
     params: {};
   };
@@ -62,7 +67,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/signin" | "/signout" | "/new" | "/join/:token" | "/w/:slug" | "/w/:slug/c/:ref" | "/w/:slug/search" | "/w/:slug/people" | "/w/:slug/you" | "/specimen";
+    page: "/" | "/signin" | "/signout" | "/new" | "/join/:token" | "/w/:slug" | "/w/:slug/c/:ref" | "/w/:slug/search" | "/w/:slug/people" | "/w/:slug/you" | "/w/:slug/settings" | "/specimen";
   };
   "routes/home.tsx": {
     id: "routes/home";
@@ -86,7 +91,7 @@ type RouteFiles = {
   };
   "routes/workspace.tsx": {
     id: "routes/workspace";
-    page: "/w/:slug" | "/w/:slug/c/:ref" | "/w/:slug/search" | "/w/:slug/people" | "/w/:slug/you";
+    page: "/w/:slug" | "/w/:slug/c/:ref" | "/w/:slug/search" | "/w/:slug/people" | "/w/:slug/you" | "/w/:slug/settings";
   };
   "routes/workspace-home.tsx": {
     id: "routes/workspace-home";
@@ -108,6 +113,10 @@ type RouteFiles = {
     id: "routes/profile";
     page: "/w/:slug/you";
   };
+  "routes/settings.tsx": {
+    id: "routes/settings";
+    page: "/w/:slug/settings";
+  };
   "routes/specimen.tsx": {
     id: "routes/specimen";
     page: "/specimen";
@@ -127,5 +136,6 @@ type RouteModules = {
   "routes/search": typeof import("./app/routes/search.tsx");
   "routes/members": typeof import("./app/routes/members.tsx");
   "routes/profile": typeof import("./app/routes/profile.tsx");
+  "routes/settings": typeof import("./app/routes/settings.tsx");
   "routes/specimen": typeof import("./app/routes/specimen.tsx");
 };

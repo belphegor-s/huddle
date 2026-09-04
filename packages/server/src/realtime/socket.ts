@@ -11,6 +11,7 @@ import {
   relaySignal,
   requireChannel,
   roster,
+  touchLastSeen,
   sendMessage,
   syncSince,
   toggleReaction,
@@ -54,6 +55,9 @@ export function attachSocket(ctx: AppContext, socket: Socket, userId: string): v
   };
 
   ctx.hub.add(subscriber);
+  // Presence is a timestamp on the row rather than a list in this process, so
+  // several instances agree and a restart does not declare everybody offline.
+  ctx.background('seen', () => touchLastSeen(ctx, userId));
   subscriber.send({
     type: 'ready',
     version: WIRE_VERSION,
@@ -88,6 +92,7 @@ async function handle(ctx: AppContext, subscriber: Subscriber, raw: string): Pro
   switch (event.type) {
     case 'ping':
       subscriber.send({ type: 'pong', ref: event.ref });
+      ctx.background('seen', () => touchLastSeen(ctx, subscriber.userId));
       return;
 
     case 'subscribe': {

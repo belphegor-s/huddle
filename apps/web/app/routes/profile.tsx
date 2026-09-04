@@ -55,7 +55,16 @@ export default function Profile() {
   }
 
   return (
-    <section className="mx-auto flex w-full max-w-md flex-col gap-6 overflow-y-auto px-4 py-6">
+    // A real form, so Enter saves. It was a section with loose fields and a
+    // button that did not submit anything, which left the keyboard with no way
+    // to finish the job.
+    <form
+      className="mx-auto flex w-full max-w-md flex-col gap-6 overflow-y-auto px-4 py-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void save();
+      }}
+    >
       <header className="flex items-center gap-3">
         <Link
           to={`/w/${workspace.slug}`}
@@ -119,11 +128,7 @@ export default function Profile() {
       <TextField label="Email" value={me.user.email} readOnly disabled hint="Sign in address" />
 
       <div className="flex items-center gap-3">
-        <Button
-          type="button"
-          onClick={() => void save()}
-          disabled={saving || !changed || clean === ''}
-        >
+        <Button type="submit" disabled={saving || !changed || clean === ''}>
           {saving ? 'Saving' : 'Save'}
         </Button>
         {saved && !changed ? (
@@ -133,6 +138,6 @@ export default function Profile() {
           </span>
         ) : null}
       </div>
-    </section>
+    </form>
   );
 }

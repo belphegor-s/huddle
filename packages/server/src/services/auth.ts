@@ -176,6 +176,9 @@ async function findOrCreateUser(ctx: AppContext, email: string): Promise<User> {
     displayName: nameFromEmail(email),
     avatarUrl: null,
     timezone: null,
+    presence: 'active',
+    statusEmoji: null,
+    statusText: null,
     createdAt: now,
   };
 

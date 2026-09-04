@@ -43,6 +43,13 @@
       "when": 1788493949908,
       "tag": "0005_calls",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788536848492,
+      "tag": "0006_presence",
+      "breakpoints": true
     }
   ]
 }

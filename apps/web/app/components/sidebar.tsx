@@ -1,29 +1,38 @@
-import type { ChannelSummary, MemberProfile, Me, Workspace } from '@huddle/core';
+import type { Channel, ChannelSummary, MemberProfile, Me, Role, Workspace } from '@huddle/core';
 import type { IconName } from '@huddle/ui';
-import { Avatar, Button, cx, Icon } from '@huddle/ui';
-import { Form, Link, NavLink } from 'react-router';
-import { channelTitle } from '../lib/workspace';
+import { Avatar, cx, Icon } from '@huddle/ui';
+import { Link, NavLink } from 'react-router';
+import { presenceOf } from '../lib/presence';
+import { channelTitle, dmAvatar } from '../lib/workspace';
 import { PushToggle } from './push-toggle';
+import { StatusMenu } from './status-menu';
 import { WorkspaceSwitcher } from './workspace-switcher';
 
 interface SidebarProps {
   me: Me;
   workspace: Workspace;
+  role: Role;
   channels: ChannelSummary[];
   members: MemberProfile[];
+  /** Public channels in the workspace this person has not joined. */
+  discoverable: Channel[];
   className?: string;
   onCreateChannel(): void;
   onStartDm(): void;
+  onChanged(): void;
 }
 
 export function Sidebar({
   me,
   workspace,
+  role,
   channels,
   members,
+  discoverable,
   className,
   onCreateChannel,
   onStartDm,
+  onChanged,
 }: SidebarProps) {
   const rooms = channels.filter((summary) => summary.channel.kind === 'channel');
   const direct = channels.filter((summary) => summary.channel.kind !== 'channel');
@@ -36,7 +45,7 @@ export function Sidebar({
       )}
     >
       <header className="py-2">
-        <WorkspaceSwitcher current={workspace} workspaces={me.workspaces} />
+        <WorkspaceSwitcher current={workspace} workspaces={me.workspaces} role={role} />
       </header>
 
       <Link
@@ -66,7 +75,32 @@ export function Sidebar({
             icon={summary.channel.isPrivate ? 'lock' : 'hash'}
           />
         ))}
-        {rooms.length === 0 ? <Empty>No channels yet</Empty> : null}
+        {rooms.length === 0 && discoverable.length === 0 ? <Empty>No channels yet</Empty> : null}
+
+        {/*
+          Public channels you have not joined. They were invisible before, so a
+          workspace looked empty to everybody who had not been added to things
+          one at a time.
+        */}
+        {discoverable.map((channel) => (
+          <li key={channel.id}>
+            <NavLink
+              to={`/w/${workspace.slug}/c/${channel.name ?? channel.id}`}
+              className={({ isActive }) =>
+                cx(
+                  'flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm no-underline',
+                  isActive
+                    ? 'bg-surface-active text-text-primary'
+                    : 'text-text-muted hover:bg-surface-hover',
+                )
+              }
+            >
+              <Icon name="hash" className="size-4 opacity-60" />
+              <span className="min-w-0 flex-1 truncate">{channel.name}</span>
+              <span className="text-2xs text-text-muted shrink-0">Join</span>
+            </NavLink>
+          </li>
+        ))}
       </ul>
 
       <Section title="Direct messages" actionLabel="New message" onAction={onStartDm} />
@@ -78,6 +112,8 @@ export function Sidebar({
             summary={summary}
             label={channelTitle(summary, members, me.user.id)}
             icon="people"
+            member={otherMember(summary, members, me.user.id)}
+            avatarUrl={dmAvatar(summary, members, me.user.id)}
           />
         ))}
         {direct.length === 0 ? <Empty>No conversations yet</Empty> : null}
@@ -88,20 +124,7 @@ export function Sidebar({
       </div>
 
       <footer className="border-border flex items-center gap-2 border-t px-2 pt-3">
-        <Link
-          to={`/w/${workspace.slug}/you`}
-          className="hover:bg-surface-hover -mx-1 flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-1 no-underline"
-        >
-          <Avatar name={me.user.displayName} url={me.user.avatarUrl} size="md" />
-          <span className="text-text-primary min-w-0 flex-1 truncate text-sm">
-            {me.user.displayName}
-          </span>
-        </Link>
-        <Form method="post" action="/signout">
-          <Button type="submit" variant="ghost">
-            Sign out
-          </Button>
-        </Form>
+        <StatusMenu me={me} workspaceSlug={workspace.slug} onChanged={onChanged} />
       </footer>
     </nav>
   );
@@ -132,16 +155,32 @@ function Section({
   );
 }
 
+/** The other person in a one to one conversation, whose presence is worth showing. */
+function otherMember(
+  summary: ChannelSummary,
+  members: MemberProfile[],
+  meId: string,
+): MemberProfile | null {
+  if (summary.channel.kind !== 'dm') return null;
+
+  const otherId = summary.memberIds.find((id) => id !== meId);
+  return members.find((one) => one.id === otherId) ?? null;
+}
+
 function ChannelRow({
   workspaceSlug,
   summary,
   label,
   icon,
+  member,
+  avatarUrl,
 }: {
   workspaceSlug: string;
   summary: ChannelSummary;
   label: string;
   icon: IconName;
+  member?: MemberProfile | null;
+  avatarUrl?: string | null;
 }) {
   const unread = summary.unreadCount > 0;
 
@@ -161,7 +200,16 @@ function ChannelRow({
           )
         }
       >
-        <Icon name={icon} className="text-text-muted size-4" />
+        {member ? (
+          <Avatar
+            name={label}
+            url={avatarUrl}
+            size="sm"
+            presence={presenceOf(member, summary.callCount > 0)}
+          />
+        ) : (
+          <Icon name={icon} className="text-text-muted size-4" />
+        )}
         <span className="min-w-0 flex-1 truncate">{label}</span>
         {/*
           A call is happening whether or not you have read the channel, so it

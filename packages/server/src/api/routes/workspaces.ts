@@ -3,6 +3,7 @@ import {
   CreateWorkspaceInput,
   SetMemberRoleInput,
   UpdateProfileInput,
+  UpdateWorkspaceInput,
 } from '@huddle/core';
 import {
   acceptInvite,
@@ -17,6 +18,7 @@ import {
   revokeInvite,
   setMemberRole,
   updateProfile,
+  updateWorkspace,
 } from '../../services/index.js';
 import { Hono } from 'hono';
 import type { ApiEnv } from '../env.js';
@@ -99,6 +101,18 @@ export function workspaceRoutes(): Hono<ApiEnv> {
    * being invited to before asking them to sign in. It exposes the workspace
    * name and nothing else.
    */
+  routes.patch('/workspaces/:workspaceId', async (c) => {
+    const input = await jsonBody(c, UpdateWorkspaceInput);
+    const updated = await updateWorkspace(c.var.app, {
+      workspaceId: c.req.param('workspaceId'),
+      userId: currentUser(c).id,
+      ...input,
+    });
+
+    if (!updated.ok) return failure(c, updated.error);
+    return c.json(updated.value);
+  });
+
   routes.patch('/workspaces/:workspaceId/members/:userId', async (c) => {
     const input = await jsonBody(c, SetMemberRoleInput);
     const updated = await setMemberRole(c.var.app, {

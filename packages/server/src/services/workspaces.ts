@@ -7,6 +7,7 @@ import {
   type InviteSummary,
   type Result,
   type Role,
+  type UpdateWorkspaceInput,
   type Workspace,
   type WorkspaceMembership,
 } from '@huddle/core';
@@ -238,4 +239,46 @@ async function loadUsableInvite(
   if (invite.maxUses !== null && invite.useCount >= invite.maxUses) return err('used_up');
 
   return ok({ id: invite.id, workspaceId: invite.workspaceId, role: invite.role });
+}
+
+/**
+ * Renaming and reskinning, for an admin. The slug is not editable: every link
+ * anybody has already shared carries it.
+ */
+export async function updateWorkspace(
+  ctx: AppContext,
+  input: { workspaceId: string; userId: string } & UpdateWorkspaceInput,
+): Promise<Result<Workspace, AccessError>> {
+  const member = await requireMember(ctx.db, {
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+    minimumRole: 'admin',
+  });
+  if (!member.ok) return err(member.error);
+
+  const patch: Partial<{ name: string; iconUrl: string | null }> = {};
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.iconUrl !== undefined) patch.iconUrl = input.iconUrl;
+
+  if (Object.keys(patch).length === 0) {
+    const current = await ctx.db
+      .select()
+      .from(workspaces)
+      .where(eq(workspaces.id, input.workspaceId))
+      .limit(1);
+
+    const found = current[0];
+    if (!found) return err('not_a_member');
+    return ok(found);
+  }
+
+  const updated = await ctx.db
+    .update(workspaces)
+    .set(patch)
+    .where(eq(workspaces.id, input.workspaceId))
+    .returning();
+
+  const row = updated[0];
+  if (!row) return err('not_a_member');
+  return ok(row);
 }

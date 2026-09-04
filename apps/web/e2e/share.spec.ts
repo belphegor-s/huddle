@@ -51,7 +51,7 @@ test('a shared screen reaches the other end', async ({ browser }) => {
   await b.goto(`/w/${slug}/c/general`);
 
   await a.goto(`/w/${slug}/c/general`);
-  await a.getByRole('button', { name: 'Huddle' }).click();
+  await a.getByRole('button', { name: 'Huddle', exact: true }).click();
   await expect(b.getByRole('button', { name: 'Join (1)' })).toBeVisible({ timeout: 15000 });
   await b.getByRole('button', { name: 'Join (1)' }).click();
   await expect(a.getByRole('region', { name: 'Huddle' }).getByText('2 people')).toBeVisible({

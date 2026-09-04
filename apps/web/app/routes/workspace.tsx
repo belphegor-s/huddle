@@ -30,17 +30,29 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
   const slug = params.slug ?? '';
   const found = await api.workspaceBySlug(slug);
 
-  const [channels, members, features] = await Promise.all([
+  const [channels, members, features, discoverable] = await Promise.all([
     api.channels(found.workspace.id),
     api.members(found.workspace.id),
     api.capabilities(),
+    // Public channels this person has not joined. Without these the sidebar
+    // shows only what somebody was added to, and a workspace full of open
+    // channels looks empty.
+    api.browseChannels(found.workspace.id).catch(() => []),
   ]);
 
-  return { me, workspace: found.workspace, role: found.role, channels, members, features };
+  return {
+    me,
+    workspace: found.workspace,
+    role: found.role,
+    channels,
+    members,
+    features,
+    discoverable,
+  };
 }
 
 export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
-  const { me, workspace, role, channels, members, features } = loaderData;
+  const { me, workspace, role, channels, members, features, discoverable } = loaderData;
   const revalidator = useRevalidator();
   const params = useParams();
   const location = useLocation();
@@ -106,11 +118,14 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
         <Sidebar
           me={me}
           workspace={workspace}
+          role={role}
           channels={channels}
           members={members}
+          discoverable={discoverable}
           className={cx(inRoom ? 'hidden md:flex' : 'flex')}
           onCreateChannel={() => setDialog('channel')}
           onStartDm={() => setDialog('dm')}
+          onChanged={refresh}
         />
 
         <main className={cx('min-w-0 flex-1', inRoom ? 'flex' : 'hidden md:flex')}>

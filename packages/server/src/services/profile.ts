@@ -36,3 +36,8 @@ export async function updateProfile(
 function definedOnly(patch: UpdateProfileInput): Partial<UpdateProfileInput> {
   return Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
 }
+
+/** Refreshed by every socket, which is what online is worked out from. */
+export async function touchLastSeen(ctx: AppContext, userId: string): Promise<void> {
+  await ctx.db.update(users).set({ lastSeenAt: ctx.now() }).where(eq(users.id, userId));
+}

@@ -15,6 +15,7 @@ import type {
   UpdateChannelInput,
   UpdateChannelPrefsInput,
   UpdateProfileInput,
+  UpdateWorkspaceInput,
   UploadTicket,
   Workspace,
   WorkspaceMembership,
@@ -101,6 +102,8 @@ export const api = {
     post<WorkspaceMembership>('/api/workspaces', input),
   workspaceBySlug: (slug: string) =>
     call<WorkspaceMembership>(`/api/workspaces/${encodeURIComponent(slug)}`),
+  updateWorkspace: (workspaceId: string, patchBody: UpdateWorkspaceInput) =>
+    patch<Workspace>(`/api/workspaces/${workspaceId}`, patchBody),
   createInvite: (workspaceId: string) =>
     post<{ token: string; expiresAt: number; role: Role }>(
       `/api/workspaces/${workspaceId}/invites`,

@@ -32,6 +32,18 @@ export const users = pgTable(
     displayName: text('display_name').notNull(),
     avatarUrl: text('avatar_url'),
     timezone: text('timezone'),
+    /** What somebody chose to appear as. Not whether they are connected. */
+    presence: text('presence', { enum: ['active', 'away', 'busy', 'invisible'] })
+      .notNull()
+      .default('active'),
+    statusEmoji: text('status_emoji'),
+    statusText: text('status_text'),
+    /**
+     * Refreshed by the socket. Online is derived from this rather than from
+     * the hub's memory, so several instances agree and a restart does not
+     * declare everybody offline.
+     */
+    lastSeenAt: ms('last_seen_at'),
     createdAt: ms('created_at').notNull(),
   },
   (t) => [uniqueIndex('users_email_idx').on(t.email)],
