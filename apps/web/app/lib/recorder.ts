@@ -1,4 +1,4 @@
-import { LIMITS } from '@huddle/core';
+import { LIMITS, resampleWaveform } from '@huddle/core';
 
 export interface Recording {
   file: File;
@@ -13,6 +13,12 @@ export interface Recording {
  * nothing to summarise and playback never has to decode the file to draw
  * anything.
  */
+/** Often enough that a short note still has a shape worth drawing. */
+const SAMPLE_MS = 50;
+
+/** The longest note this app allows, at that rate, with room to spare. */
+const MAX_SAMPLES = Math.ceil(LIMITS.voiceNoteMs / SAMPLE_MS) + 8;
+
 export class VoiceRecorder {
   private stream: MediaStream | null = null;
   private recorder: MediaRecorder | null = null;
@@ -37,17 +43,16 @@ export class VoiceRecorder {
     this.context.createMediaStreamSource(this.stream).connect(analyser);
 
     const buffer = new Uint8Array(analyser.frequencyBinCount);
-    const interval = Math.max(
-      40,
-      Math.floor(LIMITS.voiceNoteMs / Math.max(LIMITS.waveformPeaks, 1)),
-    );
 
+    // Sampled at a fixed rate and reduced to the drawing's width when the
+    // recording stops. Spacing the samples out to fill the waveform over the
+    // maximum length instead gave a three second note a single bar.
     this.sampler = setInterval(() => {
       analyser.getByteTimeDomainData(buffer);
       let peak = 0;
       for (const sample of buffer) peak = Math.max(peak, Math.abs(sample - 128) / 128);
-      if (this.peaks.length < LIMITS.waveformPeaks) this.peaks.push(Number(peak.toFixed(2)));
-    }, interval);
+      if (this.peaks.length < MAX_SAMPLES) this.peaks.push(peak);
+    }, SAMPLE_MS);
 
     this.recorder.start(250);
   }
@@ -72,7 +77,7 @@ export class VoiceRecorder {
     return {
       file: new File([blob], `voice-${Date.now()}.${extensionFor(type)}`, { type }),
       durationMs: Date.now() - this.startedAt,
-      peaks: this.peaks,
+      peaks: resampleWaveform(this.peaks, LIMITS.waveformPeaks),
     };
   }
 

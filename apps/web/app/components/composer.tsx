@@ -332,26 +332,29 @@ function VoiceButton({
         {formatDuration(elapsed)}
       </span>
 
-      <IconButton
-        label="Stop and attach"
-        onClick={() => void finish()}
-        className="bg-accent text-on-accent border-accent"
-      >
+      <IconButton label="Stop and attach" tone="accent" onClick={() => void finish()}>
         <Icon name="stop" />
       </IconButton>
     </div>
   );
 }
 
+/**
+ * The tone is a choice, not a layer. Passing `bg-accent` in on top of the base
+ * classes left two backgrounds in the list, and which one won came down to the
+ * order Tailwind happened to emit them in: the stop control ended up a white
+ * glyph on the near white surface, invisible, so a recording could not be
+ * stopped.
+ */
 function IconButton({
   label,
   onClick,
-  className,
+  tone = 'default',
   children,
 }: {
   label: string;
   onClick(): void;
-  className?: string;
+  tone?: 'default' | 'accent';
   children: React.ReactNode;
 }) {
   return (
@@ -361,8 +364,10 @@ function IconButton({
       title={label}
       onClick={onClick}
       className={cx(
-        'border-border bg-surface-raised hover:bg-surface-hover grid size-11 shrink-0 place-items-center rounded-xl border transition-colors',
-        className,
+        'grid size-11 shrink-0 place-items-center rounded-xl border transition-colors',
+        tone === 'accent'
+          ? 'bg-accent text-on-accent border-accent hover:brightness-110'
+          : 'border-border bg-surface-raised hover:bg-surface-hover',
       )}
     >
       {children}

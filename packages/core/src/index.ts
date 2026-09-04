@@ -5,3 +5,4 @@ export * from './tokens.js';
 export * from './wire.js';
 export * from './limits.js';
 export * from './markdown.js';
+export * from './waveform.js';
