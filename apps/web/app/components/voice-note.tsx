@@ -75,7 +75,7 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
       <div
         onClick={seek}
         role="presentation"
-        className="flex h-9 flex-1 items-center gap-px overflow-hidden"
+        className="flex h-9 flex-1 cursor-pointer items-center gap-px overflow-hidden"
       >
         {peaks.map((peak, index) => (
           <span

@@ -23,8 +23,19 @@ import { highlight, type Emphasis } from '../lib/highlight';
  * have to wrap identically to the pixel, and the highlighter guarantees the
  * character stream is the same.
  */
+/*
+ * `block` matters: a textarea is inline by default, so it sits on a text
+ * baseline and carries the line box's descender with it. That made the field
+ * six pixels taller than the height it was given, and left it out of line with
+ * the buttons either side of it.
+ *
+ * The padding and leading are chosen so that one line comes to exactly the
+ * height of the buttons beside it: 1.6 of a 0.9375rem font is 1.5rem, plus
+ * 0.5625rem above and below, is 2.625rem, and the border either side makes
+ * 2.75rem. Both layers share the numbers, so they still wrap identically.
+ */
 const SHARED =
-  'w-full px-3 py-2.5 text-base leading-message font-ui whitespace-pre-wrap break-words';
+  'block w-full px-3 py-[0.5625rem] text-base leading-[1.6] font-ui whitespace-pre-wrap break-words';
 
 const STYLES: Record<Emphasis, string> = {
   plain: '',

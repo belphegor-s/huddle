@@ -52,6 +52,22 @@ body {
   color: inherit;
 }
 
+/*
+ * Anything that acts on a click says so under the pointer. Tailwind's reset
+ * gives buttons the arrow cursor, which is correct for a native form control
+ * and wrong for every control in this app.
+ */
+:where(button, [role='button'], summary, label[for], a[href]):not(
+  :disabled,
+  [aria-disabled='true']
+) {
+  cursor: pointer;
+}
+
+:where(button, [role='button']):is(:disabled, [aria-disabled='true']) {
+  cursor: not-allowed;
+}
+
 /* One focus treatment everywhere, and it is never removed. */
 :where(:focus-visible) {
   outline: 2px solid var(--focus-ring);
