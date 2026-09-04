@@ -1,3 +1,5 @@
+import { resampleWaveform, type Attachment } from '@huddle/core';
+import { VoiceNote } from '../components/voice-note';
 import type { Route } from './+types/specimen';
 
 export function meta(_: Route.MetaArgs) {
@@ -103,6 +105,63 @@ export default function Specimen() {
           ))}
         </ul>
       </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-text-muted text-2xs font-semibold tracking-widest uppercase">
+          Voice notes
+        </h2>
+        <p className="text-text-muted text-sm">
+          Drawn from the same peaks a recording carries. A waveform is judged by whether it looks
+          like the voice in it, which no unit test can answer.
+        </p>
+        {SAMPLE_NOTES.map((note) => (
+          <div key={note.label} className="flex flex-col gap-1">
+            <span className="text-text-muted text-2xs font-mono">{note.label}</span>
+            <VoiceNote attachment={note.attachment} />
+          </div>
+        ))}
+      </section>
     </main>
   );
 }
+
+/** Speech: phrases with gaps, syllables inside them, and occasional plosives. */
+function speechPeaks(length: number, gaps: boolean): number[] {
+  let seed = 7;
+  const random = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+
+  const raw = Array.from({ length }, (_, index) => {
+    const talking = !gaps || Math.sin(index / 55) > -0.25;
+    if (!talking) return 0.005 + random() * 0.01;
+
+    const syllable = Math.abs(Math.sin(index / 2.6)) ** 1.5;
+    const plosive = random() > 0.985 ? 3.2 : 1;
+    const passage = 0.75 + 0.45 * Math.sin(index / 31);
+    return Math.min(1, (0.05 + 0.22 * syllable) * plosive * passage);
+  });
+
+  return resampleWaveform(raw, 128);
+}
+
+function sampleNote(label: string, peaks: number[], durationMs: number) {
+  const attachment: Attachment = {
+    id: label,
+    url: '',
+    kind: 'audio',
+    name: `${label}.webm`,
+    size: 48_000,
+    mimeType: 'audio/webm',
+    width: null,
+    height: null,
+    durationMs,
+    peaks,
+  };
+
+  return { label, attachment };
+}
+
+const SAMPLE_NOTES = [
+  sampleNote('thirty seconds, phrases and pauses', speechPeaks(600, true), 30_000),
+  sampleNote('six seconds, one breath', speechPeaks(120, false), 6_000),
+  sampleNote('a note that is almost silence', new Array(128).fill(0), 4_000),
+];

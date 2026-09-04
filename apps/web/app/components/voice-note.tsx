@@ -3,8 +3,14 @@ import { cx, Icon, IconSolid } from '@huddle/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDuration } from '../lib/format';
 
-/** Silence still needs a line, or the bar looks like a rendering failure. */
-const FLOOR_PERCENT = 15;
+/**
+ * Silence still needs a line, or the bar looks like a rendering failure. Low
+ * enough that a quiet passage reads as quiet rather than as a second baseline.
+ */
+const FLOOR_PERCENT = 8;
+
+/** Cycled rather than picked from a menu: one tap is the whole interaction. */
+const SPEEDS = [1, 1.5, 2, 0.5] as const;
 
 /**
  * Fewer bars than are stored. A hundred and twenty eight of them in a chat
@@ -31,6 +37,7 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
   const pending = useRef<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [speed, setSpeed] = useState<number>(1);
 
   const total = attachment.durationMs ?? 0;
   const peaks = useMemo(
@@ -70,12 +77,28 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
     };
   }, []);
 
+  function cycleSpeed() {
+    const next =
+      SPEEDS[(SPEEDS.indexOf(speed as (typeof SPEEDS)[number]) + 1) % SPEEDS.length] ?? 1;
+    setSpeed(next);
+
+    const element = audio.current;
+    if (!element) return;
+
+    // Without this a voice at double speed is a chipmunk, which is funny once
+    // and unusable after that.
+    element.preservesPitch = true;
+    element.playbackRate = next;
+  }
+
   function toggle() {
     const element = audio.current;
     if (!element) return;
 
     // The state follows the element's own events rather than being set here,
     // so a play that never starts does not leave a pause button behind.
+    element.preservesPitch = true;
+    element.playbackRate = speed;
     if (element.paused) void element.play().catch(() => undefined);
     else element.pause();
   }
@@ -164,6 +187,21 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
       <span className="text-text-muted shrink-0 font-mono text-xs tabular-nums">
         {formatDuration(playing || progress > 0 ? progress * total : total)}
       </span>
+
+      <button
+        type="button"
+        onClick={cycleSpeed}
+        aria-label={`Playback speed, currently ${String(speed)} times. Press to change.`}
+        title="Playback speed"
+        className={cx(
+          'min-h-7 shrink-0 rounded-full px-2 font-mono text-xs tabular-nums transition-colors',
+          speed === 1
+            ? 'text-text-muted hover:bg-surface-hover'
+            : 'bg-accent-soft text-accent font-semibold',
+        )}
+      >
+        {speed}x
+      </button>
     </div>
   );
 }

@@ -1,4 +1,8 @@
-import { useEffect, useReducer } from 'react';
+import { useEffect, useState } from 'react';
+
+/** Where the code actually is. It was pointing at github.com itself. */
+const SOURCE_URL = 'https://github.com/belphegor-s/huddle';
+import { cx } from '@huddle/ui';
 import { redirect } from 'react-router';
 import { api } from '../lib/api';
 import { currentMe } from '../lib/session';
@@ -61,21 +65,58 @@ const CONVERSATION: DemoLine[] = [
   },
 ];
 
-function useRevealedLines(total: number): number {
-  const [shown, reveal] = useReducer((n: number) => Math.min(n + 1, total), 1);
+/** How long somebody appears to be typing before their message lands. */
+const TYPING_MS = 900;
+
+/** The pause after a message before the next person starts. */
+const BETWEEN_MS = 1100;
+
+interface Playback {
+  shown: number;
+  typing: boolean;
+}
+
+/**
+ * Plays the conversation through, with the person who is about to speak shown
+ * as typing first.
+ *
+ * Under reduced motion the whole conversation is there from the start. It used
+ * to stop the timer instead, which left those readers looking at a single
+ * message and no way to see the rest.
+ */
+function usePlayback(total: number): Playback {
+  const [state, setState] = useState<Playback>({ shown: 1, typing: false });
 
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced || shown >= total) return;
-    const timer = window.setTimeout(reveal, shown === 1 ? 700 : 1300);
-    return () => window.clearTimeout(timer);
-  }, [shown, total]);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setState({ shown: total, typing: false });
+      return;
+    }
+  }, [total]);
 
-  return shown;
+  useEffect(() => {
+    if (state.shown >= total) return;
+
+    if (!state.typing) {
+      const timer = window.setTimeout(
+        () => setState((was) => ({ ...was, typing: true })),
+        BETWEEN_MS,
+      );
+      return () => window.clearTimeout(timer);
+    }
+
+    const timer = window.setTimeout(
+      () => setState((was) => ({ shown: was.shown + 1, typing: false })),
+      TYPING_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [state, total]);
+
+  return state;
 }
 
 function ConversationDemo() {
-  const shown = useRevealedLines(CONVERSATION.length);
+  const { shown, typing } = usePlayback(CONVERSATION.length);
 
   return (
     <div className="border-border bg-surface-raised shadow-popover overflow-hidden rounded-xl border">
@@ -84,29 +125,81 @@ function ConversationDemo() {
         <span className="text-text-primary font-medium">launch</span>
         <span className="text-text-muted">4 members</span>
       </div>
+
+      {/*
+        Every line is rendered from the start and the ones not yet said are
+        hidden rather than absent, so the panel is the height it will end at
+        and nothing below it moves while the conversation plays.
+      */}
       <ul className="flex flex-col gap-4 p-4">
-        {CONVERSATION.slice(0, shown).map((line) => (
-          <li key={line.author + line.text} className="animate-rise flex gap-3">
-            <span
-              aria-hidden="true"
-              className="bg-surface-sunken text-text-secondary text-2xs mt-0.5 grid size-8 shrink-0 place-items-center rounded-md font-semibold"
+        {CONVERSATION.map((line, index) => {
+          const said = index < shown;
+          const speaking = index === shown && typing;
+
+          return (
+            <li
+              key={line.author + line.text}
+              aria-hidden={said ? undefined : true}
+              className={cx(
+                'flex gap-3 transition-[opacity,transform] duration-500',
+                // A gentle overshoot, so a message settles rather than snaps.
+                '[transition-timing-function:cubic-bezier(0.16,1,0.3,1)]',
+                said || speaking
+                  ? 'translate-y-0 opacity-100'
+                  : 'invisible translate-y-2 opacity-0',
+              )}
             >
-              {line.initials}
-            </span>
-            <div className="min-w-0">
-              <span className="text-text-primary text-sm font-semibold">{line.author}</span>
-              <p
-                className={
-                  line.tone === 'accent' ? 'text-accent text-base' : 'text-text-primary text-base'
-                }
+              <span
+                aria-hidden="true"
+                className="bg-surface-sunken text-text-secondary text-2xs mt-0.5 grid size-8 shrink-0 place-items-center rounded-md font-semibold"
               >
-                {line.text}
-              </p>
-            </div>
-          </li>
-        ))}
+                {line.initials}
+              </span>
+
+              <div className="min-w-0">
+                <span className="text-text-primary text-sm font-semibold">{line.author}</span>
+                {/*
+                  The dots sit on top of the message rather than above it. In
+                  their own row they added ten pixels while somebody was
+                  typing, which is exactly the shifting this is meant to stop.
+                */}
+                <div className="relative">
+                  <p
+                    className={cx(
+                      'text-base transition-opacity duration-300',
+                      line.tone === 'accent' ? 'text-accent' : 'text-text-primary',
+                      said ? 'opacity-100' : 'opacity-0',
+                    )}
+                  >
+                    {line.text}
+                  </p>
+                  {speaking ? (
+                    <span className="absolute inset-0 flex items-start pt-2">
+                      <TypingDots />
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
+  );
+}
+
+/** Three dots, out of step with each other, in the space the message will take. */
+function TypingDots() {
+  return (
+    <span aria-hidden="true" className="flex items-center gap-1">
+      {[0, 1, 2].map((dot) => (
+        <span
+          key={dot}
+          className="bg-text-muted size-1.5 rounded-full motion-safe:animate-bounce"
+          style={{ animationDelay: `${String(dot * 120)}ms`, animationDuration: '900ms' }}
+        />
+      ))}
+    </span>
   );
 }
 
@@ -143,7 +236,9 @@ export default function Home() {
         <span className="font-display text-lg font-semibold tracking-tight">huddle</span>
         <nav className="flex items-center gap-4">
           <a
-            href="https://github.com"
+            href={SOURCE_URL}
+            target="_blank"
+            rel="noreferrer noopener"
             className="text-text-secondary hover:text-text-primary text-sm no-underline"
           >
             Source

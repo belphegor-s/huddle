@@ -72,6 +72,24 @@ test.describe('voice notes', () => {
     await player.focus();
     await player.press('End');
     await expect(player).toHaveAttribute('aria-valuenow', '100');
+
+    // Speed cycles, and reaches the element rather than only the label.
+    const speed = page.getByRole('button', { name: /Playback speed/ });
+    await expect(speed).toHaveText('1x');
+
+    for (const expected of ['1.5x', '2x', '0.5x', '1x']) {
+      await speed.click();
+      await expect(speed).toHaveText(expected);
+
+      const applied = await page.evaluate(() => {
+        const element = document.querySelector('audio');
+        return { rate: element?.playbackRate ?? 0, pitch: element?.preservesPitch ?? false };
+      });
+
+      expect(applied.rate).toBeCloseTo(Number(expected.replace('x', '')));
+      // Otherwise a voice at double speed is a chipmunk.
+      expect(applied.pitch).toBe(true);
+    }
   });
 });
 
