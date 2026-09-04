@@ -97,6 +97,24 @@ test('two people huddle, see each other and hang up', async ({ browser }) => {
   await expect(guestStage.getByText('Connecting')).toHaveCount(0, { timeout: 30_000 });
   await expect(ownerStage.getByText('Connecting')).toHaveCount(0, { timeout: 30_000 });
 
+  // Expanded, the call takes the screen rather than a strip of it.
+  const strip = (await ownerStage.boundingBox())?.height ?? 0;
+  await ownerPage.getByRole('button', { name: 'Expand the huddle' }).click();
+
+  const full = (await ownerStage.boundingBox())?.height ?? 0;
+  expect(full).toBeGreaterThan(strip * 1.5);
+  await expect(ownerStage.getByText('2 people')).toBeVisible();
+
+  // Back through the control rather than Escape: once the browser has granted
+  // real fullscreen, Escape belongs to the browser, and the visible way out is
+  // the one that has to work.
+  await ownerPage.getByRole('button', { name: 'Shrink the huddle' }).click();
+  await expect(ownerPage.getByRole('button', { name: 'Expand the huddle' })).toBeVisible();
+  // Leaving fullscreen resizes the window, which the layout follows a frame
+  // or two later.
+  await expect.poll(async () => (await ownerStage.boundingBox())?.height ?? 0).toBeLessThan(full);
+  await expect(ownerPage.getByLabel('Message', { exact: true })).toBeVisible();
+
   // Mute travels over the roster rather than over the media, so it is visible
   // to the other end even though nothing about the stream changed.
   await ownerPage.getByRole('button', { name: 'Mute', exact: true }).click();

@@ -1,5 +1,6 @@
 import type { MemberProfile } from '@huddle/core';
 import { cx, Icon, type IconName } from '@huddle/ui';
+import { useEffect, useState } from 'react';
 import type { CallView, PeerView } from '../lib/call';
 import { CallTile } from './call-tile';
 
@@ -17,6 +18,11 @@ interface CallStageProps {
  * The call, above the conversation rather than on top of it, because a huddle
  * is something people keep talking in chat during. It takes a share of the
  * height and gives the rest back to the messages.
+ *
+ * Expanded, it takes the screen instead, which is what a call with a screen
+ * being shared in it is actually for. Real fullscreen is asked for as well,
+ * and if the browser refuses the call still fills the window, so the control
+ * never does nothing.
  */
 export function CallStage({
   call,
@@ -27,6 +33,44 @@ export function CallStage({
   onToggleSharing,
   onLeave,
 }: CallStageProps) {
+  const [stage, setStage] = useState<HTMLElement | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  // Escape leaves fullscreen on its own, and this keeps our own idea of the
+  // size honest when it does. It also covers the case where the browser
+  // refused fullscreen and Escape is the only way back.
+  useEffect(() => {
+    if (!expanded) return;
+
+    function onFullscreenChange() {
+      if (document.fullscreenElement === null) setExpanded(false);
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setExpanded(false);
+    }
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [expanded]);
+
+  // Asked for rather than assumed: fullscreen needs a gesture and can be
+  // refused outright, and neither is a reason to leave the control broken.
+  useEffect(() => {
+    if (!stage) return;
+
+    if (expanded && document.fullscreenElement === null) {
+      void stage.requestFullscreen().catch(() => undefined);
+    }
+    if (!expanded && document.fullscreenElement !== null) {
+      void document.exitFullscreen().catch(() => undefined);
+    }
+  }, [expanded, stage]);
+
   const me = members.find((member) => member.id === meId);
   const shared = call.sharing
     ? { stream: call.screen, name: 'Your screen' }
@@ -63,12 +107,23 @@ export function CallStage({
 
   return (
     <section
+      ref={setStage}
       aria-label="Huddle"
-      className="border-border flex shrink-0 flex-col gap-2 border-b bg-neutral-950 p-2 text-white"
+      className={cx(
+        'flex flex-col gap-2 bg-neutral-950 p-2 text-white',
+        expanded
+          ? 'fixed inset-0 z-50 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]'
+          : 'border-border shrink-0 border-b',
+      )}
     >
       {shared ? (
-        <div className="flex min-h-0 flex-col gap-2 lg:flex-row">
-          <div className="min-h-48 flex-1 lg:min-h-64">
+        <div
+          className={cx(
+            'flex min-h-0 flex-col gap-2 lg:flex-row',
+            expanded && 'flex-1 overflow-hidden',
+          )}
+        >
+          <div className={cx('min-h-48 flex-1', expanded ? 'lg:min-h-0' : 'lg:min-h-64')}>
             <CallTile
               contain
               name={shared.name}
@@ -93,7 +148,13 @@ export function CallStage({
       ) : (
         // A fixed height with equal rows: the stage keeps its share of the
         // screen whether there are two people in it or eight.
-        <ul className={cx('grid h-52 auto-rows-fr gap-2 lg:h-72', gridFor(tiles.length))}>
+        <ul
+          className={cx(
+            'grid auto-rows-fr gap-2',
+            expanded ? 'min-h-0 flex-1' : 'h-52 lg:h-72',
+            gridFor(tiles.length),
+          )}
+        >
           {tiles.map((tile, index) => (
             <li key={index} className="min-h-0">
               {tile}
@@ -128,6 +189,12 @@ export function CallStage({
           onClick={onToggleSharing}
           // Only Chromium hands a tab or a window to a page on a phone.
           className="hidden sm:grid"
+        />
+        <Control
+          icon={expanded ? 'collapse' : 'expand'}
+          label={expanded ? 'Shrink the huddle' : 'Expand the huddle'}
+          on={expanded}
+          onClick={() => setExpanded((open) => !open)}
         />
         <Control icon="hangUp" label="Leave the huddle" danger onClick={onLeave} />
       </div>
