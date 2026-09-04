@@ -49,7 +49,14 @@ export async function searchMessages(
     .from(channelMembers)
     .innerJoin(channels, eq(channels.id, channelMembers.channelId))
     .where(
-      and(eq(channelMembers.userId, input.userId), eq(channels.workspaceId, input.workspaceId)),
+      and(
+        eq(channelMembers.userId, input.userId),
+        eq(channels.workspaceId, input.workspaceId),
+        // An encrypted channel stores no text to match. Leaving it in would
+        // only ever return nothing, which reads as a broken search rather
+        // than as the deliberate cost of the server not being able to read.
+        eq(channels.encrypted, false),
+      ),
     );
 
   const names = new Map(readable.map((row) => [row.id, isDmKey(row.name) ? null : row.name]));

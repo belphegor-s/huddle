@@ -50,6 +50,13 @@
       "when": 1788536848492,
       "tag": "0006_presence",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788539099536,
+      "tag": "0007_encryption",
+      "breakpoints": true
     }
   ]
 }

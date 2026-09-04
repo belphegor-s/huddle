@@ -159,6 +159,10 @@ function titleFor(channel: Channel, authorName: string): string {
  * a lock screen, and an attachment only message still has to say something.
  */
 function previewOf(message: Message): string {
+  // An encrypted message has no plaintext here, and the notification says so
+  // rather than showing an empty line or a base64 blob.
+  if (message.epoch !== null) return 'Sent an encrypted message';
+
   const text = message.text.trim();
   if (text !== '') return text.length > 140 ? `${text.slice(0, 139)}…` : text;
 

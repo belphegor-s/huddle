@@ -21,6 +21,8 @@ const QUICK_REACTIONS = ['\u{1f44d}', '\u{2705}', '\u{1f440}'];
 
 export interface MessageRowProps {
   message: Message;
+  /** No key for it on this device. It exists, and cannot be read here. */
+  locked?: boolean;
   members: MemberProfile[];
   meId: string;
   canModerate: boolean;
@@ -33,6 +35,7 @@ export interface MessageRowProps {
 
 export function MessageRow({
   message,
+  locked = false,
   members,
   meId,
   canModerate,
@@ -120,7 +123,19 @@ export function MessageRow({
               in milliseconds and a spinner would flash.
             */}
             <div className={cx(pending && 'text-text-secondary')}>
-              <MessageBody source={source} members={members} meId={meId} />
+              {/*
+                Somebody wrote this and this browser has no key for it. Saying
+                so is the honest thing: an empty row reads as a bug, and
+                pretending it is not there hides that a conversation happened.
+              */}
+              {locked ? (
+                <p className="text-text-muted flex items-center gap-1.5 text-base italic">
+                  <Icon name="lock" className="size-3.5 shrink-0" />
+                  This message cannot be read on this device
+                </p>
+              ) : (
+                <MessageBody source={source} members={members} meId={meId} />
+              )}
               {message.editedAt === null ? null : (
                 <span className="text-text-muted text-2xs ml-1">edited</span>
               )}

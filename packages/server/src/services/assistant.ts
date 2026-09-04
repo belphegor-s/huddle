@@ -6,7 +6,8 @@ import type { AiMessage } from '../storage/ai.js';
 import { requireChannel } from './channels.js';
 import { fetchThread, syncSince, type MessageError } from './messages.js';
 
-export type AssistantError = MessageError | 'unavailable' | 'rate_limited' | 'nothing_to_read';
+export type AssistantError =
+  MessageError | 'unavailable' | 'rate_limited' | 'nothing_to_read' | 'encrypted';
 
 /** Enough for a long thread, short enough that a reply comes back quickly. */
 const MAX_MESSAGES = 200;
@@ -101,6 +102,10 @@ async function ready(
 
   const access = await requireChannel(ctx, input);
   if (!access.ok) return err(access.error);
+
+  // There is nothing to summarise. The server holds ciphertext, and sending
+  // that to a model would be theatre.
+  if (access.value.channel.encrypted) return err('encrypted');
 
   // Per person rather than per instance: one enthusiastic user should not be
   // able to spend the whole deployment's budget.

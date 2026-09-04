@@ -202,6 +202,7 @@ describe('removing a member', () => {
       name: 'general',
       topic: null,
       isPrivate: false,
+      encrypted: false,
     });
     if (!channel.ok) throw new Error('channel');
 

@@ -86,6 +86,39 @@ VAPID_PRIVATE_KEY=...
 
 The toggle appears in the sidebar once the server has a pair. Push needs HTTPS everywhere except `localhost`, and on an iPhone the app has to be added to the home screen first, which is Apple's rule rather than ours.
 
+### End to end encryption
+
+Direct messages and private channels are encrypted in the browser. The server
+stores ciphertext, and cannot read a message even under its own database
+credentials.
+
+One symmetric key per channel per epoch, sealed to each member's devices:
+ECDH P-256 with an ephemeral key pair for the agreement, ECDSA P-256 over every
+sealed key, HKDF-SHA-256 to derive, and AES-256-GCM for content. A message is
+bound to its channel, its id, its author and its key epoch as associated data,
+so a ciphertext cannot be moved to another channel, replayed as a different
+message, or reattributed to somebody who did not write it.
+
+Keys are made in the browser and never leave it. The private halves are
+generated non extractable and kept in IndexedDB as `CryptoKey` objects, so page
+code can ask the browser to use them and cannot read them out. A new device
+holds nothing until somebody already in the channel opens it and seals the key
+across.
+
+Removing somebody moves the channel to a new key. What they already read stays
+readable to them, which no design can prevent, and everything said afterwards
+is beyond the key they hold.
+
+The costs are real and are the point:
+
+- Search covers your open channels. There is no text to index in an encrypted one.
+- The assistant will not summarise an encrypted channel. There is nothing to send it.
+- A push notification says a message arrived, not what it said.
+
+Public channels are not encrypted, and keep search and the assistant. Choose
+per channel when you make one; it cannot be turned on afterwards, because that
+would leave a scrollback of plaintext behind a claim of privacy.
+
 ### Huddles
 
 Voice, camera and screen sharing, in any channel or conversation. Nothing to

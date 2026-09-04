@@ -105,7 +105,7 @@ function ChannelView({
   const [threadId, setThreadId] = useState<string | null>(null);
   const [catchingUp, setCatchingUp] = useState(false);
   const canModerate = outranksMember(role, 'admin');
-  const stream = useMessages(realtime, summary.channel.id, me.user.id);
+  const stream = useMessages(realtime, summary.channel, me.user.id);
   const title = channelTitle(summary, members, me.user.id);
   const label = channelLabel(summary, members, me.user.id);
   const direct = isDirect(summary);
@@ -137,6 +137,13 @@ function ChannelView({
                 />
               )}
               <span className="truncate">{title}</span>
+              {summary.channel.encrypted ? (
+                <Icon
+                  name="lock"
+                  label="End to end encrypted"
+                  className="text-positive size-3.5 shrink-0"
+                />
+              ) : null}
             </h1>
             {summary.channel.topic ? (
               <p className="text-text-muted truncate text-xs">{summary.channel.topic}</p>
@@ -184,6 +191,19 @@ function ChannelView({
 
         {joined ? null : <JoinBanner channelId={summary.channel.id} onJoined={onChanged} />}
 
+        {/*
+          Said plainly rather than left as an empty channel. A device with no
+          key is the normal state for a new browser, and it clears as soon as
+          somebody who has the key opens the channel.
+        */}
+        {stream.waitingForKey ? (
+          <p className="border-border bg-surface-raised text-text-secondary flex items-center gap-2 border-b px-3 py-2 text-sm md:px-5">
+            <Icon name="lock" className="text-text-muted size-4 shrink-0" />
+            This device has no key for this conversation yet. Anybody already in it will pass one
+            over when they next open it.
+          </p>
+        ) : null}
+
         {call.channelId === summary.channel.id ? (
           <CallStage
             call={call}
@@ -210,6 +230,7 @@ function ChannelView({
 
         <MessageList
           messages={stream.messages}
+          locked={stream.locked}
           members={members}
           meId={me.user.id}
           canModerate={canModerate}

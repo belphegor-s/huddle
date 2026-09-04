@@ -90,6 +90,14 @@ export const channels = pgTable(
     name: text('name'),
     topic: text('topic'),
     isPrivate: boolean('is_private').notNull().default(false),
+    /**
+     * Bodies are ciphertext the server cannot read. Set when the channel is
+     * made and never afterwards: turning it on later would leave a scrollback
+     * of plaintext behind claiming to be private.
+     */
+    encrypted: boolean('encrypted').notNull().default(false),
+    /** Which channel key is current. Bumped when somebody is removed. */
+    keyEpoch: integer('key_epoch').notNull().default(0),
     createdBy: text('created_by').notNull(),
     createdAt: ms('created_at').notNull(),
     archivedAt: ms('archived_at'),
@@ -146,6 +154,12 @@ export const messages = pgTable(
     text: text('text').notNull(),
     parentId: text('parent_id'),
     /**
+     * The channel key this body was encrypted under, or null for plaintext.
+     * Self describing, so a channel that was encrypted from the start still
+     * reads correctly beside anything written before the feature existed.
+     */
+    epoch: integer('epoch'),
+    /**
      * Kept on the parent rather than counted on read, because the channel view
      * loads top level messages only and would otherwise have to count rows it
      * deliberately did not fetch.
@@ -199,6 +213,60 @@ export const callParticipants = pgTable(
     lastSeenAt: ms('last_seen_at').notNull(),
   },
   (t) => [index('call_participants_channel_idx').on(t.channelId)],
+);
+
+/**
+ * A browser that holds encryption keys. Keyed by device rather than by user
+ * because the private half never leaves the machine that made it: a laptop and
+ * a phone are two devices and a channel key is sealed to each of them.
+ */
+export const devices = pgTable(
+  'devices',
+  {
+    id: id(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Raw ECDH P-256 public key, base64. Others seal channel keys to this. */
+    encryptionKey: text('encryption_key').notNull(),
+    /** Raw ECDSA P-256 public key, base64. Proves a sealed key came from here. */
+    signingKey: text('signing_key').notNull(),
+    label: text('label'),
+    createdAt: ms('created_at').notNull(),
+    lastSeenAt: ms('last_seen_at').notNull(),
+  },
+  (t) => [index('devices_user_idx').on(t.userId)],
+);
+
+/**
+ * One channel key, sealed to one device, for one epoch.
+ *
+ * The server stores these and cannot open any of them. A new epoch is a new
+ * key: removing somebody bumps it so that what is said afterwards is beyond
+ * the key they still hold.
+ */
+export const channelKeys = pgTable(
+  'channel_keys',
+  {
+    channelId: text('channel_id')
+      .notNull()
+      .references(() => channels.id, { onDelete: 'cascade' }),
+    epoch: integer('epoch').notNull(),
+    deviceId: text('device_id')
+      .notNull()
+      .references(() => devices.id, { onDelete: 'cascade' }),
+    /** An opaque SealedChannelKey. The server never parses it. */
+    sealed: text('sealed').notNull(),
+    /** Whose device sealed it, so the recipient can check the signature. */
+    sealedBy: text('sealed_by')
+      .notNull()
+      .references(() => devices.id, { onDelete: 'cascade' }),
+    createdAt: ms('created_at').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.channelId, t.epoch, t.deviceId] }),
+    index('channel_keys_device_idx').on(t.deviceId),
+  ],
 );
 
 export const invites = pgTable(
@@ -292,6 +360,8 @@ export type Channel = typeof channels.$inferSelect;
 export type ChannelMember = typeof channelMembers.$inferSelect;
 export type MessageRow = typeof messages.$inferSelect;
 export type CallParticipantRow = typeof callParticipants.$inferSelect;
+export type DeviceRow = typeof devices.$inferSelect;
+export type ChannelKeyRow = typeof channelKeys.$inferSelect;
 export type Invite = typeof invites.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type FileRow = typeof files.$inferSelect;

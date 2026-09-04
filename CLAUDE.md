@@ -39,6 +39,8 @@ packages/
 
 **Huddles are a mesh.** The server keeps a roster in `call_participants` and relays session descriptions between browsers over the existing socket. No media touches the process, so a call adds no service and no CPU. The cost of a mesh grows with the room, so it is capped at `LIMITS.callParticipantsMax`. Going past that needs an SFU, which is a second service, which is why it is not here. Relay credentials are minted per call from `TURN_SECRET`, and no STUN server is configured by default because that would be a third party request from the client.
 
+**Encryption is per channel and decided at creation.** DMs and private channels are end to end encrypted, public ones are not. `packages/core/src/e2ee.ts` holds every primitive and no policy; `packages/server/src/services/keys.ts` stores sealed keys and decides who may ask for what; the browser does the rest. The server never holds a channel key, so it cannot help a new device: whoever already has the key seals it across when they open the channel. An encrypted channel stores no `text`, which is why search and the assistant skip it rather than returning nothing.
+
 **Every frame that changes anything** goes through the same service function the HTTP route calls. There is one place permission is decided and one place a message is written.
 
 **Search** is Postgres full text: a GIN index on `to_tsvector('simple', text)` and `ts_headline` for snippets. The snippet carries control character markers rather than HTML, so message content can never become markup in the client.

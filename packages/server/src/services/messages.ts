@@ -17,7 +17,8 @@ import { outranks } from './access.js';
 import { requireChannel, type ChannelError } from './channels.js';
 import { notifyNewMessage } from './notifications.js';
 
-export type MessageError = ChannelError | 'rate_limited' | 'invalid';
+export type MessageError =
+  ChannelError | 'rate_limited' | 'invalid' | 'encryption_mismatch' | 'stale_epoch';
 
 export interface MessagePage {
   messages: Message[];
@@ -50,6 +51,17 @@ export async function sendMessage(
 
   const { channel, joined } = access.value;
   if (channel.archivedAt !== null) return err('archived');
+
+  /*
+   * An encrypted channel takes ciphertext and nothing else. Refusing a
+   * plaintext body here rather than accepting it quietly is the point: a
+   * client that has lost its key must fail visibly instead of posting a
+   * readable message into a conversation everybody believes is private.
+   */
+  if (channel.encrypted !== (input.draft.epoch !== null)) return err('encryption_mismatch');
+  if (input.draft.epoch !== null && input.draft.epoch !== channel.keyEpoch) {
+    return err('stale_epoch');
+  }
 
   const now = ctx.now();
 
@@ -88,8 +100,11 @@ export async function sendMessage(
         seq,
         authorId: input.userId,
         body: input.draft.body,
-        text: input.draft.text,
+        // Nothing searchable is kept for an encrypted message. The server has
+        // no plaintext to index and must not be handed one.
+        text: channel.encrypted ? '' : input.draft.text,
         parentId: input.draft.parentId,
+        epoch: input.draft.epoch,
         attachments: input.draft.attachments,
         reactions: [],
         mentions: input.draft.mentions,
@@ -153,7 +168,13 @@ export async function editMessage(
 
   const updated = await ctx.db
     .update(messages)
-    .set({ body: input.body, text: input.text, editedAt: ctx.now() })
+    // Same rule as sending: an encrypted channel keeps no plaintext, so an
+    // edit cannot quietly reintroduce one.
+    .set({
+      body: input.body,
+      text: access.value.channel.encrypted ? '' : input.text,
+      editedAt: ctx.now(),
+    })
     .where(
       and(
         eq(messages.id, input.messageId),
@@ -420,6 +441,7 @@ export function toMessage(row: MessageRow): Message {
     body: row.body,
     text: row.text,
     parentId: row.parentId,
+    epoch: row.epoch,
     replyCount: row.replyCount,
     attachments: row.attachments as Attachment[],
     reactions: row.reactions as Reaction[],

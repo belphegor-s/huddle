@@ -79,6 +79,44 @@ export type Workspace = z.infer<typeof Workspace>;
  * pasted into a message carries it, and quietly breaking those is worse than
  * living with a name chosen in a hurry.
  */
+/** A device's public halves, as the server stores and serves them. */
+export const DeviceRecord = z.object({
+  id: Id,
+  userId: Id,
+  encryptionKey: z.string().min(1).max(512),
+  signingKey: z.string().min(1).max(512),
+  label: z.string().max(120).nullable(),
+});
+export type DeviceRecord = z.infer<typeof DeviceRecord>;
+
+export const RegisterDeviceInput = z.object({
+  encryptionKey: z.string().min(1).max(512),
+  signingKey: z.string().min(1).max(512),
+  label: z.string().max(120).nullable().default(null),
+});
+export type RegisterDeviceInput = z.infer<typeof RegisterDeviceInput>;
+
+/** One channel key, sealed to one device. Opaque to the server. */
+export const SealedKeyRecord = z.object({
+  channelId: Id,
+  epoch: z.number().int().nonnegative(),
+  deviceId: Id,
+  sealed: z.string().max(4096),
+  sealedBy: Id,
+});
+export type SealedKeyRecord = z.infer<typeof SealedKeyRecord>;
+
+export const PublishKeysInput = z.object({
+  epoch: z.number().int().nonnegative(),
+  /** The device doing the sealing, whose signature the recipients check. */
+  sealedBy: Id,
+  entries: z
+    .array(z.object({ deviceId: Id, sealed: z.string().max(4096) }))
+    .min(1)
+    .max(200),
+});
+export type PublishKeysInput = z.infer<typeof PublishKeysInput>;
+
 export const UpdateWorkspaceInput = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   iconUrl: z.url().nullable().optional(),
@@ -100,6 +138,9 @@ export const Channel = z.object({
   name: z.string().min(1).max(80).nullable(),
   topic: z.string().max(280).nullable(),
   isPrivate: z.boolean(),
+  /** Bodies are ciphertext the server cannot read. Fixed at creation. */
+  encrypted: z.boolean(),
+  keyEpoch: z.number().int().nonnegative(),
   createdBy: Id,
   createdAt: z.number().int(),
   archivedAt: z.number().int().nullable(),
@@ -138,6 +179,12 @@ export const Message = z.object({
   /** Flattened text for search, notifications and accessibility. */
   text: z.string(),
   parentId: Id.nullable(),
+  /**
+   * The channel key the body was encrypted under, or null for plaintext. Self
+   * describing, so an encrypted channel reads correctly beside anything
+   * written before it was.
+   */
+  epoch: z.number().int().nonnegative().nullable(),
   /** Replies to this message. Zero for a reply itself: threads are one deep. */
   replyCount: z.number().int().nonnegative(),
   attachments: z.array(Attachment),
@@ -243,6 +290,11 @@ export const DraftMessage = z.object({
   parentId: Id.nullable().default(null),
   attachments: z.array(Attachment).max(20).default([]),
   mentions: z.array(Id).max(64).default([]),
+  /**
+   * Set when the body is ciphertext. The server checks it against the
+   * channel's current epoch and stores no searchable text for the message.
+   */
+  epoch: z.number().int().nonnegative().nullable().default(null),
 });
 export type DraftMessage = z.infer<typeof DraftMessage>;
 
@@ -257,6 +309,11 @@ export const CreateChannelInput = z.object({
   name: ChannelName,
   topic: z.string().trim().max(280).nullable().default(null),
   isPrivate: z.boolean().default(false),
+  /**
+   * Only ever set here. Turning it on later would leave a scrollback of
+   * plaintext behind a claim that the channel is private.
+   */
+  encrypted: z.boolean().default(false),
 });
 export type CreateChannelInput = z.infer<typeof CreateChannelInput>;
 

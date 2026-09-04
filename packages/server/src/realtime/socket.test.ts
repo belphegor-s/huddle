@@ -101,6 +101,7 @@ describe('socket', () => {
       name: 'general',
       topic: null,
       isPrivate: false,
+      encrypted: false,
     });
     if (!channel.ok) throw new Error('channel');
 
@@ -124,6 +125,7 @@ describe('socket', () => {
         parentId: null,
         attachments: [],
         mentions: [],
+        epoch: null,
       },
     });
 
@@ -147,6 +149,7 @@ describe('socket', () => {
       name: 'general',
       topic: null,
       isPrivate: false,
+      encrypted: false,
     });
     if (!channel.ok) throw new Error('channel');
 
@@ -166,6 +169,7 @@ describe('socket', () => {
           parentId: null,
           attachments: [],
           mentions: [],
+          epoch: null,
         },
       });
     }
@@ -195,6 +199,7 @@ describe('socket', () => {
       name: 'general',
       topic: null,
       isPrivate: false,
+      encrypted: false,
     });
     if (!channel.ok) throw new Error('channel');
 
@@ -222,6 +227,7 @@ describe('socket', () => {
       name: 'general',
       topic: null,
       isPrivate: false,
+      encrypted: false,
     });
     if (!channel.ok) throw new Error('channel');
 

@@ -73,6 +73,7 @@ async function room(): Promise<{ channel: Channel; ada: string; sam: string }> {
     name: 'general',
     topic: null,
     isPrivate: false,
+    encrypted: false,
   });
   if (!channel.ok) throw new Error('channel');
 
@@ -103,6 +104,7 @@ function messageFrom(channel: Channel, authorId: string, text: string, mentions:
     body: '{"type":"doc","content":[]}',
     text,
     parentId: null,
+    epoch: null,
     replyCount: 0,
     attachments: [],
     reactions: [],

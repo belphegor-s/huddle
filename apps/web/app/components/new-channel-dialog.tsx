@@ -11,6 +11,7 @@ interface NewChannelDialogProps {
     name: string;
     topic: string | null;
     isPrivate: boolean;
+    encrypted: boolean;
   }): Promise<ChannelSummary>;
 }
 
@@ -28,6 +29,7 @@ export function NewChannelDialog({ workspaceSlug, onClose, onCreate }: NewChanne
   const [name, setName] = useState('');
   const [topic, setTopic] = useState('');
   const [isPrivate, setPrivate] = useState(false);
+  const [encrypted, setEncrypted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -41,6 +43,7 @@ export function NewChannelDialog({ workspaceSlug, onClose, onCreate }: NewChanne
         name,
         topic: topic.trim() === '' ? null : topic.trim(),
         isPrivate,
+        encrypted,
       });
       await navigate(`/w/${workspaceSlug}/c/${created.channel.name ?? created.channel.id}`);
     } catch {
@@ -80,6 +83,27 @@ export function NewChannelDialog({ workspaceSlug, onClose, onCreate }: NewChanne
             className="size-4"
           />
           Private, visible only to people who are added
+        </label>
+
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={encrypted}
+            onChange={(event) => setEncrypted(event.target.checked)}
+            className="mt-0.5 size-4"
+          />
+          <span>
+            End to end encrypted
+            {/*
+              Stated rather than hidden. Somebody choosing this is choosing to
+              give up the two things that need the server to read messages, and
+              finding that out afterwards would be worse than reading it now.
+            */}
+            <span className="text-text-muted block text-xs">
+              Only the people in it can read the messages. Search and the assistant will not work
+              here, and it cannot be turned on later.
+            </span>
+          </span>
         </label>
 
         <div className="flex justify-end gap-2">

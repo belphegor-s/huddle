@@ -203,6 +203,22 @@ function TypingDots() {
   );
 }
 
+/** The primitives, named. Anybody evaluating this will want them stated. */
+const CRYPTO = [
+  {
+    term: 'ECDH P-256',
+    body: 'A key is sealed to each device with an ephemeral agreement, so a device key that leaks later cannot open what was sealed to it before.',
+  },
+  {
+    term: 'ECDSA P-256',
+    body: 'Every sealed key is signed. A server handing you a key of its own making is refused rather than trusted.',
+  },
+  {
+    term: 'AES-256-GCM',
+    body: 'Each message is bound to its channel, its id, its author and its key. A ciphertext cannot be moved, replayed or reattributed.',
+  },
+];
+
 const CAPABILITIES = [
   {
     title: 'Threads that hold a decision',
@@ -304,6 +320,34 @@ export default function Home() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="border-border mt-16 border-t pt-12">
+        <h2 className="font-display text-xl font-semibold">Conversations the server cannot read</h2>
+        <p className="text-text-secondary mt-2 max-w-prose text-base">
+          Direct messages and private channels are end to end encrypted. Keys are made in the
+          browser and sealed to each person's devices, so the server stores ciphertext and has
+          nothing to hand over, to an attacker or to anybody else who asks.
+        </p>
+
+        <dl className="mt-6 grid gap-3 sm:grid-cols-3">
+          {CRYPTO.map((item) => (
+            <div key={item.term} className="border-border bg-surface-raised rounded-lg border p-4">
+              <dt className="font-mono text-xs font-semibold">{item.term}</dt>
+              <dd className="text-text-secondary mt-1 text-sm">{item.body}</dd>
+            </div>
+          ))}
+        </dl>
+
+        {/*
+          The trade is stated on the page rather than discovered later. A
+          server that cannot read messages cannot search them either, and
+          somebody choosing this should know that before they choose it.
+        */}
+        <p className="text-text-muted mt-4 max-w-prose text-sm">
+          The cost is honest: search and the assistant work across your open channels, and not
+          inside encrypted ones. Nothing can index what it cannot read.
+        </p>
       </section>
 
       <section className="border-border mt-16 border-t pt-12">

@@ -16,6 +16,8 @@ import { ConnectionBanner } from '../components/connection-banner';
 import { Sidebar } from '../components/sidebar';
 import { api, ApiError } from '../lib/api';
 import { CallSession } from '../lib/call';
+import { deviceIdentity } from '../lib/device';
+import { shareOrCreateKeyring } from '../lib/keyring';
 import { Realtime } from '../lib/realtime';
 import { requireMe } from '../lib/session';
 import type { WorkspaceContext } from '../lib/workspace';
@@ -66,6 +68,12 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
   // The call belongs to the session, not to the screen. Walking from the
   // huddle to another channel to paste a link must not hang up on everybody.
   const [call] = useState(() => new CallSession(realtime));
+
+  // Registered as soon as somebody is signed in, because a device nobody
+  // knows about is a device no channel key can be sealed to.
+  useEffect(() => {
+    void deviceIdentity().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     realtime.connect();
@@ -139,6 +147,14 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
           onClose={() => setDialog(null)}
           onCreate={async (input) => {
             const created = await api.createChannel(workspace.id, CreateChannelInput.parse(input));
+
+            // The first key, sealed to whoever is already in the channel. Every
+            // later member gets it from somebody who has it: the server cannot
+            // help, because it has nothing to seal.
+            if (created.channel.encrypted) {
+              await shareOrCreateKeyring(created.channel.id, created.channel.keyEpoch);
+            }
+
             setDialog(null);
             refresh();
             return created;
@@ -153,6 +169,13 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
           onClose={() => setDialog(null)}
           onOpen={async (userIds) => {
             const opened = await api.openDm(workspace.id, userIds);
+
+            // A conversation is encrypted from the start, so it needs a key
+            // before the first message rather than after it.
+            if (opened.channel.encrypted) {
+              await shareOrCreateKeyring(opened.channel.id, opened.channel.keyEpoch);
+            }
+
             setDialog(null);
             refresh();
             return opened;

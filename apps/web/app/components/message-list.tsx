@@ -6,6 +6,8 @@ import { MessageRow } from './message-row';
 
 interface MessageListProps {
   messages: Message[];
+  /** Messages this device holds no key for. */
+  locked: ReadonlySet<string>;
   members: MemberProfile[];
   meId: string;
   canModerate: boolean;
@@ -29,6 +31,7 @@ const PINNED_SLACK_PX = 80;
 
 export function MessageList({
   messages,
+  locked,
   members,
   meId,
   canModerate,
@@ -126,6 +129,7 @@ export function MessageList({
 
                   <MessageRow
                     message={message}
+                    locked={locked.has(message.id)}
                     members={members}
                     meId={meId}
                     canModerate={canModerate}

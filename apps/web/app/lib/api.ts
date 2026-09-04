@@ -4,13 +4,17 @@ import type {
   CreateChannelInput,
   CreateUploadInput,
   CreateWorkspaceInput,
+  DeviceRecord,
   DraftMessage,
   InviteSummary,
   LinkPreview,
   MemberProfile,
   Me,
   Message,
+  PublishKeysInput,
   Reaction,
+  RegisterDeviceInput,
+  SealedKeyRecord,
   Role,
   UpdateChannelInput,
   UpdateChannelPrefsInput,
@@ -180,6 +184,15 @@ export const api = {
 
   requestUpload: (workspaceId: string, input: CreateUploadInput) =>
     post<UploadTicket>(`/api/workspaces/${workspaceId}/uploads`, input),
+
+  registerDevice: (input: RegisterDeviceInput) => post<DeviceRecord>('/api/devices', input),
+  channelDevices: (channelId: string) => call<DeviceRecord[]>(`/api/channels/${channelId}/devices`),
+  channelKeys: (channelId: string, deviceId: string) =>
+    call<SealedKeyRecord[]>(`/api/channels/${channelId}/keys?deviceId=${deviceId}`),
+  pendingKeyDevices: (channelId: string) =>
+    call<{ epoch: number; devices: DeviceRecord[] }>(`/api/channels/${channelId}/keys/pending`),
+  publishChannelKeys: (channelId: string, input: PublishKeysInput) =>
+    post<{ stored: number }>(`/api/channels/${channelId}/keys`, input),
 
   iceServers: async () => (await call<{ iceServers: RTCIceServer[] }>('/api/calls/ice')).iceServers,
 

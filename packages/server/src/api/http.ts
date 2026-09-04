@@ -30,6 +30,14 @@ const STATUS: Record<string, ContentfulStatusCode> = {
   used_up: 410,
   rate_limited: 429,
   invalid_token: 400,
+  /** A device the caller does not own, or one the server has never seen. */
+  unknown_device: 404,
+  /** The channel has moved to a newer key since the caller last looked. */
+  stale_epoch: 409,
+  /** Plaintext offered to an encrypted channel, or the reverse. */
+  encryption_mismatch: 409,
+  /** There is nothing readable here, and there is not meant to be. */
+  encrypted: 422,
   invalid: 400,
 };
 

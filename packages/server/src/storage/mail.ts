@@ -16,6 +16,45 @@ export interface Mailer {
  * SMTP rather than a provider API, because every mail service on earth speaks
  * it and an air gapped install can point at a relay on the same network.
  */
+export interface SmtpOptions {
+  host: string;
+  port: number;
+  secure: boolean;
+  auth?: { user: string; pass: string };
+}
+
+/**
+ * Handed to nodemailer as options rather than as a string.
+ *
+ * Given the URL it parses it with `url.parse`, which Node deprecated because
+ * its behaviour is not standardised and its parsing bugs have had security
+ * consequences. The WHATWG parser is the one to use, and doing it here means
+ * the deprecated path is never reached.
+ *
+ * smtps: means TLS from the first byte. smtp: on 465 means the same thing in
+ * practice, because that port was only ever implicit TLS. Everything else
+ * starts in the clear and upgrades with STARTTLS, which nodemailer does on
+ * its own when secure is false.
+ */
+export function parseSmtpUrl(value: string): SmtpOptions {
+  const url = new URL(value);
+  const secure = url.protocol === 'smtps:' || url.port === '465';
+  const port = url.port === '' ? (secure ? 465 : 587) : Number(url.port);
+
+  const options: SmtpOptions = { host: url.hostname, port, secure };
+
+  // Credentials arrive percent encoded, and a password with an @ or a slash in
+  // it is common enough that decoding is not optional.
+  if (url.username !== '') {
+    options.auth = {
+      user: decodeURIComponent(url.username),
+      pass: decodeURIComponent(url.password),
+    };
+  }
+
+  return options;
+}
+
 export class SmtpMailer implements Mailer {
   private readonly transport: Transporter;
 
@@ -23,7 +62,7 @@ export class SmtpMailer implements Mailer {
     smtpUrl: string,
     private readonly from: string,
   ) {
-    this.transport = createTransport(smtpUrl);
+    this.transport = createTransport(parseSmtpUrl(smtpUrl));
   }
 
   async send(email: OutgoingEmail): Promise<void> {

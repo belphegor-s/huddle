@@ -79,3 +79,14 @@ export {
   updateCallState,
 } from './calls.js';
 export type { CallError } from './calls.js';
+
+export {
+  channelDevices,
+  devicesAwaitingKeys,
+  fetchChannelKeys,
+  publishChannelKeys,
+  registerDevice,
+  revokeKeysForUser,
+  rotateChannelKey,
+} from './keys.js';
+export type { KeyError } from './keys.js';

@@ -89,7 +89,11 @@ export function ThreadPanel({
             <Avatar name={memberName(members, parent.authorId)} />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">{memberName(members, parent.authorId)}</p>
-              <MessageBody source={sourceOf(parent.body)} members={members} meId={meId} />
+              {stream.locked.has(parent.id) ? (
+                <Unreadable />
+              ) : (
+                <MessageBody source={sourceOf(parent.body)} members={members} meId={meId} />
+              )}
               <Attachments attachments={parent.attachments} />
             </div>
           </article>
@@ -101,7 +105,11 @@ export function ThreadPanel({
               <Avatar name={memberName(members, reply.authorId)} size="sm" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">{memberName(members, reply.authorId)}</p>
-                <MessageBody source={sourceOf(reply.body)} members={members} meId={meId} />
+                {stream.locked.has(reply.id) ? (
+                  <Unreadable />
+                ) : (
+                  <MessageBody source={sourceOf(reply.body)} members={members} meId={meId} />
+                )}
                 <Attachments attachments={reply.attachments} />
               </div>
             </li>
@@ -127,4 +135,14 @@ export function ThreadPanel({
 /** The markdown someone typed, read back out of the stored document. */
 function sourceOf(body: string): string {
   return toLines(body).join('\n');
+}
+
+/** Somebody wrote this and this browser has no key for it. */
+function Unreadable() {
+  return (
+    <p className="text-text-muted flex items-center gap-1.5 text-base italic">
+      <Icon name="lock" className="size-3.5 shrink-0" />
+      This message cannot be read on this device
+    </p>
+  );
 }

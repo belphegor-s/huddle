@@ -12,13 +12,14 @@ import {
   type UpdateChannelPrefsInput,
 } from '@huddle/core';
 import { channelMembers, channels, memberships } from '@huddle/db';
-import { and, asc, desc, eq, inArray, isNull, notInArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
 import type { AppContext } from '../context.js';
 import { outranks, requireMember, type AccessError } from './access.js';
 // Calls reach back for requireChannel, so these two import each other. Both
 // export function declarations and nothing runs at module load, which is the
 // case the cycle is safe in.
 import { callCounts } from './calls.js';
+import { revokeKeysForUser } from './keys.js';
 
 export type ChannelError = AccessError | 'not_found' | 'name_taken' | 'archived';
 
@@ -89,6 +90,7 @@ export async function createChannel(
       name: input.name,
       topic: input.topic,
       isPrivate: input.isPrivate,
+      encrypted: input.encrypted,
       createdBy: input.userId,
       createdAt: now,
     })
@@ -145,6 +147,9 @@ export async function openDm(
       name: key,
       topic: null,
       isPrivate: true,
+      // A conversation between named people is the case that most obviously
+      // wants this, and nobody should have to ask for it.
+      encrypted: true,
       createdBy: input.userId,
       createdAt: now,
     })
@@ -315,7 +320,29 @@ export async function leaveChannel(
       and(eq(channelMembers.channelId, input.channelId), eq(channelMembers.userId, input.userId)),
     );
 
+  /*
+   * Somebody leaving an encrypted channel moves it to a new key. Their copy of
+   * the old one still opens what was said while they were there, which cannot
+   * be helped: they could have kept the plaintext. What it does buy is that
+   * everything said afterwards is beyond it.
+   */
+  if (access.value.channel.encrypted) {
+    await revokeKeysForUser(ctx, { channelId: input.channelId, userId: input.userId });
+    await bumpEpoch(ctx, input.channelId);
+  }
+
   return ok(null);
+}
+
+/**
+ * Kept here rather than called through the key service, because that one asks
+ * requireChannel first and somebody who has just left no longer passes it.
+ */
+async function bumpEpoch(ctx: AppContext, channelId: string): Promise<void> {
+  await ctx.db
+    .update(channels)
+    .set({ keyEpoch: sql`${channels.keyEpoch} + 1` })
+    .where(eq(channels.id, channelId));
 }
 
 export async function updateChannel(
@@ -457,6 +484,8 @@ export function toChannel(row: typeof channels.$inferSelect): Channel {
     name: isDmKey(row.name) ? null : row.name,
     topic: row.topic,
     isPrivate: row.isPrivate,
+    encrypted: row.encrypted,
+    keyEpoch: row.keyEpoch,
     createdBy: row.createdBy,
     createdAt: row.createdAt,
     archivedAt: row.archivedAt,

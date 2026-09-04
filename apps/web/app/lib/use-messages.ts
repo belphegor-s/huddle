@@ -1,6 +1,14 @@
-import { LIMITS, ulid, type Attachment, type Message, type ServerEvent } from '@huddle/core';
+import {
+  LIMITS,
+  ulid,
+  type Attachment,
+  type Channel,
+  type Message,
+  type ServerEvent,
+} from '@huddle/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
+import { decryptBody, encryptBody, holdsKey, syncChannelKeys } from './keyring';
 import type { Realtime } from './realtime';
 import { toDocument, toPlain } from './rich-text';
 
@@ -22,18 +30,65 @@ export interface ChannelStream {
   edit(messageId: string, text: string): Promise<void>;
   remove(messageId: string): Promise<void>;
   notifyTyping(): void;
+  /**
+   * Messages this device holds no key for. They exist, they are somebody's
+   * words, and this browser cannot read them, which the list says plainly
+   * rather than drawing an empty row.
+   */
+  locked: ReadonlySet<string>;
+  /** True while an encrypted channel has no key here yet. */
+  waitingForKey: boolean;
 }
 
 /** A message the server has not acknowledged yet sorts after everything real. */
 const PENDING_SEQ = Number.MAX_SAFE_INTEGER;
 
-export function useMessages(realtime: Realtime, channelId: string, userId: string): ChannelStream {
+export function useMessages(
+  realtime: Realtime,
+  channel: Pick<Channel, 'id' | 'encrypted' | 'keyEpoch'>,
+  userId: string,
+): ChannelStream {
+  const channelId = channel.id;
+  const { encrypted, keyEpoch } = channel;
+
   const [messages, setMessages] = useState<Message[]>([]);
+  const [locked, setLocked] = useState<ReadonlySet<string>>(() => new Set());
+  const [hasKey, setHasKey] = useState(() => !encrypted || holdsKey(channelId, keyEpoch));
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [typing, setTyping] = useState<string[]>([]);
   const [present, setPresent] = useState<string[]>([]);
   const lastTypingAt = useRef(0);
+
+  /**
+   * Opens a message if it needs opening. Every message enters state through
+   * here, so there is one place where ciphertext becomes readable and one
+   * place that decides a message cannot be read on this device.
+   */
+  const open = useCallback(async (incoming: Message): Promise<Message> => {
+    if (incoming.epoch === null) return incoming;
+
+    const plaintext = await decryptBody(incoming.body, {
+      channelId: incoming.channelId,
+      messageId: incoming.id,
+      authorId: incoming.authorId,
+      epoch: incoming.epoch,
+    });
+
+    if (plaintext === null) {
+      setLocked((current) => new Set(current).add(incoming.id));
+      return { ...incoming, body: toDocument(''), text: '' };
+    }
+
+    setLocked((current) => {
+      if (!current.has(incoming.id)) return current;
+      const next = new Set(current);
+      next.delete(incoming.id);
+      return next;
+    });
+
+    return { ...incoming, body: toDocument(plaintext), text: plaintext };
+  }, []);
 
   const upsert = useCallback((incoming: Message) => {
     setMessages((current) => {
@@ -49,25 +104,38 @@ export function useMessages(realtime: Realtime, channelId: string, userId: strin
     setLoading(true);
     setMessages([]);
 
-    void api
-      .history(channelId)
-      .then((page) => {
+    setLocked(new Set());
+
+    void (async () => {
+      try {
+        // Keys before history. Fetching the other way round would draw every
+        // message as unreadable for a moment and then correct itself.
+        if (encrypted) {
+          await syncChannelKeys(channelId, keyEpoch).catch(() => undefined);
+          if (!cancelled) setHasKey(holdsKey(channelId, keyEpoch));
+        }
+
+        const page = await api.history(channelId);
         if (cancelled) return;
-        setMessages(page.messages);
+
+        setMessages(await Promise.all(page.messages.map(open)));
         setHasMore(page.hasMore);
         setLoading(false);
         realtime.subscribe(channelId, page.latestSeq);
-        if (page.latestSeq > 0) void api.markRead(channelId, page.latestSeq).catch(() => undefined);
-      })
-      .catch(() => {
+
+        if (page.latestSeq > 0) {
+          void api.markRead(channelId, page.latestSeq).catch(() => undefined);
+        }
+      } catch {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
       realtime.unsubscribe(channelId);
     };
-  }, [channelId, realtime]);
+  }, [channelId, encrypted, keyEpoch, open, realtime]);
 
   useEffect(() => {
     return realtime.on((event: ServerEvent) => {
@@ -76,7 +144,7 @@ export function useMessages(realtime: Realtime, channelId: string, userId: strin
       switch (event.type) {
         case 'message':
         case 'message_updated':
-          upsert(event.message);
+          void open(event.message).then(upsert);
           if (event.type === 'message' && event.message.authorId !== userId) {
             void api.markRead(channelId, event.message.seq).catch(() => undefined);
           }
@@ -119,19 +187,20 @@ export function useMessages(realtime: Realtime, channelId: string, userId: strin
           return;
       }
     });
-  }, [channelId, realtime, upsert, userId]);
+  }, [channelId, open, realtime, upsert, userId]);
 
   const loadOlder = useCallback(async () => {
     const oldest = messages.find((message) => message.seq > 0);
     if (!oldest) return;
 
     const page = await api.history(channelId, oldest.seq);
+    const older = await Promise.all(page.messages.map(open));
     setHasMore(page.hasMore);
     setMessages((current) => {
       const known = new Set(current.map((message) => message.id));
-      return [...page.messages.filter((message) => !known.has(message.id)), ...current].sort(bySeq);
+      return [...older.filter((message) => !known.has(message.id)), ...current].sort(bySeq);
     });
-  }, [channelId, messages]);
+  }, [channelId, messages, open]);
 
   /**
    * Replies are not in the channel page, so opening a thread fetches it. Live
@@ -140,32 +209,54 @@ export function useMessages(realtime: Realtime, channelId: string, userId: strin
   const loadThread = useCallback(
     async (parentId: string) => {
       const thread = await api.thread(channelId, parentId);
+      const opened = await Promise.all([thread.parent, ...thread.page.messages].map(open));
+
       setMessages((current) => {
         const known = new Set(current.map((message) => message.id));
-        const added = [thread.parent, ...thread.page.messages].filter(
-          (message) => !known.has(message.id),
-        );
+        const added = opened.filter((message) => !known.has(message.id));
         return added.length === 0 ? current : [...current, ...added].sort(bySeq);
       });
     },
-    [channelId],
+    [channelId, open],
   );
 
   const send = useCallback<ChannelStream['send']>(
     async (input) => {
+      const id = ulid();
+      const plain = toPlain(input.text);
+
+      /*
+       * In an encrypted channel the body leaves as ciphertext and no plain
+       * text goes with it. The binding ties it to this message in this
+       * channel by this author under this key, so it cannot be lifted out and
+       * replayed as something else.
+       */
+      const body = encrypted
+        ? await encryptBody(toDocument(input.text), {
+            channelId,
+            messageId: id,
+            authorId: userId,
+            epoch: keyEpoch,
+          })
+        : toDocument(input.text);
+
       const draft = {
-        id: ulid(),
-        body: toDocument(input.text),
-        text: toPlain(input.text),
+        id,
+        body,
+        text: encrypted ? '' : plain,
         parentId: input.parentId,
         attachments: input.attachments,
         mentions: input.mentions,
+        epoch: encrypted ? keyEpoch : null,
       };
 
       // Drawn immediately with the id the server will keep, so the echo
-      // replaces this row rather than adding a second one.
+      // replaces this row rather than adding a second one. The local copy
+      // carries the plain text: this device wrote it and can read it.
       upsert({
         ...draft,
+        body: toDocument(input.text),
+        text: plain,
         channelId,
         seq: PENDING_SEQ,
         authorId: userId,
@@ -178,13 +269,13 @@ export function useMessages(realtime: Realtime, channelId: string, userId: strin
 
       try {
         const saved = await api.send(channelId, draft);
-        upsert(saved);
+        upsert({ ...saved, body: toDocument(input.text), text: plain });
       } catch {
         setMessages((current) => current.filter((message) => message.id !== draft.id));
         throw new Error('send_failed');
       }
     },
-    [channelId, upsert, userId],
+    [channelId, encrypted, keyEpoch, upsert, userId],
   );
 
   const react = useCallback(
@@ -231,6 +322,8 @@ export function useMessages(realtime: Realtime, channelId: string, userId: strin
     edit,
     remove,
     notifyTyping,
+    locked,
+    waitingForKey: encrypted && !hasKey,
   };
 }
 

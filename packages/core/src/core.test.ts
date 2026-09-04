@@ -40,6 +40,7 @@ describe('wire protocol', () => {
         parentId: null,
         attachments: [],
         mentions: [],
+        epoch: null,
       },
     };
     expect(decodeClientEvent(encodeEvent(event))).toEqual(event);
