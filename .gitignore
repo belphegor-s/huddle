@@ -16,3 +16,4 @@ Thumbs.db
 *.log
 e2e-server.log
 .claude/settings.local.json
+.cf_token
