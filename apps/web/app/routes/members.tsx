@@ -15,6 +15,7 @@ import { Link, useNavigate } from 'react-router';
 import { api, ApiError } from '../lib/api';
 import { presenceOf, statusLine } from '../lib/presence';
 import { outranksMember } from '../lib/roles';
+import { useConfirm } from '../components/confirm';
 import { useWorkspace } from '../lib/workspace';
 import { InvitePanel } from '../components/invite-panel';
 
@@ -44,6 +45,7 @@ export default function Members() {
   useEffect(() => setRows(members), [members]);
 
   const canManage = outranksMember(role, 'admin');
+  const { confirm, dialog } = useConfirm();
 
   async function act(userId: string, run: () => Promise<unknown>) {
     setBusy(userId);
@@ -165,7 +167,13 @@ export default function Members() {
                       icon="trash"
                       danger
                       onSelect={() =>
-                        void act(member.id, () => api.removeMember(workspace.id, member.id))
+                        confirm({
+                          title: `Remove ${member.displayName}`,
+                          body: 'They lose access to every channel here. What they have written stays.',
+                          action: 'Remove',
+                          run: () =>
+                            act(member.id, () => api.removeMember(workspace.id, member.id)),
+                        })
                       }
                     >
                       Remove from workspace
@@ -195,15 +203,23 @@ export default function Members() {
           variant="danger"
           className="self-start"
           onClick={() =>
-            void leave().catch((error: unknown) => {
-              const code = error instanceof ApiError ? error.code : 'forbidden';
-              setProblem(PROBLEMS[code] ?? 'That did not work.');
+            confirm({
+              title: `Leave ${workspace.name}`,
+              body: 'You lose access to every channel here. What you have written stays, and somebody will have to invite you back.',
+              action: 'Leave',
+              run: () =>
+                leave().catch((error: unknown) => {
+                  const code = error instanceof ApiError ? error.code : 'forbidden';
+                  setProblem(PROBLEMS[code] ?? 'That did not work.');
+                }),
             })
           }
         >
           Leave {workspace.name}
         </Button>
       </div>
+
+      {dialog}
     </section>
   );
 }

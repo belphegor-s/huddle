@@ -35,6 +35,12 @@ export function CallStage({
 }: CallStageProps) {
   const [stage, setStage] = useState<HTMLElement | null>(null);
   const [expanded, setExpanded] = useState(false);
+  /**
+   * Whose tile takes the stage, chosen rather than guessed. A shared screen
+   * takes it on its own, and pinning somebody overrides that: the person
+   * drawing on the whiteboard is not always the person sharing it.
+   */
+  const [pinned, setPinned] = useState<string | null>(null);
 
   // Escape leaves fullscreen on its own, and this keeps our own idea of the
   // size honest when it does. It also covers the case where the browser
@@ -72,9 +78,18 @@ export function CallStage({
   }, [expanded, stage]);
 
   const me = members.find((member) => member.id === meId);
-  const shared = call.sharing
-    ? { stream: call.screen, name: 'Your screen' }
-    : screenOf(call.peers, members);
+
+  // A pin outlives the person leaving, so it is cleared rather than left
+  // pointing at a tile that is no longer there.
+  const stillHere =
+    pinned !== null && (pinned === 'self' || call.peers.some((one) => one.sessionId === pinned));
+  const focus = stillHere ? pinned : null;
+
+  const shared = focus
+    ? focusedTile(focus, call, members, me)
+    : call.sharing
+      ? { stream: call.screen, name: 'Your screen', contain: true, self: true }
+      : screenOf(call.peers, members);
 
   const tiles = [
     <CallTile
@@ -86,6 +101,8 @@ export function CallStage({
       video={call.video}
       muted={call.muted}
       speaking={call.speaking}
+      pinned={focus === 'self'}
+      onPin={() => setPinned(focus === 'self' ? null : 'self')}
     />,
     ...call.peers.map((peer) => {
       const member = members.find((one) => one.id === peer.userId);
@@ -100,6 +117,8 @@ export function CallStage({
           muted={peer.muted}
           speaking={peer.speaking}
           connecting={peer.link === 'connecting'}
+          pinned={focus === peer.sessionId}
+          onPin={() => setPinned(focus === peer.sessionId ? null : peer.sessionId)}
         />
       );
     }),
@@ -125,24 +144,32 @@ export function CallStage({
         >
           <div className={cx('min-h-48 flex-1', expanded ? 'lg:min-h-0' : 'lg:min-h-64')}>
             <CallTile
-              contain
+              contain={shared.contain}
               name={shared.name}
               avatarUrl={null}
               stream={shared.stream}
               video
               muted={false}
               speaking={false}
-              self={call.sharing}
+              self={shared.self}
+              pinned={focus !== null}
+              onPin={() => setPinned(null)}
             />
           </div>
 
-          {/* A strip rather than the grid, so the screen keeps the room. */}
+          {/*
+            A strip rather than the grid, so the screen keeps the room. Whoever
+            is on the stage is left out of it: the same face in two places at
+            once reads as a rendering fault rather than as emphasis.
+          */}
           <ul className="flex gap-2 overflow-x-auto lg:w-40 lg:flex-col lg:overflow-x-visible lg:overflow-y-auto">
-            {tiles.map((tile, index) => (
-              <li key={index} className="aspect-video w-28 shrink-0 lg:w-full">
-                {tile}
-              </li>
-            ))}
+            {tiles
+              .filter((tile) => tile.key !== focus)
+              .map((tile) => (
+                <li key={tile.key} className="aspect-video w-28 shrink-0 lg:w-full">
+                  {tile}
+                </li>
+              ))}
           </ul>
         </div>
       ) : (
@@ -155,8 +182,8 @@ export function CallStage({
             gridFor(tiles.length),
           )}
         >
-          {tiles.map((tile, index) => (
-            <li key={index} className="min-h-0">
+          {tiles.map((tile) => (
+            <li key={tile.key} className="min-h-0">
               {tile}
             </li>
           ))}
@@ -238,15 +265,53 @@ function Control({ icon, label, active, on, danger, className, onClick }: Contro
   );
 }
 
-function screenOf(
-  peers: PeerView[],
-  members: MemberProfile[],
-): { stream: MediaStream | null; name: string } | null {
+interface Stage {
+  stream: MediaStream | null;
+  name: string;
+  /** A screen is letterboxed. A face fills the frame. */
+  contain: boolean;
+  self: boolean;
+}
+
+function screenOf(peers: PeerView[], members: MemberProfile[]): Stage | null {
   const sharing = peers.find((peer) => peer.sharing && peer.screen);
   if (!sharing) return null;
 
   const member = members.find((one) => one.id === sharing.userId);
-  return { stream: sharing.screen, name: `${member?.displayName ?? 'Someone'} is sharing` };
+  return {
+    stream: sharing.screen,
+    name: `${member?.displayName ?? 'Someone'} is sharing`,
+    contain: true,
+    self: false,
+  };
+}
+
+/** The tile somebody pinned, which beats whatever the room would have chosen. */
+function focusedTile(
+  focus: string,
+  call: CallView,
+  members: MemberProfile[],
+  me: MemberProfile | undefined,
+): Stage {
+  if (focus === 'self') {
+    return {
+      stream: call.sharing ? call.screen : call.camera,
+      name: call.sharing ? 'Your screen' : (me?.displayName ?? 'You'),
+      contain: call.sharing,
+      self: true,
+    };
+  }
+
+  const peer = call.peers.find((one) => one.sessionId === focus);
+  const member = members.find((one) => one.id === peer?.userId);
+  const showingScreen = Boolean(peer?.sharing && peer.screen);
+
+  return {
+    stream: showingScreen ? (peer?.screen ?? null) : (peer?.camera ?? null),
+    name: member?.displayName ?? 'Someone',
+    contain: showingScreen,
+    self: false,
+  };
 }
 
 /** Squarer as the room grows, so nobody ends up a letterbox. */

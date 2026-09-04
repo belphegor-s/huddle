@@ -1,5 +1,4 @@
-import { useRef } from 'react';
-import { useDismiss } from '../lib/use-dismiss';
+import { Icon, Popover, PopoverButton } from '@huddle/ui';
 
 /**
  * A curated grid, not the full Unicode set.
@@ -38,32 +37,49 @@ const CHOICES = [
 
 interface EmojiPickerProps {
   onPick(emoji: string): void;
-  onClose(): void;
+  /** The class the trigger wears, so it matches the row it sits in. */
+  triggerClassName?: string;
 }
 
-export function EmojiPicker({ onPick, onClose }: EmojiPickerProps) {
-  const panel = useRef<HTMLDivElement>(null);
-
-  useDismiss(panel, onClose);
-
+/**
+ * The panel lives in the top layer rather than absolutely positioned beside
+ * the message. It used to be clipped by the scrolling list it sat inside, and
+ * covered by anything with a higher z-index, which is a fight no number wins.
+ */
+export function EmojiPicker({ onPick, triggerClassName }: EmojiPickerProps) {
   return (
-    <div
-      ref={panel}
-      role="dialog"
-      aria-label="Pick a reaction"
-      className="border-border bg-surface-raised shadow-popover absolute top-8 right-0 z-20 grid w-56 grid-cols-6 gap-0.5 rounded-xl border p-1.5"
-    >
-      {CHOICES.map((emoji) => (
-        <button
-          key={emoji}
-          type="button"
-          onClick={() => onPick(emoji)}
-          aria-label={`React with ${emoji}`}
-          className="hover:bg-surface-hover grid size-8 place-items-center rounded-md text-base"
+    <Popover
+      label="Pick a reaction"
+      align="end"
+      className="w-56"
+      trigger={
+        <PopoverButton
+          aria-label="Add a reaction"
+          title="Add a reaction"
+          className={triggerClassName}
         >
-          {emoji}
-        </button>
-      ))}
-    </div>
+          <Icon name="emoji" className="size-4" />
+        </PopoverButton>
+      }
+    >
+      {(close) => (
+        <div className="grid grid-cols-6 gap-0.5">
+          {CHOICES.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => {
+                close();
+                onPick(emoji);
+              }}
+              aria-label={`React with ${emoji}`}
+              className="hover:bg-surface-hover grid size-8 place-items-center rounded-md text-base"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
+    </Popover>
   );
 }

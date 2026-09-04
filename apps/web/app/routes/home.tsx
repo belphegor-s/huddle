@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 /** Where the code actually is. It was pointing at github.com itself. */
 const SOURCE_URL = 'https://github.com/belphegor-s/huddle';
 import { cx } from '@huddle/ui';
+import { pageMeta } from '../lib/meta';
 import { redirect } from 'react-router';
 import { api } from '../lib/api';
 import { currentMe } from '../lib/session';
@@ -24,14 +25,11 @@ export async function clientLoader() {
 }
 
 export function meta() {
-  return [
-    { title: 'huddle: team chat you can actually host yourself' },
-    {
-      name: 'description',
-      content:
-        'Open source team chat. Channels, threads, files, voice notes and search. One container, your server, your data.',
-    },
-  ];
+  return pageMeta({
+    title: 'huddle: team chat you can actually host yourself',
+    description:
+      'Open source team chat. Channels, threads, huddles, files, voice notes and search, with end to end encrypted conversations. One container, your server, your data.',
+  });
 }
 
 interface DemoLine {

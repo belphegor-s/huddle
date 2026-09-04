@@ -2,6 +2,7 @@ import type { InviteSummary } from '@huddle/core';
 import { Button, cx, Icon } from '@huddle/ui';
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useConfirm } from './confirm';
 import { formatDay } from '../lib/format';
 
 /**
@@ -15,6 +16,7 @@ export function InvitePanel({ workspaceId }: { workspaceId: string }) {
   const [invites, setInvites] = useState<InviteSummary[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { confirm, dialog } = useConfirm();
 
   async function reload() {
     setInvites(await api.invites(workspaceId).catch(() => []));
@@ -46,6 +48,8 @@ export function InvitePanel({ workspaceId }: { workspaceId: string }) {
 
   return (
     <div className="flex flex-col gap-3">
+      {dialog}
+
       <div className="flex items-center gap-3">
         <h2 className="text-text-muted text-2xs flex-1 font-semibold tracking-wide uppercase">
           Invitations
@@ -89,9 +93,14 @@ export function InvitePanel({ workspaceId }: { workspaceId: string }) {
                   type="button"
                   aria-label="Revoke this invitation"
                   title="Revoke this invitation"
-                  onClick={() => {
-                    void api.revokeInvite(workspaceId, invite.id).then(reload);
-                  }}
+                  onClick={() =>
+                    confirm({
+                      title: 'Revoke this invitation',
+                      body: 'Anybody holding the link stops being able to join. People who already used it stay.',
+                      action: 'Revoke',
+                      run: () => api.revokeInvite(workspaceId, invite.id).then(reload),
+                    })
+                  }
                   className="text-text-muted hover:text-critical hover:bg-surface-hover grid size-9 shrink-0 place-items-center rounded-lg"
                 >
                   <Icon name="trash" className="size-4" />

@@ -3,11 +3,12 @@ import { Button, TextField } from '@huddle/ui';
 import { useState } from 'react';
 import { Form, redirect, useNavigation } from 'react-router';
 import { api } from '../lib/api';
+import { pageMeta } from '../lib/meta';
 import { requireMe } from '../lib/session';
 import type { Route } from './+types/new-workspace';
 
 export function meta() {
-  return [{ title: 'New workspace' }];
+  return pageMeta({ title: 'New workspace', description: 'Create a workspace.', private: true });
 }
 
 export async function clientLoader() {

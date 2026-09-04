@@ -1,4 +1,4 @@
-import { Avatar } from '@huddle/ui';
+import { Avatar, Select } from '@huddle/ui';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { api, type SearchResult } from '../lib/api';
@@ -98,39 +98,28 @@ export default function Search() {
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <label className="sr-only" htmlFor="search-author">
-          From
-        </label>
-        <select
-          id="search-author"
+        <Select
+          label="From"
           value={author}
-          onChange={(event) => setFilter('author', event.target.value)}
-          className="border-border bg-surface min-h-9 rounded-lg border px-2 text-sm"
-        >
-          <option value="">Anyone</option>
-          {members.map((member) => (
-            <option key={member.id} value={member.id}>
-              {member.displayName}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setFilter('author', value)}
+          options={[
+            { value: '', label: 'Anyone' },
+            ...members.map((member) => ({ value: member.id, label: member.displayName })),
+          ]}
+        />
 
-        <label className="sr-only" htmlFor="search-channel">
-          In
-        </label>
-        <select
-          id="search-channel"
+        <Select
+          label="In"
           value={channel}
-          onChange={(event) => setFilter('channel', event.target.value)}
-          className="border-border bg-surface min-h-9 rounded-lg border px-2 text-sm"
-        >
-          <option value="">Anywhere</option>
-          {channels.map((summary) => (
-            <option key={summary.channel.id} value={summary.channel.id}>
-              {channelLabel(summary, members, me.user.id)}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setFilter('channel', value)}
+          options={[
+            { value: '', label: 'Anywhere' },
+            ...channels.map((summary) => ({
+              value: summary.channel.id,
+              label: channelLabel(summary, members, me.user.id),
+            })),
+          ]}
+        />
 
         <label className="border-border flex min-h-9 items-center gap-2 rounded-lg border px-2 text-sm">
           <input

@@ -1,12 +1,17 @@
 import { RequestMagicLinkInput } from '@huddle/core';
 import { Button, TextField } from '@huddle/ui';
 import { Form, redirect, useNavigation, useSearchParams } from 'react-router';
+import { pageMeta } from '../lib/meta';
 import { api, ApiError } from '../lib/api';
 import { currentMe } from '../lib/session';
 import type { Route } from './+types/signin';
 
 export function meta() {
-  return [{ title: 'Sign in to huddle' }];
+  return pageMeta({
+    title: 'Sign in to huddle',
+    description: 'Sign in with a link sent to your email.',
+    private: true,
+  });
 }
 
 const LINK_PROBLEMS: Record<string, string> = {

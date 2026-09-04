@@ -1,6 +1,5 @@
-import { cx, Icon, type IconName } from '@huddle/ui';
-import { useRef, useState } from 'react';
-import { useDismiss } from '../lib/use-dismiss';
+import { Icon, Menu, MenuButton, MenuItem, type IconName } from '@huddle/ui';
+import { useRef } from 'react';
 
 interface AttachmentMenuProps {
   onFiles(files: FileList): void;
@@ -30,56 +29,37 @@ const CHOICES: Array<{ label: string; hint: string; icon: IconName; accept: stri
 ];
 
 export function AttachmentMenu({ onFiles }: AttachmentMenuProps) {
-  const [open, setOpen] = useState(false);
-  const panel = useRef<HTMLDivElement>(null);
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
 
-  useDismiss(panel, () => setOpen(false));
-
   return (
-    <div ref={panel} className="relative">
-      <button
-        type="button"
-        aria-label="Attach"
-        title="Attach"
-        aria-expanded={open}
-        aria-haspopup="menu"
-        onClick={() => setOpen((was) => !was)}
-        className={cx(
-          'border-border bg-surface-raised hover:bg-surface-hover grid size-11 shrink-0 place-items-center rounded-xl border transition-colors',
-          open && 'bg-surface-active',
-        )}
+    <>
+      <Menu
+        label="Attach"
+        side="top"
+        className="w-60"
+        trigger={
+          <MenuButton
+            aria-label="Attach"
+            title="Attach"
+            className="border-border bg-surface-raised hover:bg-surface-hover grid size-11 shrink-0 place-items-center rounded-xl border transition-colors"
+          >
+            <Icon name="attach" />
+          </MenuButton>
+        }
       >
-        <Icon name="attach" />
-      </button>
-
-      {open ? (
-        <div
-          role="menu"
-          className="border-border bg-surface-raised shadow-popover absolute bottom-13 left-0 z-30 flex w-60 flex-col rounded-xl border p-1"
-        >
+        <>
           {CHOICES.map((choice, index) => (
-            <button
+            <MenuItem
               key={choice.label}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                inputs.current[index]?.click();
-              }}
-              className="hover:bg-surface-hover flex min-h-12 items-center gap-3 rounded-lg px-2 text-left"
+              icon={choice.icon}
+              hint={choice.hint}
+              onSelect={() => inputs.current[index]?.click()}
             >
-              <span className="bg-surface-sunken text-text-secondary grid size-9 shrink-0 place-items-center rounded-lg">
-                <Icon name={choice.icon} className="size-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm">{choice.label}</span>
-                <span className="text-text-muted block text-xs">{choice.hint}</span>
-              </span>
-            </button>
+              {choice.label}
+            </MenuItem>
           ))}
-        </div>
-      ) : null}
+        </>
+      </Menu>
 
       {CHOICES.map((choice, index) => (
         <input
@@ -97,6 +77,6 @@ export function AttachmentMenu({ onFiles }: AttachmentMenuProps) {
           }}
         />
       ))}
-    </div>
+    </>
   );
 }

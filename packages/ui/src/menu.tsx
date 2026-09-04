@@ -12,6 +12,7 @@ import {
 } from 'react';
 import { cx } from './cx.js';
 import { Icon, type IconName } from './icon.js';
+import { place, POPOVER_SUPPORTED, type Align, type Side } from './overlay.js';
 
 /**
  * One dropdown for the whole app.
@@ -27,15 +28,6 @@ import { Icon, type IconName } from './icon.js';
  * do outside Chromium yet, and the arrow key behaviour a menu is expected to
  * have.
  */
-
-const SUPPORTED =
-  typeof HTMLElement !== 'undefined' && Object.hasOwn(HTMLElement.prototype, 'popover');
-
-/** Distance from the control, so the menu reads as attached to it. */
-const GAP = 6;
-
-/** Never let a menu touch the edge of the window. */
-const MARGIN = 8;
 
 interface MenuContext {
   open: boolean;
@@ -58,9 +50,9 @@ export interface MenuProps {
   /** The control that opens it, which must be a MenuButton. */
   trigger: ReactNode;
   /** Which edge of the control the menu lines up with. */
-  align?: 'start' | 'end';
+  align?: Align;
   /** Preferred side. It flips when there is no room. */
-  side?: 'bottom' | 'top';
+  side?: Side;
   className?: string;
   children: ReactNode;
 }
@@ -98,11 +90,11 @@ export function Menu({
     if (!element) return;
 
     if (!open) {
-      if (SUPPORTED && element.matches(':popover-open')) element.hidePopover();
+      if (POPOVER_SUPPORTED && element.matches(':popover-open')) element.hidePopover();
       return;
     }
 
-    if (SUPPORTED && !element.matches(':popover-open')) element.showPopover();
+    if (POPOVER_SUPPORTED && !element.matches(':popover-open')) element.showPopover();
     place(element, triggerNode, align, side);
 
     // Focus lands on the menu itself rather than the first item, so opening it
@@ -129,7 +121,7 @@ export function Menu({
 
   // Without popover support there is no light dismiss to inherit.
   useEffect(() => {
-    if (!open || SUPPORTED) return;
+    if (!open || POPOVER_SUPPORTED) return;
 
     function onPointer(event: MouseEvent) {
       const target = event.target as Node;
@@ -154,12 +146,12 @@ export function Menu({
         role="menu"
         aria-label={label}
         tabIndex={-1}
-        {...(SUPPORTED ? { popover: 'auto' } : {})}
-        hidden={SUPPORTED ? undefined : !open}
+        {...(POPOVER_SUPPORTED ? { popover: 'auto' } : {})}
+        hidden={POPOVER_SUPPORTED ? undefined : !open}
         onKeyDown={(event) => onMenuKeys(event, close, triggerNode)}
         className={cx(
           'border-border bg-surface-raised shadow-popover text-text-primary fixed m-0 min-w-52 rounded-xl border p-1',
-          SUPPORTED ? '' : 'z-50',
+          POPOVER_SUPPORTED ? '' : 'z-50',
           'motion-safe:transition-[opacity,transform] motion-safe:duration-(--duration-instant)',
           open ? 'scale-100 opacity-100' : 'pointer-events-none scale-95 opacity-0',
           className,
@@ -259,36 +251,6 @@ export function MenuLabel({ children }: { children: ReactNode }) {
       {children}
     </p>
   );
-}
-
-/**
- * Places the menu against its control, flipping and sliding rather than
- * hanging off the edge of the window.
- */
-function place(
-  element: HTMLElement,
-  trigger: HTMLElement | null,
-  align: 'start' | 'end',
-  side: 'bottom' | 'top',
-): void {
-  if (!trigger) return;
-
-  const anchor = trigger.getBoundingClientRect();
-  const menu = element.getBoundingClientRect();
-
-  const below = window.innerHeight - anchor.bottom - GAP;
-  const above = anchor.top - GAP;
-  const goesUp =
-    side === 'top' ? above > menu.height || above > below : below < menu.height && above > below;
-
-  const top = goesUp ? anchor.top - menu.height - GAP : anchor.bottom + GAP;
-  const wanted = align === 'end' ? anchor.right - menu.width : anchor.left;
-
-  const left = Math.min(Math.max(MARGIN, wanted), window.innerWidth - menu.width - MARGIN);
-  const clamped = Math.min(Math.max(MARGIN, top), window.innerHeight - menu.height - MARGIN);
-
-  element.style.left = `${String(Math.round(left))}px`;
-  element.style.top = `${String(Math.round(clamped))}px`;
 }
 
 /** Arrow keys move, Escape leaves, and focus returns to where it came from. */

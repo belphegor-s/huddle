@@ -14,6 +14,9 @@ interface CallTileProps {
   connecting?: boolean;
   /** A shared screen is letterboxed. A face fills the tile. */
   contain?: boolean;
+  pinned?: boolean;
+  /** Absent where pinning makes no sense, which hides the control entirely. */
+  onPin?(): void;
 }
 
 export function CallTile({
@@ -26,6 +29,8 @@ export function CallTile({
   self = false,
   connecting = false,
   contain = false,
+  pinned = false,
+  onPin,
 }: CallTileProps) {
   // Held in state rather than in a ref because they appear and disappear:
   // turning a camera on replaces the avatar with a video element without the
@@ -73,6 +78,31 @@ export function CallTile({
       ) : (
         <Avatar name={name} url={avatarUrl} size="lg" />
       )}
+
+      {/*
+        Hidden until the tile is hovered, and always present on a touch screen
+        where there is no hover to reveal it. A pin that can only be found by
+        waving a mouse around is a pin most people never find.
+      */}
+      {onPin ? (
+        <button
+          type="button"
+          onClick={onPin}
+          aria-pressed={pinned}
+          aria-label={
+            pinned ? `Unpin ${self ? 'yourself' : name}` : `Pin ${self ? 'yourself' : name}`
+          }
+          title={pinned ? 'Unpin' : 'Pin to the stage'}
+          className={cx(
+            'absolute top-1.5 right-1.5 z-10 grid size-8 place-items-center rounded-lg transition-opacity',
+            pinned
+              ? 'bg-accent text-white opacity-100'
+              : 'bg-black/50 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
+          )}
+        >
+          <Icon name="pin" className="size-4" />
+        </button>
+      ) : null}
 
       {connecting ? (
         <span className="absolute inset-0 grid place-items-center bg-black/50 text-xs text-white/80">

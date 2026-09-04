@@ -12,6 +12,7 @@ import {
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { api } from '../lib/api';
+import { useConfirm } from './confirm';
 import { Dialog } from './dialog';
 
 interface ChannelMenuProps {
@@ -36,6 +37,8 @@ const MUTES = [
 
 export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: ChannelMenuProps) {
   const [topic, setTopic] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirm();
+  const isChannel = summary.channel.kind === 'channel';
   const navigate = useNavigate();
 
   const channelId = summary.channel.id;
@@ -123,18 +126,45 @@ export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: Ch
                 {summary.channel.topic ? 'Edit the topic' : 'Add a topic'}
               </MenuItem>
 
-              <MenuItem icon="file" onSelect={() => void archive()}>
+              <MenuItem
+                icon="file"
+                onSelect={() =>
+                  confirm({
+                    title: 'Archive this channel',
+                    body: 'It leaves every sidebar and nobody can post in it again. The messages are kept.',
+                    action: 'Archive',
+                    run: archive,
+                  })
+                }
+              >
                 Archive channel
               </MenuItem>
             </>
           ) : null}
 
           <MenuSeparator />
-          <MenuItem icon="close" danger onSelect={() => void leave()}>
-            {summary.channel.kind === 'channel' ? 'Leave channel' : 'Close conversation'}
+          <MenuItem
+            icon="close"
+            danger
+            onSelect={() =>
+              confirm({
+                title: isChannel ? 'Leave this channel' : 'Close this conversation',
+                body: isChannel
+                  ? summary.channel.isPrivate
+                    ? 'It is private, so somebody will have to add you back.'
+                    : 'You can join it again whenever you like.'
+                  : 'It comes back the next time either of you writes.',
+                action: isChannel ? 'Leave' : 'Close',
+                run: leave,
+              })
+            }
+          >
+            {isChannel ? 'Leave channel' : 'Close conversation'}
           </MenuItem>
         </>
       </Menu>
+
+      {dialog}
 
       {topic === null ? null : (
         <Dialog

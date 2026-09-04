@@ -1,6 +1,7 @@
 import { Avatar, Button, Icon, TextField } from '@huddle/ui';
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { AvatarEditor } from '../components/avatar-editor';
 import { api } from '../lib/api';
 import { upload, UploadError, UPLOAD_MESSAGES } from '../lib/uploads';
 import { handleOf } from '../lib/rich-text';
@@ -19,6 +20,7 @@ export default function Profile() {
   const [avatarUrl, setAvatarUrl] = useState(me.user.avatarUrl);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [picked, setPicked] = useState<File | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
   const clean = displayName.trim();
@@ -41,10 +43,15 @@ export default function Profile() {
     }
   }
 
-  async function pickAvatar(file: File | undefined) {
-    if (!file) return;
-
+  /**
+   * Cropped before it is sent. The original never leaves the browser, so a
+   * four megabyte photo does not become a four megabyte avatar drawn at
+   * thirty two pixels.
+   */
+  async function uploadCropped(file: File) {
+    setPicked(null);
     setProblem(null);
+
     try {
       const attachment = await upload(workspace.id, file);
       setAvatarUrl(attachment.url);
@@ -88,8 +95,9 @@ export default function Profile() {
               hidden
               disabled={!features.files}
               onChange={(event) => {
-                void pickAvatar(event.target.files?.[0]);
+                const chosen = event.target.files?.[0];
                 event.target.value = '';
+                if (chosen) setPicked(chosen);
               }}
             />
           </label>
@@ -138,6 +146,14 @@ export default function Profile() {
           </span>
         ) : null}
       </div>
+
+      {picked ? (
+        <AvatarEditor
+          file={picked}
+          onCancel={() => setPicked(null)}
+          onDone={(cropped) => void uploadCropped(cropped)}
+        />
+      ) : null}
     </form>
   );
 }

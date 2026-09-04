@@ -21,6 +21,9 @@ export function Dialog({ title, onClose, children }: DialogProps) {
   return (
     <dialog
       ref={ref}
+      // Named, so a screen reader announces what opened rather than just
+      // "dialog", and so it can be addressed by name at all.
+      aria-label={title}
       onClose={onClose}
       onClick={(event) => {
         // A click that lands on the dialog element itself is a click on the

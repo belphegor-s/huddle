@@ -8,6 +8,7 @@ import { memberAvatar, memberName } from '../lib/workspace';
 import { Attachments } from './attachments';
 import { EmojiPicker } from './emoji-picker';
 import { LinkPreviews } from './link-previews';
+import { useConfirm } from './confirm';
 import { MessageBody } from './message-body';
 import { MessageEditor } from './message-editor';
 import { MessageSheet, type SheetAction } from './message-sheet';
@@ -45,10 +46,19 @@ export function MessageRow({
   onEdit,
   onDelete,
 }: MessageRowProps) {
-  const [picking, setPicking] = useState(false);
   const [editing, setEditing] = useState(false);
   const [sheet, setSheet] = useState(false);
   const hold = useLongPress(() => setSheet(true));
+  const { confirm, dialog } = useConfirm();
+
+  /** Deleting is the one message action that cannot be undone. */
+  const askToDelete = () =>
+    confirm({
+      title: 'Delete this message',
+      body: 'It is replaced by a note saying it was deleted. Nobody can read it afterwards, including you.',
+      action: 'Delete',
+      run: () => onDelete(message.id),
+    });
 
   const source = useMemo(() => toLines(message.body).join('\n'), [message.body]);
   const name = memberName(members, message.authorId);
@@ -70,7 +80,7 @@ export function MessageRow({
             label: 'Delete message',
             icon: 'trash' as const,
             destructive: true,
-            run: () => onDelete(message.id),
+            run: askToDelete,
           },
         ]
       : []),
@@ -196,24 +206,10 @@ export function MessageRow({
             </RowAction>
           ))}
 
-          <div className="relative">
-            <RowAction
-              label="Add a reaction"
-              expanded={picking}
-              onClick={() => setPicking((open) => !open)}
-            >
-              <Icon name="emoji" />
-            </RowAction>
-            {picking ? (
-              <EmojiPicker
-                onClose={() => setPicking(false)}
-                onPick={(emoji) => {
-                  onReact(message.id, emoji, true);
-                  setPicking(false);
-                }}
-              />
-            ) : null}
-          </div>
+          <EmojiPicker
+            triggerClassName="text-text-muted hover:text-text-primary hover:bg-surface-active grid size-8 place-items-center rounded-md text-sm"
+            onPick={(emoji) => onReact(message.id, emoji, true)}
+          />
 
           <RowAction label="Reply in thread" onClick={() => onOpenThread(message.id)}>
             <Icon name="reply" />
@@ -226,7 +222,7 @@ export function MessageRow({
           ) : null}
 
           {mine || canModerate ? (
-            <RowAction label="Delete message" onClick={() => onDelete(message.id)}>
+            <RowAction label="Delete message" onClick={askToDelete}>
               <Icon name="trash" />
             </RowAction>
           ) : null}
@@ -240,6 +236,8 @@ export function MessageRow({
           onClose={() => setSheet(false)}
         />
       ) : null}
+
+      {dialog}
     </li>
   );
 }
