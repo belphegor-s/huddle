@@ -5,15 +5,15 @@ import { api } from '../lib/api';
 import { formatDay } from '../lib/format';
 
 /**
- * The link is shown once, when it is made, and never again. Only a hash of the
- * token is stored, so there is nothing to show later: a database leak cannot
- * hand out working invitations, and that is worth more than the convenience of
- * copying an old one.
+ * Every live invitation, with its link, because a link that can only be copied
+ * once is a link somebody has to regenerate every time it is lost.
+ *
+ * Readable by an admin and nobody else. Anyone holding one of these can join at
+ * the role it names, which is why revoking is next to each one.
  */
 export function InvitePanel({ workspaceId }: { workspaceId: string }) {
   const [invites, setInvites] = useState<InviteSummary[]>([]);
-  const [fresh, setFresh] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function reload() {
@@ -28,90 +28,91 @@ export function InvitePanel({ workspaceId }: { workspaceId: string }) {
 
   async function create() {
     setBusy(true);
-    setCopied(false);
-
     try {
-      const invite = await api.createInvite(workspaceId);
-      setFresh(`${window.location.origin}/join/${invite.token}`);
+      await api.createInvite(workspaceId);
       await reload();
     } finally {
       setBusy(false);
     }
   }
 
+  function copy(invite: InviteSummary) {
+    const link = `${window.location.origin}/join/${invite.token}`;
+    void navigator.clipboard.writeText(link).then(() => {
+      setCopied(invite.id);
+      setTimeout(() => setCopied((current) => (current === invite.id ? null : current)), 1500);
+    });
+  }
+
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-text-muted text-2xs font-semibold tracking-wide uppercase">
-        Invitations
-      </h2>
-
-      {fresh ? (
-        <div className="border-accent/40 bg-accent-soft/40 flex flex-col gap-2 rounded-lg border p-3">
-          <p className="text-text-secondary text-xs">
-            Copy this now. It is not stored, so it cannot be shown again.
-          </p>
-          <div className="flex items-center gap-2">
-            <output className="border-border bg-surface flex-1 rounded-lg border px-2 py-1.5 font-mono text-xs break-all">
-              {fresh}
-            </output>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                void navigator.clipboard.writeText(fresh).then(() => setCopied(true));
-              }}
-            >
-              {copied ? 'Copied' : 'Copy'}
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      <Button
-        type="button"
-        variant="secondary"
-        className="self-start"
-        disabled={busy}
-        onClick={() => void create()}
-      >
-        {busy ? 'Creating' : 'Create an invite link'}
-      </Button>
+      <div className="flex items-center gap-3">
+        <h2 className="text-text-muted text-2xs flex-1 font-semibold tracking-wide uppercase">
+          Invitations
+        </h2>
+        <Button type="button" variant="secondary" disabled={busy} onClick={() => void create()}>
+          {busy ? 'Creating' : 'New link'}
+        </Button>
+      </div>
 
       {invites.length === 0 ? (
-        <p className="text-text-muted text-sm">No invitations are outstanding.</p>
+        <p className="text-text-muted text-sm">
+          No invitations are outstanding. A link lets anyone who has it join.
+        </p>
       ) : (
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-2">
           {invites.map((invite) => (
             <li
               key={invite.id}
-              className="border-border bg-surface-raised flex items-center gap-3 rounded-lg border px-3 py-2"
+              className={cx(
+                'border-border bg-surface-raised flex flex-col gap-2 rounded-lg border p-3',
+                invite.expired && 'opacity-60',
+              )}
             >
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm capitalize">{invite.role}</span>
-                <span
-                  className={cx(
-                    'block text-xs',
-                    invite.expired ? 'text-critical' : 'text-text-muted',
-                  )}
-                >
-                  {invite.expired ? 'Expired' : `Expires ${formatDay(invite.expiresAt)}`}
-                  {invite.maxUses === null
-                    ? `, used ${invite.useCount} times`
-                    : `, ${invite.useCount} of ${invite.maxUses} used`}
+              <div className="flex items-center gap-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm capitalize">{invite.role}</span>
+                  <span
+                    className={cx(
+                      'block text-xs',
+                      invite.expired ? 'text-critical' : 'text-text-muted',
+                    )}
+                  >
+                    {invite.expired ? 'Expired' : `Expires ${formatDay(invite.expiresAt)}`}
+                    {invite.maxUses === null
+                      ? `, used ${invite.useCount} times`
+                      : `, ${invite.useCount} of ${invite.maxUses} used`}
+                  </span>
                 </span>
-              </span>
 
-              <button
-                type="button"
-                aria-label="Revoke this invitation"
-                title="Revoke this invitation"
-                onClick={() => {
-                  void api.revokeInvite(workspaceId, invite.id).then(reload);
-                }}
-                className="text-text-muted hover:text-critical hover:bg-surface-hover grid size-9 place-items-center rounded-lg"
-              >
-                <Icon name="trash" className="size-4" />
-              </button>
+                <button
+                  type="button"
+                  aria-label="Revoke this invitation"
+                  title="Revoke this invitation"
+                  onClick={() => {
+                    void api.revokeInvite(workspaceId, invite.id).then(reload);
+                  }}
+                  className="text-text-muted hover:text-critical hover:bg-surface-hover grid size-9 shrink-0 place-items-center rounded-lg"
+                >
+                  <Icon name="trash" className="size-4" />
+                </button>
+              </div>
+
+              {invite.expired ? null : (
+                <div className="flex items-center gap-2">
+                  <output className="border-border bg-surface min-w-0 flex-1 truncate rounded-lg border px-2 py-1.5 font-mono text-xs">
+                    {`${window.location.origin}/join/${invite.token}`}
+                  </output>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => copy(invite)}
+                    className="shrink-0"
+                  >
+                    {copied === invite.id ? 'Copied' : 'Copy'}
+                  </Button>
+                </div>
+              )}
             </li>
           ))}
         </ul>

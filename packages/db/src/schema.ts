@@ -165,8 +165,16 @@ export const invites = pgTable(
     workspaceId: text('workspace_id')
       .notNull()
       .references(() => workspaces.id, { onDelete: 'cascade' }),
-    /** Hashed, never stored in the clear, so a database leak cannot grant access. */
-    tokenHash: text('token_hash').notNull(),
+    /**
+     * Stored as it is, unlike a session token, so an admin can copy the link
+     * again rather than making a new one every time somebody loses it.
+     *
+     * The trade is deliberate. This grants membership at one role, expires,
+     * can be capped by use count and can be revoked, and it is meant to be
+     * pasted into a group chat and read back later. A session token is none of
+     * those things, which is why that one is still only ever hashed.
+     */
+    token: text('token').notNull(),
     role: text('role', { enum: ['admin', 'member', 'guest'] })
       .notNull()
       .default('member'),
@@ -177,7 +185,7 @@ export const invites = pgTable(
     useCount: integer('use_count').notNull().default(0),
     revokedAt: ms('revoked_at'),
   },
-  (t) => [uniqueIndex('invites_token_idx').on(t.tokenHash)],
+  (t) => [uniqueIndex('invites_token_idx').on(t.token)],
 );
 
 /**

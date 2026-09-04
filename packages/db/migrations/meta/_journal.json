@@ -22,6 +22,20 @@
       "when": 1788406985469,
       "tag": "0002_reply_count",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788427406422,
+      "tag": "0003_invite_token",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788427416073,
+      "tag": "0004_invite_token_lookup",
+      "breakpoints": true
     }
   ]
 }

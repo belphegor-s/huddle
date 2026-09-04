@@ -1,6 +1,5 @@
 import {
   err,
-  hashToken,
   ok,
   randomToken,
   ulid,
@@ -96,7 +95,7 @@ export async function createInvite(
   await ctx.db.insert(invites).values({
     id: ulid(now),
     workspaceId: input.workspaceId,
-    tokenHash: await hashToken(token),
+    token,
     role: input.role,
     createdBy: input.actorId,
     createdAt: now,
@@ -198,6 +197,7 @@ export async function listInvites(
       role: row.role,
       createdAt: row.createdAt,
       expiresAt: row.expiresAt,
+      token: row.token,
       maxUses: row.maxUses,
       useCount: row.useCount,
       expired: row.expiresAt <= now || (row.maxUses !== null && row.useCount >= row.maxUses),
@@ -230,11 +230,7 @@ async function loadUsableInvite(
   ctx: AppContext,
   token: string,
 ): Promise<Result<{ id: string; workspaceId: string; role: Role }, InviteError>> {
-  const rows = await ctx.db
-    .select()
-    .from(invites)
-    .where(eq(invites.tokenHash, await hashToken(token)))
-    .limit(1);
+  const rows = await ctx.db.select().from(invites).where(eq(invites.token, token)).limit(1);
 
   const invite = rows[0];
   if (!invite || invite.revokedAt !== null) return err('invalid_invite');

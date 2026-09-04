@@ -122,7 +122,7 @@ test('a second person joins by invite and both see each other live', async ({ br
 /** Invitations live on the people screen, where the rest of admin does. */
 async function createInvite(page: Page, slug: string): Promise<string> {
   await page.goto(`/w/${slug}/people`);
-  await page.getByRole('button', { name: 'Create an invite link' }).click();
+  await page.getByRole('button', { name: 'New link' }).click();
 
   const output = page.locator('output');
   await expect(output).toBeVisible();

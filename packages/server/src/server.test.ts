@@ -250,6 +250,61 @@ describe('unread', () => {
   });
 });
 
+describe('invitations', () => {
+  it('lists a live invitation with a link that still works', async () => {
+    const ada = new Client(app);
+    const sam = new Client(app);
+    await ada.signIn('ada@example.com');
+    await sam.signIn('sam@example.com');
+
+    const workspace = await workspaceFor(ada, 'acme');
+    await ada.post(`/api/workspaces/${workspace.id}/invites`, {});
+
+    const listed = await ada.json<Array<{ id: string; token: string; expired: boolean }>>(
+      `/api/workspaces/${workspace.id}/invites`,
+    );
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.expired).toBe(false);
+
+    // The point of storing it: the link read back from the list is the link.
+    const joined = await sam.post(`/api/invites/${listed[0]?.token}/accept`);
+    expect(joined.status).toBe(200);
+  });
+
+  it('shows nothing to someone who is not an admin', async () => {
+    const ada = new Client(app);
+    const sam = new Client(app);
+    await ada.signIn('ada@example.com');
+    await sam.signIn('sam@example.com');
+
+    const workspace = await workspaceFor(ada, 'acme');
+    const invite = await asJson<{ token: string }>(
+      await ada.post(`/api/workspaces/${workspace.id}/invites`, {}),
+    );
+    await sam.post(`/api/invites/${invite.token}/accept`);
+
+    expect((await sam.get(`/api/workspaces/${workspace.id}/invites`)).status).toBe(403);
+  });
+
+  it('drops a revoked invitation from the list and refuses it', async () => {
+    const ada = new Client(app);
+    const sam = new Client(app);
+    await ada.signIn('ada@example.com');
+    await sam.signIn('sam@example.com');
+
+    const workspace = await workspaceFor(ada, 'acme');
+    const invite = await asJson<{ token: string }>(
+      await ada.post(`/api/workspaces/${workspace.id}/invites`, {}),
+    );
+
+    const listed = await ada.json<Array<{ id: string }>>(`/api/workspaces/${workspace.id}/invites`);
+    await ada.delete(`/api/workspaces/${workspace.id}/invites/${listed[0]?.id}`);
+
+    expect(await ada.json(`/api/workspaces/${workspace.id}/invites`)).toEqual([]);
+    expect((await sam.post(`/api/invites/${invite.token}/accept`)).status).toBe(404);
+  });
+});
+
 describe('isolation', () => {
   it('hides a channel in a workspace the caller is not in', async () => {
     const ada = new Client(app);
