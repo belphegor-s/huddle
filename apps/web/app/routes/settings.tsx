@@ -1,6 +1,6 @@
 import type { Channel } from '@huddle/core';
 import { UpdateWorkspaceInput } from '@huddle/core';
-import { Button, Icon, Spinner, TextField } from '@huddle/ui';
+import { Button, cx, Icon, Spinner, TextField } from '@huddle/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useConfirm } from '../components/confirm';
@@ -21,6 +21,7 @@ export default function WorkspaceSettings() {
   const [saved, setSaved] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
+  const address = `${window.location.origin}/w/${workspace.slug}`;
   const clean = name.trim();
   const changed = clean !== workspace.name;
   const canManage = outranksMember(role, 'admin');
@@ -85,10 +86,13 @@ export default function WorkspaceSettings() {
 
       <TextField
         label="Address"
-        value={`${window.location.origin}/w/${workspace.slug}`}
+        value={address}
         readOnly
-        disabled
+        // Readable and selectable, not disabled: a disabled field cannot be
+        // focused, so the one thing anybody wants from this row, the text,
+        // was the one thing they could not take.
         hint="Fixed, because every invite link already sent points at it"
+        trailing={<CopyAddress value={address} />}
       />
 
       {canManage ? (
@@ -239,5 +243,27 @@ function ArchivedChannels({
       {problem ? <p className="text-critical text-sm">{problem}</p> : null}
       {dialog}
     </section>
+  );
+}
+
+/** The address is there to be handed to somebody, so it is one press to take. */
+function CopyAddress({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <button
+      type="button"
+      aria-label={copied ? 'Address copied' : 'Copy the address'}
+      title="Copy the address"
+      onClick={() => {
+        void navigator.clipboard.writeText(value).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        });
+      }}
+      className="text-text-muted hover:bg-surface-hover hover:text-text-primary grid size-9 place-items-center rounded-md"
+    >
+      <Icon name={copied ? 'check' : 'copy'} className={cx('size-4', copied && 'text-accent')} />
+    </button>
   );
 }

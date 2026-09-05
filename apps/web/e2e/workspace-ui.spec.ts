@@ -396,3 +396,33 @@ test('the lock says what it means, on a phone as well', async ({ page }) => {
   await lock.click();
   await expect(note).toBeHidden();
 });
+
+test('the workspace address can be copied in one press', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+  const slug = unique('addr');
+  await signIn(page, `${slug}@example.com`);
+
+  await page.getByLabel('Team name').fill('Addresses');
+  await page.getByLabel('Address').fill(slug);
+  await page.getByRole('button', { name: 'Create workspace' }).click();
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  await page.goto(`/w/${slug}/settings`);
+
+  // By role: the copy control's own name has the word in it too.
+  const field = page.getByRole('textbox', { name: 'Address' });
+  await expect(field).toHaveValue(new RegExp(`/w/${slug}$`));
+
+  // Readable rather than disabled: a disabled field cannot be focused, so the
+  // text nobody can select is the one thing this row exists to hand over.
+  await expect(field).not.toBeDisabled();
+
+  await page.getByRole('button', { name: 'Copy the address' }).click();
+
+  const taken = await page.evaluate(() => navigator.clipboard.readText());
+  expect(taken).toBe(await field.inputValue());
+
+  // It says so, rather than leaving somebody wondering whether it worked.
+  await expect(page.getByRole('button', { name: 'Address copied' })).toBeVisible();
+});

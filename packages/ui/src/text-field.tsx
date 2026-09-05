@@ -7,9 +7,20 @@ export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string | null;
   /** Rendered flush against the input, for things like a workspace domain. */
   suffix?: string;
+  /** A control at the end of the field, for a value that is there to be taken. */
+  trailing?: ReactNode;
 }
 
-export function TextField({ label, hint, error, suffix, className, id, ...props }: TextFieldProps) {
+export function TextField({
+  label,
+  hint,
+  error,
+  suffix,
+  trailing,
+  className,
+  id,
+  ...props
+}: TextFieldProps) {
   const generated = useId();
   const inputId = id ?? generated;
   const messageId = `${inputId}-message`;
@@ -39,6 +50,7 @@ export function TextField({ label, hint, error, suffix, className, id, ...props 
           {...props}
         />
         {suffix ? <span className="text-text-muted pr-3 text-sm">{suffix}</span> : null}
+        {trailing ? <span className="shrink-0 pr-1">{trailing}</span> : null}
       </div>
 
       {error ? (
