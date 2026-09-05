@@ -1,5 +1,5 @@
 import type { Me, Presence } from '@huddle/core';
-import { Avatar, Icon, Menu, MenuButton, MenuItem, MenuLabel, MenuSeparator } from '@huddle/ui';
+import { Avatar, cx, Icon, Menu, MenuButton, MenuItem, MenuLabel, MenuSeparator } from '@huddle/ui';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { api } from '../lib/api';
@@ -8,6 +8,8 @@ import { PRESENCE_CHOICES, presenceOf, statusLine } from '../lib/presence';
 interface StatusMenuProps {
   me: Me;
   workspaceSlug: string;
+  /** In the rail there is no room for a name, only the face. */
+  compact?: boolean;
   onChanged(): void;
 }
 
@@ -19,7 +21,7 @@ interface StatusMenuProps {
  * somewhere deliberate rather than one stray click from the message you are
  * writing.
  */
-export function StatusMenu({ me, workspaceSlug, onChanged }: StatusMenuProps) {
+export function StatusMenu({ me, workspaceSlug, compact = false, onChanged }: StatusMenuProps) {
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
 
@@ -53,21 +55,34 @@ export function StatusMenu({ me, workspaceSlug, onChanged }: StatusMenuProps) {
         label="Your status"
         align="start"
         side="top"
+        // Same width as the row it hangs from, so it lines up with the
+        // sidebar's padding rather than sitting near it.
+        matchTrigger={!compact}
+        className={compact ? 'min-w-56' : ''}
         trigger={
-          <MenuButton className="hover:bg-surface-hover -mx-1 flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-1 text-left">
+          <MenuButton
+            title={me.user.displayName}
+            className={cx(
+              'hover:bg-surface-hover flex w-full min-w-0 items-center gap-2 rounded-lg py-1 text-left',
+              compact ? 'md:justify-center md:px-0' : 'px-2',
+            )}
+          >
             <Avatar
               name={me.user.displayName}
               url={me.user.avatarUrl}
               size="md"
               presence={presenceOf(self)}
             />
-            <span className="min-w-0 flex-1">
+            <span className={cx('min-w-0 flex-1', compact && 'md:sr-only')}>
               <span className="text-text-primary block truncate text-sm">
                 {me.user.displayName}
               </span>
               {line ? <span className="text-text-muted block truncate text-xs">{line}</span> : null}
             </span>
-            <Icon name="chevronDown" className="text-text-muted size-4 shrink-0" />
+            <Icon
+              name="chevronDown"
+              className={cx('text-text-muted size-4 shrink-0', compact && 'md:hidden')}
+            />
           </MenuButton>
         }
       >

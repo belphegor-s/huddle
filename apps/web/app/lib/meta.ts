@@ -16,29 +16,39 @@ export interface PageMeta {
   description: string;
   /** Where this page lives, for the canonical link and the card. */
   path?: string;
-  /** Screens behind a sign in should not be indexed or previewed. */
+  /**
+   * Keep it out of search results. It still gets a card: an invitation is
+   * pasted into a chat window far more often than it is crawled, and a bare
+   * link there says nothing about what is being offered.
+   */
   private?: boolean;
+  /** A card of its own, for a page that deserves one. */
+  image?: string;
 }
 
-export function pageMeta({ title, description, path = '/', private: hidden = false }: PageMeta) {
+export function pageMeta({
+  title,
+  description,
+  path = '/',
+  private: hidden = false,
+  image = `${ORIGIN}/og.png`,
+}: PageMeta) {
   const url = `${ORIGIN}${path}`;
-  const full = title === SITE ? title : `${title}`;
-
-  if (hidden) {
-    return [{ title: full }, { name: 'robots', content: 'noindex, nofollow' }];
-  }
+  const full = title;
 
   return [
     { title: full },
     { name: 'description', content: description },
-    { tagName: 'link', rel: 'canonical', href: url },
+    ...(hidden
+      ? [{ name: 'robots', content: 'noindex, nofollow' }]
+      : [{ tagName: 'link', rel: 'canonical', href: url }]),
 
     { property: 'og:type', content: 'website' },
     { property: 'og:site_name', content: SITE },
     { property: 'og:title', content: full },
     { property: 'og:description', content: description },
     { property: 'og:url', content: url },
-    { property: 'og:image', content: `${ORIGIN}/og.png` },
+    { property: 'og:image', content: image },
     { property: 'og:image:width', content: '1200' },
     { property: 'og:image:height', content: '630' },
     { property: 'og:image:alt', content: 'huddle, open source team chat you host yourself' },
@@ -48,6 +58,6 @@ export function pageMeta({ title, description, path = '/', private: hidden = fal
     { name: 'twitter:card', content: 'summary_large_image' },
     { name: 'twitter:title', content: full },
     { name: 'twitter:description', content: description },
-    { name: 'twitter:image', content: `${ORIGIN}/og.png` },
+    { name: 'twitter:image', content: image },
   ];
 }

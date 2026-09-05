@@ -1,12 +1,25 @@
 import { Button } from '@huddle/ui';
 import { Form, redirect, useNavigation } from 'react-router';
 import { api, ApiError } from '../lib/api';
+import { pageMeta } from '../lib/meta';
 import { currentMe, requireMe } from '../lib/session';
 import type { Route } from './+types/join';
 
 export function meta({ loaderData }: Route.MetaArgs) {
   const name = loaderData?.workspaceName;
-  return [{ title: name ? `Join ${name}` : 'Invitation' }];
+
+  /*
+   * An invitation is pasted into a chat window far more often than it is
+   * opened from a search result, so it gets a proper card and is kept out of
+   * search rather than being given no tags at all.
+   */
+  return pageMeta({
+    title: name ? `Join ${name} on huddle` : 'An invitation to huddle',
+    description: name
+      ? `You have been invited to ${name}. huddle is open source team chat: channels, threads, huddles and search, with end to end encrypted conversations.`
+      : 'You have been invited to a workspace on huddle, open source team chat you host yourself.',
+    private: true,
+  });
 }
 
 const PROBLEMS: Record<string, string> = {

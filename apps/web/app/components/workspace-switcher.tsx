@@ -1,5 +1,5 @@
 import type { WorkspaceMembership } from '@huddle/core';
-import { Avatar, Icon, Menu, MenuButton, MenuItem, MenuLabel, MenuSeparator } from '@huddle/ui';
+import { Avatar, cx, Icon, Menu, MenuButton, MenuItem, MenuLabel, MenuSeparator } from '@huddle/ui';
 import { useNavigate } from 'react-router';
 import { outranksMember } from '../lib/roles';
 
@@ -8,6 +8,8 @@ interface WorkspaceSwitcherProps {
   workspaces: WorkspaceMembership[];
   /** Settings only appear for somebody who can change them. */
   role: WorkspaceMembership['role'];
+  /** In the rail, the name has nowhere to go and only the mark is shown. */
+  compact?: boolean;
 }
 
 /**
@@ -17,18 +19,40 @@ interface WorkspaceSwitcherProps {
  * down because the thing you press to change context should be the thing
  * naming the current one.
  */
-export function WorkspaceSwitcher({ current, workspaces, role }: WorkspaceSwitcherProps) {
+export function WorkspaceSwitcher({
+  current,
+  workspaces,
+  role,
+  compact = false,
+}: WorkspaceSwitcherProps) {
   const navigate = useNavigate();
 
   return (
     <Menu
       label="Workspaces"
-      className="min-w-64"
+      // The panel takes the width of the row it hangs from, so it lines up
+      // with the sidebar's own padding rather than sitting near it.
+      matchTrigger={!compact}
+      className={compact ? 'min-w-56' : ''}
       trigger={
-        <MenuButton className="hover:bg-surface-hover flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-left">
+        <MenuButton
+          title={current.name}
+          className={cx(
+            'hover:bg-surface-hover flex min-h-11 w-full items-center gap-2 rounded-lg text-left',
+            // Room at the end for the collapse control that sits over it.
+            compact ? 'md:justify-center md:px-0' : 'pr-11 pl-2',
+          )}
+        >
           <Avatar name={current.name} size="md" />
-          <span className="min-w-0 flex-1 truncate font-medium">{current.name}</span>
-          <Icon name="chevronDown" className="text-text-muted size-4" />
+          <span className={cx('min-w-0 flex-1 truncate font-medium', compact && 'md:sr-only')}>
+            {current.name}
+          </span>
+          <Icon
+            name="chevronDown"
+            // Hidden wherever the collapse control sits over this row, which
+            // is every width that has one.
+            className={cx('text-text-muted size-4 shrink-0', 'md:hidden')}
+          />
         </MenuButton>
       }
     >

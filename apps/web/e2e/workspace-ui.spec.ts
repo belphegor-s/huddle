@@ -137,3 +137,83 @@ test('a profile saves on Enter', async ({ page }) => {
   await page.reload();
   await expect(page.getByLabel('Display name')).toHaveValue('Ada Lovelace');
 });
+
+test('the sidebar narrows to a rail and stays that way', async ({ page }) => {
+  const slug = unique('rail');
+  await signIn(page, `${slug}@example.com`);
+
+  await page.getByLabel('Team name').fill('Rails');
+  await page.getByLabel('Address').fill(slug);
+  await page.getByRole('button', { name: 'Create workspace' }).click();
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  await page.getByRole('button', { name: 'New channel' }).click();
+  await page.getByLabel('Name').fill('general');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page).toHaveURL(/\/c\/general$/);
+
+  const sidebar = page.getByRole('navigation');
+  const wide = (await sidebar.boundingBox())?.width ?? 0;
+  expect(wide).toBeGreaterThan(200);
+
+  await page.getByRole('button', { name: 'Narrow the sidebar' }).click();
+  await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeLessThan(wide / 2);
+
+  // The channel is still reachable, which is the point of a rail rather than
+  // a hidden sidebar.
+  await expect(sidebar.getByRole('link', { name: /general/ })).toBeVisible();
+
+  // And it is remembered, or it would have to be narrowed on every visit.
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Widen the sidebar' })).toBeVisible();
+  // Polled: the width is animated, so reading it once catches it mid flight.
+  await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeLessThan(wide / 2);
+
+  await page.getByRole('button', { name: 'Widen the sidebar' }).click();
+  await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeGreaterThan(200);
+});
+
+test('the sidebar menus line up with the sidebar', async ({ page }) => {
+  const slug = unique('align');
+  await signIn(page, `${slug}@example.com`);
+
+  await page.getByLabel('Team name').fill('Aligned');
+  await page.getByLabel('Address').fill(slug);
+  await page.getByRole('button', { name: 'Create workspace' }).click();
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  const sidebar = page.getByRole('navigation');
+  const rows = await sidebar.evaluate((nav) => {
+    const style = getComputedStyle(nav);
+    const box = nav.getBoundingClientRect();
+    return {
+      left: box.left + Number.parseFloat(style.paddingLeft),
+      width:
+        box.width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight),
+    };
+  });
+
+  for (const [control, name] of [
+    ['Aligned', 'Workspaces'],
+    [/Active/, 'Your status'],
+  ] as const) {
+    await page.getByRole('button', { name: control }).first().click();
+
+    const panel = page.getByRole('menu', { name });
+    await expect(panel).toBeVisible();
+
+    // Within a pixel: layout is sub pixel, and a whole pixel is the point
+    // at which somebody would actually see the edges disagree.
+    const box = await panel.boundingBox();
+    expect(
+      Math.abs((box?.width ?? 0) - rows.width),
+      `${name} is not the width of a sidebar row`,
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs((box?.x ?? 0) - rows.left),
+      `${name} does not start where a sidebar row does`,
+    ).toBeLessThanOrEqual(1);
+
+    await page.keyboard.press('Escape');
+  }
+});

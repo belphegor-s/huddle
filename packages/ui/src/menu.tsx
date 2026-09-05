@@ -53,6 +53,12 @@ export interface MenuProps {
   align?: Align;
   /** Preferred side. It flips when there is no room. */
   side?: Side;
+  /**
+   * Take the width of the control that opened it. For a menu hanging off a
+   * full width row, matching is what makes it look attached to that row
+   * rather than dropped near it.
+   */
+  matchTrigger?: boolean;
   className?: string;
   children: ReactNode;
 }
@@ -62,6 +68,7 @@ export function Menu({
   trigger,
   align = 'start',
   side = 'bottom',
+  matchTrigger = false,
   className,
   children,
 }: MenuProps) {
@@ -95,12 +102,19 @@ export function Menu({
     }
 
     if (POPOVER_SUPPORTED && !element.matches(':popover-open')) element.showPopover();
+
+    // Sized before it is placed, or the placement measures the wrong width.
+    element.style.width =
+      matchTrigger && triggerNode
+        ? `${String(Math.round(triggerNode.getBoundingClientRect().width))}px`
+        : '';
+
     place(element, triggerNode, align, side);
 
     // Focus lands on the menu itself rather than the first item, so opening it
     // does not read as having already chosen something.
     element.focus({ preventScroll: true });
-  }, [open, triggerNode, align, side]);
+  }, [open, triggerNode, align, side, matchTrigger]);
 
   // A menu pinned to a control has to follow it, or it detaches the moment
   // anything behind it moves.
