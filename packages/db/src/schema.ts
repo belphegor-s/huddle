@@ -111,7 +111,14 @@ export const channels = pgTable(
   },
   (t) => [
     index('channels_workspace_idx').on(t.workspaceId),
-    uniqueIndex('channels_workspace_name_idx').on(t.workspaceId, t.name),
+    /*
+     * Only among the live ones. An archived channel keeps its name in the
+     * scrollback but stops holding it against a new one, or archiving #launch
+     * would mean nobody can ever call a channel that again.
+     */
+    uniqueIndex('channels_workspace_name_idx')
+      .on(t.workspaceId, t.name)
+      .where(sql`${t.archivedAt} is null`),
   ],
 );
 

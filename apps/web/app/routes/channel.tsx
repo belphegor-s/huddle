@@ -109,6 +109,7 @@ function ChannelView({
   const title = channelTitle(summary, members, me.user.id);
   const label = channelLabel(summary, members, me.user.id);
   const direct = isDirect(summary);
+  const archived = summary.channel.archivedAt !== null;
 
   return (
     <section className="flex min-w-0 flex-1">
@@ -189,7 +190,14 @@ function ChannelView({
           />
         </header>
 
-        {joined ? null : <JoinBanner channelId={summary.channel.id} onJoined={onChanged} />}
+        {archived ? (
+          <p className="border-border bg-surface-raised text-text-secondary flex items-center gap-2 border-b px-3 py-2 text-sm md:px-5">
+            <Icon name="file" className="size-4 shrink-0" />
+            This channel is archived. It can be read, and nothing more can be posted in it.
+          </p>
+        ) : joined ? null : (
+          <JoinBanner channelId={summary.channel.id} onJoined={onChanged} />
+        )}
 
         {/*
           Said plainly rather than left as an empty channel. A device with no
@@ -247,17 +255,19 @@ function ChannelView({
 
         <TypingLine names={stream.typing.map((id) => memberName(members, id))} />
 
-        <Composer
-          workspaceId={workspace.id}
-          members={members}
-          placeholder={`Message ${label}`}
-          canAttach={canAttach}
-          onTyping={stream.notifyTyping}
-          onSend={async (input) => {
-            await stream.send({ ...input, parentId: null });
-            onChanged();
-          }}
-        />
+        {archived ? null : (
+          <Composer
+            workspaceId={workspace.id}
+            members={members}
+            placeholder={`Message ${label}`}
+            canAttach={canAttach}
+            onTyping={stream.notifyTyping}
+            onSend={async (input) => {
+              await stream.send({ ...input, parentId: null });
+              onChanged();
+            }}
+          />
+        )}
       </div>
 
       {threadId ? (

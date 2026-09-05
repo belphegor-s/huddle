@@ -9,9 +9,11 @@ import { Hono } from 'hono';
 import {
   browseChannels,
   createChannel,
+  deleteChannel,
   findChannelByRef,
   joinChannel,
   leaveChannel,
+  listArchivedChannels,
   listChannels,
   listMembers,
   openDm,
@@ -39,6 +41,16 @@ export function channelRoutes(): Hono<ApiEnv> {
 
   routes.get('/workspaces/:workspaceId/channels/browse', async (c) => {
     const list = await browseChannels(c.var.app, {
+      workspaceId: c.req.param('workspaceId'),
+      userId: currentUser(c).id,
+    });
+
+    if (!list.ok) return failure(c, list.error);
+    return c.json(list.value);
+  });
+
+  routes.get('/workspaces/:workspaceId/channels/archived', async (c) => {
+    const list = await listArchivedChannels(c.var.app, {
       workspaceId: c.req.param('workspaceId'),
       userId: currentUser(c).id,
     });
@@ -126,6 +138,16 @@ export function channelRoutes(): Hono<ApiEnv> {
 
     if (!access.ok) return failure(c, access.error);
     return c.json(access.value);
+  });
+
+  routes.delete('/channels/:channelId', async (c) => {
+    const removed = await deleteChannel(c.var.app, {
+      channelId: c.req.param('channelId'),
+      userId: currentUser(c).id,
+    });
+
+    if (!removed.ok) return failure(c, removed.error);
+    return c.body(null, 204);
   });
 
   routes.patch('/channels/:channelId', async (c) => {

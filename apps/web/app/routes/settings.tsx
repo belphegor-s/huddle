@@ -1,7 +1,9 @@
+import type { Channel } from '@huddle/core';
 import { UpdateWorkspaceInput } from '@huddle/core';
-import { Button, Icon, TextField } from '@huddle/ui';
-import { useState } from 'react';
+import { Button, Icon, Spinner, TextField } from '@huddle/ui';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { useConfirm } from '../components/confirm';
 import { api } from '../lib/api';
 import { outranksMember } from '../lib/roles';
 import { useWorkspace } from '../lib/workspace';
@@ -103,6 +105,8 @@ export default function WorkspaceSettings() {
         </div>
       ) : null}
 
+      <ArchivedChannels workspaceId={workspace.id} slug={workspace.slug} canManage={canManage} />
+
       <section className="border-border flex flex-col gap-2 border-t pt-4">
         <h2 className="text-text-muted text-2xs font-semibold tracking-wide uppercase">People</h2>
         <p className="text-text-muted text-sm">
@@ -117,5 +121,110 @@ export default function WorkspaceSettings() {
         </Link>
       </section>
     </form>
+  );
+}
+
+/**
+ * Where an archived channel goes.
+ *
+ * Archiving takes a channel out of every sidebar, and without a list like this
+ * one there is no way back to what was said in it, which would make archiving
+ * a quiet delete with reassuring words on the button. From here it can be
+ * read, put back, or actually deleted.
+ */
+function ArchivedChannels({
+  workspaceId,
+  slug,
+  canManage,
+}: {
+  workspaceId: string;
+  slug: string;
+  canManage: boolean;
+}) {
+  const { confirm, dialog } = useConfirm();
+  const [channels, setChannels] = useState<Channel[] | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    void api
+      .archivedChannels(workspaceId)
+      .then(setChannels)
+      .catch(() => setChannels([]));
+  }, [workspaceId]);
+
+  useEffect(load, [load]);
+
+  async function restore(channel: Channel) {
+    setProblem(null);
+    try {
+      await api.updateChannel(channel.id, { archived: false });
+      load();
+    } catch {
+      // The one way restoring fails: the name went to a channel made after it.
+      setProblem(`Another channel is called ${channel.name ?? ''} now. Rename that one first.`);
+    }
+  }
+
+  return (
+    <section className="border-border flex flex-col gap-2 border-t pt-4">
+      <h2 className="text-text-muted text-2xs font-semibold tracking-wide uppercase">Archived</h2>
+
+      {channels === null ? (
+        <Spinner label="Loading archived channels" />
+      ) : channels.length === 0 ? (
+        <p className="text-text-muted text-sm">Nothing is archived.</p>
+      ) : (
+        <>
+          <p className="text-text-muted text-sm">
+            Readable, closed to new messages, and no longer holding their names.
+          </p>
+
+          <ul className="flex flex-col gap-1">
+            {channels.map((channel) => (
+              <li
+                key={channel.id}
+                className="border-border bg-surface-raised flex min-h-11 items-center gap-2 rounded-lg border px-3"
+              >
+                <Link
+                  to={`/w/${slug}/c/${channel.id}`}
+                  className="text-text-primary min-w-0 flex-1 truncate text-sm no-underline"
+                >
+                  #{channel.name}
+                </Link>
+
+                {canManage ? (
+                  <>
+                    <Button type="button" variant="ghost" onClick={() => void restore(channel)}>
+                      Restore
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-critical"
+                      onClick={() =>
+                        confirm({
+                          title: `Delete #${channel.name ?? ''}`,
+                          body: 'Every message, file and reply in it goes, for everybody, and none of it can be brought back.',
+                          action: 'Delete',
+                          run: async () => {
+                            await api.deleteChannel(channel.id);
+                            load();
+                          },
+                        })
+                      }
+                    >
+                      Delete
+                    </Button>
+                  </>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {problem ? <p className="text-critical text-sm">{problem}</p> : null}
+      {dialog}
+    </section>
   );
 }

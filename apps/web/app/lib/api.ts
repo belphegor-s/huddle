@@ -132,6 +132,8 @@ export const api = {
     call<ChannelSummary[]>(`/api/workspaces/${workspaceId}/channels`),
   browseChannels: (workspaceId: string) =>
     call<Channel[]>(`/api/workspaces/${workspaceId}/channels/browse`),
+  archivedChannels: (workspaceId: string) =>
+    call<Channel[]>(`/api/workspaces/${workspaceId}/channels/archived`),
   createChannel: (workspaceId: string, input: CreateChannelInput) =>
     post<ChannelSummary>(`/api/workspaces/${workspaceId}/channels`, input),
   openDm: (workspaceId: string, userIds: string[]) =>
@@ -146,6 +148,7 @@ export const api = {
     remove<{ ok: true }>(`/api/channels/${channelId}/members/me`),
   updateChannel: (channelId: string, body: UpdateChannelInput) =>
     patch<Channel>(`/api/channels/${channelId}`, body),
+  deleteChannel: (channelId: string) => remove<null>(`/api/channels/${channelId}`),
   setChannelPrefs: (channelId: string, body: UpdateChannelPrefsInput) =>
     patch<{ ok: true }>(`/api/channels/${channelId}/prefs`, body),
 

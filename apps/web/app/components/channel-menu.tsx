@@ -42,6 +42,7 @@ export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: Ch
   const navigate = useNavigate();
 
   const channelId = summary.channel.id;
+  const archived = summary.channel.archivedAt !== null;
 
   async function save(patch: {
     notificationLevel?: NotificationLevel;
@@ -55,6 +56,17 @@ export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: Ch
     // Archiving hides it from every sidebar, so whoever did it should not be
     // left staring at a channel that no longer exists for anyone.
     await api.updateChannel(channelId, { archived: true });
+    onChanged();
+    await navigate(`/w/${workspaceSlug}`);
+  }
+
+  async function restore() {
+    await api.updateChannel(channelId, { archived: false });
+    onChanged();
+  }
+
+  async function remove() {
+    await api.deleteChannel(channelId);
     onChanged();
     await navigate(`/w/${workspaceSlug}`);
   }
@@ -126,18 +138,39 @@ export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: Ch
                 {summary.channel.topic ? 'Edit the topic' : 'Add a topic'}
               </MenuItem>
 
+              {archived ? (
+                <MenuItem icon="check" onSelect={() => void restore()}>
+                  Restore channel
+                </MenuItem>
+              ) : (
+                <MenuItem
+                  icon="file"
+                  onSelect={() =>
+                    confirm({
+                      title: 'Archive this channel',
+                      body: 'It leaves every sidebar and nobody can post in it again. The messages stay readable from workspace settings, and the name is free for a new channel.',
+                      action: 'Archive',
+                      run: archive,
+                    })
+                  }
+                >
+                  Archive channel
+                </MenuItem>
+              )}
+
               <MenuItem
-                icon="file"
+                icon="trash"
+                danger
                 onSelect={() =>
                   confirm({
-                    title: 'Archive this channel',
-                    body: 'It leaves every sidebar and nobody can post in it again. The messages are kept.',
-                    action: 'Archive',
-                    run: archive,
+                    title: 'Delete this channel',
+                    body: 'Every message, file and reply in it goes, for everybody, and none of it can be brought back. Archiving is the one that can be undone.',
+                    action: 'Delete',
+                    run: remove,
                   })
                 }
               >
-                Archive channel
+                Delete channel
               </MenuItem>
             </>
           ) : null}

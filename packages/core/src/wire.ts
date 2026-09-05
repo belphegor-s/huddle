@@ -160,6 +160,13 @@ export const ServerEvent = z.discriminatedUnion('type', [
     channelId: Id,
     epoch: z.number().int().nonnegative(),
   }),
+  /**
+   * The set of channels this person can see has moved: one was made, joined,
+   * left, renamed, archived, restored or deleted. It carries no channel,
+   * because what changed is the list itself, and the client that gets it
+   * fetches the list again rather than trying to patch it.
+   */
+  z.object({ type: z.literal('channels_changed'), workspaceId: Id }),
   /** The sidebar dot. Sent to members who are not looking at the channel. */
   z.object({
     type: z.literal('call_activity'),

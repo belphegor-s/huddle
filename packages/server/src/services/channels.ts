@@ -3,6 +3,7 @@ import {
   isUlid,
   ok,
   ulid,
+  type Attachment,
   type Channel,
   type ChannelSummary,
   type CreateChannelInput,
@@ -11,8 +12,8 @@ import {
   type UpdateChannelInput,
   type UpdateChannelPrefsInput,
 } from '@huddle/core';
-import { channelMembers, channels, memberships } from '@huddle/db';
-import { and, asc, desc, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
+import { channelMembers, channels, files, memberships, messages } from '@huddle/db';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, notInArray, or, sql } from 'drizzle-orm';
 import type { AppContext } from '../context.js';
 import { outranks, requireMember, type AccessError } from './access.js';
 // Calls reach back for requireChannel, so these two import each other. Both
@@ -69,6 +70,36 @@ export async function requireChannel(
   });
 }
 
+/**
+ * Tells everybody who can see this channel that the list they are looking at
+ * has moved.
+ *
+ * Sent to people rather than to the channel: somebody who has not joined it,
+ * or has just left it, is not subscribed to it and is exactly who needs to
+ * know. A public channel is news to the whole workspace, a private one only to
+ * the people in it.
+ */
+async function announceChannels(
+  ctx: AppContext,
+  channel: { id: string; workspaceId: string; isPrivate: boolean; kind: string },
+  also: string[] = [],
+): Promise<void> {
+  const rows =
+    channel.isPrivate || channel.kind !== 'channel'
+      ? await ctx.db
+          .select({ userId: channelMembers.userId })
+          .from(channelMembers)
+          .where(eq(channelMembers.channelId, channel.id))
+      : await ctx.db
+          .select({ userId: memberships.userId })
+          .from(memberships)
+          .where(eq(memberships.workspaceId, channel.workspaceId));
+
+  for (const userId of new Set([...rows.map((row) => row.userId), ...also])) {
+    ctx.hub.publishToUser(userId, { type: 'channels_changed', workspaceId: channel.workspaceId });
+  }
+}
+
 export async function createChannel(
   ctx: AppContext,
   input: { workspaceId: string; userId: string } & CreateChannelInput,
@@ -104,6 +135,7 @@ export async function createChannel(
     .insert(channelMembers)
     .values({ channelId: channel.id, userId: input.userId, joinedAt: now });
 
+  await announceChannels(ctx, channel);
   return ok(emptySummary(toChannel(channel)));
 }
 
@@ -160,6 +192,8 @@ export async function openDm(
   if (!channel) return err('not_found');
 
   await joinAll(ctx, channel.id, participants, now);
+  await announceChannels(ctx, channel, participants);
+
   return ok({
     ...emptySummary(toChannel(channel)),
     lastSeq: channel.lastSeq,
@@ -250,6 +284,45 @@ export async function browseChannels(
 }
 
 /**
+ * Archived channels, which are otherwise nowhere.
+ *
+ * Archiving takes a channel out of every list, and without this there is no
+ * way back to what was said in it, which makes archiving a quiet delete. The
+ * same rule as browsing applies: public ones are everybody's, a private one
+ * only appears to somebody who was in it.
+ */
+export async function listArchivedChannels(
+  ctx: AppContext,
+  input: { workspaceId: string; userId: string },
+): Promise<Result<Channel[], AccessError>> {
+  const member = await requireMember(ctx.db, {
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+  });
+  if (!member.ok) return err(member.error);
+
+  const mine = ctx.db
+    .select({ id: channelMembers.channelId })
+    .from(channelMembers)
+    .where(eq(channelMembers.userId, input.userId));
+
+  const rows = await ctx.db
+    .select()
+    .from(channels)
+    .where(
+      and(
+        eq(channels.workspaceId, input.workspaceId),
+        eq(channels.kind, 'channel'),
+        isNotNull(channels.archivedAt),
+        or(eq(channels.isPrivate, false), inArray(channels.id, mine)),
+      ),
+    )
+    .orderBy(desc(channels.archivedAt));
+
+  return ok(rows.map(toChannel));
+}
+
+/**
  * URLs carry a channel name where there is one, so `/c/general` is a real
  * address. DMs have no name a person would type, so they resolve by id.
  */
@@ -264,7 +337,7 @@ export async function findChannelByRef(
   if (!member.ok) return err(member.error);
 
   const rows = await ctx.db
-    .select({ id: channels.id })
+    .select({ id: channels.id, archivedAt: channels.archivedAt })
     .from(channels)
     .where(
       and(
@@ -272,9 +345,12 @@ export async function findChannelByRef(
         isUlid(input.ref) ? eq(channels.id, input.ref) : eq(channels.name, input.ref),
       ),
     )
-    .limit(1);
+    // A name can belong to one live channel and any number of archived ones,
+    // and `/c/general` means the one people are talking in.
+    .orderBy(asc(channels.archivedAt))
+    .limit(2);
 
-  const found = rows[0];
+  const found = rows.find((row) => row.archivedAt === null) ?? rows[0];
   if (!found) return err('not_found');
 
   return requireChannel(ctx, { channelId: found.id, userId: input.userId });
@@ -299,6 +375,8 @@ export async function joinChannel(
       readSeq: access.value.lastSeq,
     })
     .onConflictDoNothing();
+
+  await announceChannels(ctx, access.value.channel, [input.userId]);
 
   return ok({
     ...emptySummary(access.value.channel),
@@ -331,6 +409,9 @@ export async function leaveChannel(
     await bumpEpoch(ctx, input.channelId);
   }
 
+  // The person leaving is named as well: they are no longer a member, so the
+  // query behind this would not reach them.
+  await announceChannels(ctx, access.value.channel, [input.userId]);
   return ok(null);
 }
 
@@ -356,6 +437,28 @@ export async function updateChannel(
   if (channel.kind !== 'channel') return err('not_found');
   if (channel.createdBy !== input.userId && !outranks(role, 'admin')) return err('forbidden');
 
+  /*
+   * Restoring is the one direction that can fail. An archived channel stops
+   * holding its name, so by the time somebody asks for it back the name may
+   * belong to a channel people are using.
+   */
+  if (input.patch.archived === false && channel.archivedAt !== null) {
+    const wanted = input.patch.name ?? channel.name ?? '';
+    const rows = await ctx.db
+      .select({ id: channels.id })
+      .from(channels)
+      .where(
+        and(
+          eq(channels.workspaceId, channel.workspaceId),
+          eq(channels.name, wanted),
+          isNull(channels.archivedAt),
+        ),
+      )
+      .limit(1);
+
+    if (rows[0] && rows[0].id !== channel.id) return err('name_taken');
+  }
+
   const now = ctx.now();
   const updated = await ctx.db
     .update(channels)
@@ -371,7 +474,67 @@ export async function updateChannel(
 
   const row = updated[0];
   if (!row) return err('not_found');
+
+  await announceChannels(ctx, row);
   return ok(toChannel(row));
+}
+
+/**
+ * Removes a channel and everything in it, for good.
+ *
+ * Archiving is the reversible one. This is for a channel that should not have
+ * existed: the messages, the membership and the sealed keys go with it through
+ * the foreign keys, and the attachments are taken out of the bucket here
+ * because a file row is workspace scoped and would otherwise outlive the only
+ * conversation that pointed at it, still downloadable by anybody with the id.
+ */
+export async function deleteChannel(
+  ctx: AppContext,
+  input: { channelId: string; userId: string },
+): Promise<Result<null, ChannelError>> {
+  const access = await requireChannel(ctx, input);
+  if (!access.ok) return err(access.error);
+
+  const { channel, role } = access.value;
+  if (channel.kind !== 'channel') return err('not_found');
+  if (channel.createdBy !== input.userId && !outranks(role, 'admin')) return err('forbidden');
+
+  const rows = await ctx.db
+    .select({ attachments: messages.attachments })
+    .from(messages)
+    .where(eq(messages.channelId, input.channelId));
+
+  const fileIds = [
+    ...new Set(rows.flatMap((row) => (row.attachments as Attachment[]).map((one) => one.id))),
+  ];
+
+  // Named before the rows go, so the last people in it are told.
+  const audience = await channelMemberIds(ctx, input.channelId);
+
+  await ctx.db.delete(channels).where(eq(channels.id, input.channelId));
+
+  if (fileIds.length > 0) {
+    const stored = await ctx.db
+      .select({ id: files.id, storageKey: files.storageKey })
+      .from(files)
+      .where(and(eq(files.workspaceId, channel.workspaceId), inArray(files.id, fileIds)));
+
+    for (const file of stored) {
+      // One failure in the bucket does not leave the rest of a deletion half
+      // done. What is unreachable is already unreachable.
+      await ctx.blobs.delete(file.storageKey).catch(() => undefined);
+    }
+
+    await ctx.db.delete(files).where(
+      inArray(
+        files.id,
+        stored.map((file) => file.id),
+      ),
+    );
+  }
+
+  await announceChannels(ctx, channel, audience);
+  return ok(null);
 }
 
 export async function setChannelPrefs(

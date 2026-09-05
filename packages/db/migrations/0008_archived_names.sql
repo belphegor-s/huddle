@@ -1,0 +1,2 @@
+DROP INDEX "channels_workspace_name_idx";--> statement-breakpoint
+CREATE UNIQUE INDEX "channels_workspace_name_idx" ON "channels" USING btree ("workspace_id","name") WHERE "channels"."archived_at" is null;

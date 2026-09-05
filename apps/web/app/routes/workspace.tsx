@@ -111,8 +111,11 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
     return realtime.on((event) => {
       if (event.type === 'unread' && event.channelId !== params.ref) refresh();
       if (event.type === 'call_activity') refresh();
+      // A channel was made, joined, left, renamed, archived or deleted. What
+      // moved is the list, so the list is what gets read again.
+      if (event.type === 'channels_changed' && event.workspaceId === workspace.id) refresh();
     });
-  }, [params.ref, realtime, refresh]);
+  }, [params.ref, realtime, refresh, workspace.id]);
 
   const context: WorkspaceContext = {
     me,
