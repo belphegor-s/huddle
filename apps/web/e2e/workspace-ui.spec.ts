@@ -156,6 +156,28 @@ test('the sidebar narrows to a rail and stays that way', async ({ page }) => {
   const wide = (await sidebar.boundingBox())?.width ?? 0;
   expect(wide).toBeGreaterThan(200);
 
+  // The control says what it does, on hover and on focus. A title attribute
+  // never appears for anybody arriving by keyboard.
+  await page.getByRole('button', { name: 'Narrow the sidebar' }).hover();
+  const tip = page.getByRole('tooltip', { includeHidden: false }).first();
+  await expect(tip).toBeVisible({ timeout: 5_000 });
+  await expect(tip).toHaveText('Narrow the sidebar');
+
+  /*
+   * In the top layer, so a sidebar's overflow cannot clip it. Asserted by the
+   * popover state rather than by hit testing: a tooltip takes no pointer
+   * events, so it is deliberately invisible to elementFromPoint.
+   */
+  const layered = await tip.evaluate((element) => ({
+    inTopLayer: element.matches(':popover-open'),
+    insideWindow:
+      element.getBoundingClientRect().right <= window.innerWidth &&
+      element.getBoundingClientRect().left >= 0,
+    ignoresPointer: getComputedStyle(element).pointerEvents === 'none',
+  }));
+
+  expect(layered).toEqual({ inTopLayer: true, insideWindow: true, ignoresPointer: true });
+
   await page.getByRole('button', { name: 'Narrow the sidebar' }).click();
   await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeLessThan(wide / 2);
 

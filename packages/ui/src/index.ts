@@ -16,4 +16,6 @@ export { Spinner } from './spinner.js';
 export type { SpinnerProps } from './spinner.js';
 export type { SelectOption, SelectProps } from './select.js';
 export { TextField } from './text-field.js';
+export { Tooltip } from './tooltip.js';
+export type { TooltipProps } from './tooltip.js';
 export type { TextFieldProps } from './text-field.js';

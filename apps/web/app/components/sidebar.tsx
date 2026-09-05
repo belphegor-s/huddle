@@ -1,6 +1,6 @@
 import type { Channel, ChannelSummary, MemberProfile, Me, Role, Workspace } from '@huddle/core';
 import type { IconName } from '@huddle/ui';
-import { Avatar, cx, Icon } from '@huddle/ui';
+import { Avatar, cx, Icon, Tooltip } from '@huddle/ui';
 import { Link, NavLink } from 'react-router';
 import { presenceOf } from '../lib/presence';
 import { useCollapsed } from '../lib/use-collapsed';
@@ -73,32 +73,35 @@ export function Sidebar({
           compact={collapsed}
         />
 
-        <button
-          type="button"
-          onClick={() => setCollapsed(!collapsed)}
-          aria-label={collapsed ? 'Widen the sidebar' : 'Narrow the sidebar'}
-          title={collapsed ? 'Widen the sidebar' : 'Narrow the sidebar'}
-          aria-expanded={!collapsed}
+        <Tooltip
+          label="Narrow the sidebar"
+          side="bottom"
+          align="end"
+          onClick={() => setCollapsed(true)}
+          aria-label="Narrow the sidebar"
+          aria-expanded
           className={cx(
             'text-text-muted hover:text-text-primary hover:bg-surface-active absolute top-1/2 right-1 hidden size-8 -translate-y-1/2 place-items-center rounded-lg md:grid',
             collapsed && 'md:hidden',
           )}
         >
-          <Icon name="arrows" className="size-4" />
-        </button>
+          <Icon name="chevronsLeft" className="size-4" />
+        </Tooltip>
       </header>
 
       {/* In the rail the toggle needs a line of its own, or it has nowhere to sit. */}
       {collapsed ? (
-        <button
-          type="button"
+        <Tooltip
+          label="Widen the sidebar"
+          side="bottom"
           onClick={() => setCollapsed(false)}
           aria-label="Widen the sidebar"
-          title="Widen the sidebar"
+          aria-expanded={false}
           className="text-text-muted hover:text-text-primary hover:bg-surface-hover mx-auto hidden size-9 place-items-center rounded-lg md:grid"
         >
-          <Icon name="arrows" className="size-4" />
-        </button>
+          {/* Turned, because the same pair of chevrons points the other way. */}
+          <Icon name="chevronsLeft" className="size-4 rotate-180" />
+        </Tooltip>
       ) : null}
 
       <Link
