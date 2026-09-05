@@ -48,7 +48,7 @@ export function CallSettings({ session, call, layout, onLayout }: CallSettingsPr
           <MenuItem
             key={option.value}
             selected={layout === option.value}
-            hint={option.hint}
+            description={option.hint}
             keepOpen
             onSelect={() => onLayout(option.value)}
           >

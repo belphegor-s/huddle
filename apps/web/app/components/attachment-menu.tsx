@@ -52,7 +52,7 @@ export function AttachmentMenu({ onFiles }: AttachmentMenuProps) {
             <MenuItem
               key={choice.label}
               icon={choice.icon}
-              hint={choice.hint}
+              description={choice.hint}
               onSelect={() => inputs.current[index]?.click()}
             >
               {choice.label}

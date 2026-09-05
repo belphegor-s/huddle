@@ -366,7 +366,12 @@ function Guides() {
   );
 }
 
-/** The result, at the sizes it will actually be seen at. */
+/**
+ * The result, at the size it will actually be seen at.
+ *
+ * One, not a row of them. Two circles of the same face side by side reads as
+ * a choice to be made rather than as a preview of the one thing being made.
+ */
 function Preview({
   source,
   scale,
@@ -376,35 +381,31 @@ function Preview({
   scale: number;
   offset: Point;
 }) {
-  return (
-    <div className="flex items-center gap-3">
-      {([56, 32] as const).map((size) => {
-        const ratio = size / CROP_PX;
+  const size = 44;
+  const ratio = size / CROP_PX;
 
-        return (
-          <span
-            key={size}
-            className="bg-surface-sunken relative shrink-0 overflow-hidden rounded-full"
-            style={{ width: size, height: size }}
-          >
-            {source ? (
-              <img
-                src={source.url}
-                alt=""
-                draggable={false}
-                className="absolute top-0 left-0 max-w-none"
-                style={{
-                  width: source.canvas.width * scale * ratio,
-                  height: source.canvas.height * scale * ratio,
-                  transform: `translate(${String((offset.x - PAD) * ratio)}px, ${String(
-                    (offset.y - PAD) * ratio,
-                  )}px)`,
-                }}
-              />
-            ) : null}
-          </span>
-        );
-      })}
+  return (
+    <div className="flex items-center gap-2.5">
+      <span
+        className="bg-surface-sunken relative shrink-0 overflow-hidden rounded-full"
+        style={{ width: size, height: size }}
+      >
+        {source ? (
+          <img
+            src={source.url}
+            alt=""
+            draggable={false}
+            className="absolute top-0 left-0 max-w-none"
+            style={{
+              width: source.canvas.width * scale * ratio,
+              height: source.canvas.height * scale * ratio,
+              transform: `translate(${String((offset.x - PAD) * ratio)}px, ${String(
+                (offset.y - PAD) * ratio,
+              )}px)`,
+            }}
+          />
+        ) : null}
+      </span>
       <span className="text-text-muted text-xs">How it will look</span>
     </div>
   );

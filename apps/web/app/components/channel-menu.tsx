@@ -94,7 +94,7 @@ export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: Ch
             <MenuItem
               key={level.value}
               selected={summary.notificationLevel === level.value}
-              hint={level.hint}
+              description={level.hint}
               onSelect={() => void save({ notificationLevel: level.value })}
             >
               {level.label}

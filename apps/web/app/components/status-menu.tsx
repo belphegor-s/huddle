@@ -92,6 +92,9 @@ export function StatusMenu({ me, workspaceSlug, compact = false, onChanged }: St
             <MenuItem
               key={choice.value}
               selected={me.user.presence === choice.value}
+              // What invisible actually does is worth saying, rather than
+              // leaving somebody to find out by being invisible.
+              description={choice.hint}
               onSelect={() => void choose(choice.value)}
             >
               {choice.label}

@@ -206,8 +206,13 @@ export interface MenuItemProps {
   /** Destructive actions are red, and never the first thing under the cursor. */
   danger?: boolean;
   disabled?: boolean;
-  /** Shown on the right, for a shortcut or the current value. */
+  /** Shown on the right, for a short value: a role, a shortcut. */
   hint?: string;
+  /**
+   * A second line under the label. A sentence does not belong beside the
+   * label, where it competes for the same row and truncates it.
+   */
+  description?: string;
   selected?: boolean;
   /** For an item that changes something in place rather than going somewhere. */
   keepOpen?: boolean;
@@ -220,6 +225,7 @@ export function MenuItem({
   danger = false,
   disabled = false,
   hint,
+  description,
   selected = false,
   keepOpen = false,
   onSelect,
@@ -240,16 +246,26 @@ export function MenuItem({
         onSelect();
       }}
       className={cx(
-        'flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm',
+        'flex w-full gap-2.5 rounded-lg px-2.5 text-left text-sm',
+        description ? 'min-h-12 items-start py-1.5' : 'min-h-10 items-center',
         'disabled:cursor-not-allowed disabled:opacity-50',
         danger
           ? 'text-critical hover:bg-critical-soft focus-visible:bg-critical-soft'
           : 'hover:bg-surface-hover focus-visible:bg-surface-hover',
       )}
     >
-      {icon ? <Icon name={icon} className="size-4 shrink-0 opacity-80" /> : null}
-      <span className="min-w-0 flex-1 truncate">{children}</span>
-      {selected ? <Icon name="check" className="text-accent size-4 shrink-0" /> : null}
+      {icon ? (
+        <Icon name={icon} className={cx('size-4 shrink-0 opacity-80', description && 'mt-0.5')} />
+      ) : null}
+
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">{children}</span>
+        {description ? <span className="text-text-muted block text-xs">{description}</span> : null}
+      </span>
+
+      {selected ? (
+        <Icon name="check" className={cx('text-accent size-4 shrink-0', description && 'mt-0.5')} />
+      ) : null}
       {hint ? <span className="text-text-muted shrink-0 text-xs">{hint}</span> : null}
     </button>
   );
