@@ -195,6 +195,9 @@ export function CallStage({
               muted={false}
               speaking={false}
               self={shared.self}
+              // The voice arrives on the camera stream, and that tile is in
+              // the strip beside this one playing it.
+              silent={shared.contain}
               pinned={focus !== null}
               onPin={() => setPinned(null)}
             />

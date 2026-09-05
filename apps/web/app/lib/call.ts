@@ -396,7 +396,24 @@ export class CallSession {
 
   async setSharing(on: boolean): Promise<void> {
     if (!on) {
-      for (const track of this.display?.getTracks() ?? []) track.stop();
+      const stopped = this.display;
+      for (const track of stopped?.getTracks() ?? []) track.stop();
+
+      /*
+       * Taken off the connection, not just stopped. A stopped track leaves the
+       * sender in place with nothing coming out of it, and the other end never
+       * sees an ended track, only a muted one: the dead screen sits there
+       * looking like a live stream for the rest of the call.
+       */
+      if (stopped) {
+        const ids = new Set(stopped.getTracks().map((track) => track.id));
+        for (const peer of this.peers.values()) {
+          for (const sender of peer.connection.getSenders()) {
+            if (sender.track && ids.has(sender.track.id)) peer.connection.removeTrack(sender);
+          }
+        }
+      }
+
       this.display = null;
       this.update({ ...this.view, sharing: false, screen: null });
       this.describeStreams();

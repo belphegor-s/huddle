@@ -357,7 +357,14 @@ function ChannelRow({
         {({ isActive }) => (
           <>
             {member ? (
-              <span className={cx('rounded-full', collapsed && isActive && RING)}>
+              /*
+               * A flex item that can shrink, and the avatar inside it squashed
+               * into an oval when the row got tight. The wrapper has to hold
+               * its size the way the avatar itself does.
+               */
+              <span
+                className={cx('inline-flex shrink-0 rounded-lg', collapsed && isActive && RING)}
+              >
                 <Avatar
                   name={label}
                   url={avatarUrl}

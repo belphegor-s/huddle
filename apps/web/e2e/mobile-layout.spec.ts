@@ -163,3 +163,53 @@ test('no field is small enough to make iOS zoom the page', async ({ page }) => {
     expect(small, `${path} has a field iOS will zoom into`).toEqual([]);
   }
 });
+
+test('no avatar is squashed out of shape', async ({ page }) => {
+  const slug = `a${Date.now().toString(36)}`;
+  await signIn(page, `${slug}@example.com`);
+
+  await page.getByLabel('Team name').fill('Shapes');
+  await page.getByLabel('Address').fill(slug);
+  await page.getByRole('button', { name: 'Create workspace' }).click();
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  await page.getByRole('button', { name: 'New channel' }).click();
+  await page.getByLabel('Name').fill('general');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page).toHaveURL(/\/c\/general$/);
+
+  await page.getByLabel('Message', { exact: true }).fill('a message with a face beside it');
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(
+    page.getByRole('list', { name: 'Messages' }).getByText('a face beside it'),
+  ).toBeVisible();
+
+  /*
+   * A face is square, and the row it sits in is not allowed to squeeze it. An
+   * avatar inside a flex item that can shrink comes out an oval on a narrow
+   * screen, which is exactly where nobody is looking for it.
+   */
+  for (const path of ['', '/c/general', '/people', '/you']) {
+    await page.goto(`/w/${slug}${path}`);
+    await page.waitForTimeout(400);
+
+    const squashed = await page.evaluate(() =>
+      [...document.querySelectorAll('img, span')]
+        .filter((element) => {
+          const box = element.getBoundingClientRect();
+          if (box.width === 0 || box.height === 0) return false;
+
+          // The mark of an avatar: a small square with a rounded corner.
+          const radius = Number.parseFloat(getComputedStyle(element).borderRadius);
+          return box.width <= 88 && radius > 2 && Math.abs(box.width - box.height) > 1;
+        })
+        .slice(0, 5)
+        .map((element) => {
+          const box = element.getBoundingClientRect();
+          return `${element.tagName.toLowerCase()} ${String(Math.round(box.width))}x${String(Math.round(box.height))}`;
+        }),
+    );
+
+    expect(squashed, `${path || '/'} has a face that is not square`).toEqual([]);
+  }
+});

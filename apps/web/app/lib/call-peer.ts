@@ -40,6 +40,15 @@ export class CallPeer {
   link: PeerLink = 'connecting';
 
   private readonly streams = new Map<string, MediaStream>();
+  /**
+   * Which arriving stream is which, as the other end named them.
+   *
+   * Worked out rather than told, this went wrong the moment a share stopped:
+   * stopping a track at the sender leaves the receiver's copy muted, not
+   * ended, so the dead screen was still there to be mistaken for the camera,
+   * and with it went the audio that was actually on the camera stream.
+   */
+  private cameraStreamId: string | null = null;
   private screenStreamId: string | null = null;
   /**
    * Descriptions and candidates have to be applied one at a time and in the
@@ -138,6 +147,7 @@ export class CallPeer {
     if (this.closed) return;
 
     if (signal.kind === 'streams') {
+      this.cameraStreamId = signal.camera;
       this.screenStreamId = signal.screen;
       this.sortStreams();
       this.options.onChange();
@@ -256,10 +266,26 @@ export class CallPeer {
     let screen: MediaStream | null = null;
 
     for (const [id, stream] of this.streams) {
-      // A stream whose tracks have all ended is a share that was stopped.
+      // A stream whose tracks have all ended is gone for good.
       if (stream.getTracks().every((track) => track.readyState === 'ended')) continue;
-      if (id === this.screenStreamId) screen = stream;
-      else camera = stream;
+
+      if (id === this.screenStreamId) {
+        screen = stream;
+        continue;
+      }
+
+      if (id === this.cameraStreamId) {
+        camera = stream;
+        continue;
+      }
+
+      /*
+       * Neither, which happens for the moment between a track arriving and
+       * the message that names its stream. It is taken for the camera only
+       * while no camera has been named, so a screen that has just stopped
+       * being a screen cannot quietly take the camera's place.
+       */
+      if (this.cameraStreamId === null && id !== this.screenStreamId) camera ??= stream;
     }
 
     this.camera = camera;

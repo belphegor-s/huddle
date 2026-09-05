@@ -11,6 +11,8 @@ interface CallTileProps {
   speaking: boolean;
   /** Your own tile is silent, or you hear yourself a beat late. */
   self?: boolean;
+  /** A shared screen carries no voice, so it needs no speaker of its own. */
+  silent?: boolean;
   connecting?: boolean;
   /** A shared screen is letterboxed. A face fills the tile. */
   contain?: boolean;
@@ -27,6 +29,7 @@ export function CallTile({
   muted,
   speaking,
   self = false,
+  silent = false,
   connecting = false,
   contain = false,
   pinned = false,
@@ -59,7 +62,7 @@ export function CallTile({
         turned a camera on. Keeping the two apart also means the picture can
         come and go without interrupting the audio.
       */}
-      {self ? null : <audio ref={setSpeaker} autoPlay playsInline className="hidden" />}
+      {self || silent ? null : <audio ref={setSpeaker} autoPlay playsInline className="hidden" />}
 
       {video && stream ? (
         <video

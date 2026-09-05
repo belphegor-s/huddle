@@ -84,9 +84,44 @@ test('a shared screen reaches the other end', async ({ browser }) => {
   expect(shared).toContainEqual(expect.objectContaining({ tracks: 1 }));
   expect(shared.every((one) => one.width > 0)).toBe(true);
 
+  /*
+   * Sound keeps flowing through all of it. The voice travels on the camera
+   * stream, and the receiving end used to work out which arriving stream was
+   * which by elimination: a share that stopped left a dead stream behind that
+   * was then taken for the camera, and the room went silent for good.
+   */
+  const hears = async (page: Page): Promise<boolean> => {
+    const before = await page.evaluate(() =>
+      [...document.querySelectorAll('audio')].map((element) => ({
+        at: element.currentTime,
+        live: ((element.srcObject as MediaStream | null)?.getAudioTracks() ?? []).some(
+          (track) => track.readyState === 'live',
+        ),
+        paused: element.paused,
+      })),
+    );
+
+    await page.waitForTimeout(1200);
+    const after = await page.evaluate(() =>
+      [...document.querySelectorAll('audio')].map((element) => element.currentTime),
+    );
+
+    return before.some((one, index) => one.live && !one.paused && (after[index] ?? 0) > one.at);
+  };
+
+  expect(await hears(b), 'the other end went quiet while a screen was shared').toBe(true);
+
   // Stopping puts everybody back in the grid rather than leaving a dead pane.
   await a.getByRole('button', { name: 'Stop sharing' }).click();
   await expect(b.getByText('is sharing')).toHaveCount(0, { timeout: 15_000 });
+
+  await expect.poll(() => hears(b), { timeout: 20_000 }).toBe(true);
+
+  // And the camera that was under the share is still the camera.
+  const after = await b.evaluate(() =>
+    [...document.querySelectorAll('video')].map((element) => element.videoWidth),
+  );
+  expect(after.every((width) => width > 0)).toBe(true);
 
   await guest.close();
   await owner.close();
