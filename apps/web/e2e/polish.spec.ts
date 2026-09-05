@@ -126,6 +126,24 @@ test('a huddle tile can be pinned to the stage', async ({ page }) => {
   await stage.getByRole('button', { name: /^Unpin / }).click();
   await expect(stage.getByRole('button', { name: /^Pin / })).toBeVisible();
 
+  // Settings: layout, devices and what the connection is doing.
+  await stage.getByRole('button', { name: 'Huddle settings' }).click();
+  const settings = page.getByRole('menu', { name: 'Huddle settings' });
+  await expect(settings).toBeVisible();
+
+  await expect(settings.getByRole('menuitem', { name: /Grid/ })).toBeVisible();
+  await expect(settings.getByText('Microphone')).toBeVisible();
+  await expect(settings.getByText('Camera')).toBeVisible();
+
+  // A fake device still has to be listed and pickable.
+  const microphone = settings.getByRole('menuitem').filter({ hasText: /Fake|Default|Input/ });
+  expect(await microphone.count()).toBeGreaterThan(0);
+
+  // Grid refuses to give anybody the stage, which is the whole point of it.
+  await settings.getByRole('menuitem', { name: /Grid/ }).click();
+  await expect(settings).toBeVisible();
+  await page.keyboard.press('Escape');
+
   await stage.getByRole('button', { name: 'Leave the huddle' }).click();
 });
 

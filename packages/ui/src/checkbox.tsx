@@ -25,7 +25,11 @@ export function Checkbox({ label, hint, className, disabled, ...props }: Checkbo
   return (
     <label
       className={cx(
-        'group flex items-start gap-2.5 text-sm',
+        'group flex gap-2 text-sm',
+        // A single line centres on the box. Only a two line choice needs the
+        // box pinned to the top, and centring that would leave it floating
+        // beside the middle of the sentence.
+        hint ? 'items-start' : 'items-center',
         disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
         className,
       )}
@@ -35,7 +39,8 @@ export function Checkbox({ label, hint, className, disabled, ...props }: Checkbo
       <span
         aria-hidden
         className={cx(
-          'mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border transition-colors',
+          'grid size-[1.125rem] shrink-0 place-items-center rounded border transition-colors',
+          hint ? 'mt-0.5' : '',
           'border-border-strong bg-surface',
           'peer-checked:border-accent peer-checked:bg-accent',
           'peer-focus-visible:outline-focus-ring peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2',
@@ -48,7 +53,7 @@ export function Checkbox({ label, hint, className, disabled, ...props }: Checkbo
           'peer-checked:[&_path]:[stroke-dashoffset:0]',
         )}
       >
-        <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden>
+        <svg viewBox="0 0 16 16" className="size-3" fill="none" aria-hidden>
           <path
             d="M3.5 8.5 6.5 11.5 12.5 5"
             stroke="currentColor"

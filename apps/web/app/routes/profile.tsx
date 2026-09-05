@@ -1,4 +1,4 @@
-import { Avatar, Button, Icon, Spinner, TextField } from '@huddle/ui';
+import { Avatar, Button, cx, Icon, Spinner, TextField } from '@huddle/ui';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { AvatarEditor } from '../components/avatar-editor';
@@ -106,52 +106,72 @@ export default function Profile() {
         <h1 className="flex-1 text-xl">Your profile</h1>
       </header>
 
-      <div className="flex items-center gap-4">
-        <span className="relative">
-          <Avatar name={clean || me.user.displayName} url={avatarUrl} size="lg" />
+      {/*
+        A card rather than a row of controls. Everything about how somebody
+        appears sits in one panel, with the picture large enough to judge and
+        the actions beside it rather than under it.
+      */}
+      <section className="border-border bg-surface-raised flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center">
+        <span className="relative shrink-0 self-start sm:self-center">
+          <Avatar name={clean || me.user.displayName} url={avatarUrl} size="xl" />
           {uploading ? (
             <span
               aria-label="Saving your picture"
               role="status"
-              className="absolute inset-0 grid place-items-center rounded-lg bg-black/45"
+              className="absolute inset-0 grid place-items-center rounded-2xl bg-black/45 text-white"
             >
               <Spinner />
             </span>
           ) : null}
         </span>
-        <div className="flex flex-col gap-1">
-          <label className="border-border hover:bg-surface-hover inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm">
-            <Icon name="image" className="size-4" />
-            {avatarUrl ? 'Change picture' : 'Add a picture'}
-            <input
-              type="file"
-              accept="image/*"
-              hidden
-              disabled={!features.files}
-              onChange={(event) => {
-                const chosen = event.target.files?.[0];
-                event.target.value = '';
-                if (chosen) setPicked(chosen);
-              }}
-            />
-          </label>
-          {features.files ? null : (
+
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div>
+            <p className="text-sm font-medium">Picture</p>
             <p className="text-text-muted text-xs">
-              Pictures need object storage, which this instance has not configured.
+              {features.files
+                ? 'Cropped here and saved as a small square. The original never leaves this device.'
+                : 'Pictures need object storage, which this instance has not configured.'}
             </p>
-          )}
-          {avatarUrl ? (
-            <button
-              type="button"
-              disabled={uploading}
-              onClick={() => void removeAvatar()}
-              className="text-text-muted hover:text-text-primary self-start text-xs disabled:opacity-50"
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label
+              className={cx(
+                'border-border bg-surface inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 text-sm',
+                features.files
+                  ? 'hover:bg-surface-hover cursor-pointer'
+                  : 'cursor-not-allowed opacity-60',
+              )}
             >
-              Remove it
-            </button>
-          ) : null}
+              <Icon name="image" className="size-4" />
+              {avatarUrl ? 'Change' : 'Upload'}
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                disabled={!features.files || uploading}
+                onChange={(event) => {
+                  const chosen = event.target.files?.[0];
+                  event.target.value = '';
+                  if (chosen) setPicked(chosen);
+                }}
+              />
+            </label>
+
+            {avatarUrl ? (
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => void removeAvatar()}
+                className="text-text-muted hover:text-critical hover:bg-critical-soft min-h-10 rounded-lg px-3 text-sm disabled:opacity-50"
+              >
+                Remove
+              </button>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </section>
 
       <TextField
         label="Display name"

@@ -123,7 +123,9 @@ export default function Search() {
 
         <Checkbox
           label="With a file"
-          className="border-border min-h-11 items-center rounded-lg border px-3"
+          // Matches the height of the pickers beside it, so the row of filters
+          // sits on one line rather than stepping.
+          className="border-border bg-surface hover:bg-surface-hover min-h-11 rounded-lg border px-3"
           checked={files}
           onChange={(event) => setFilter('files', event.target.checked ? 'true' : '')}
         />

@@ -32,6 +32,24 @@ export interface PeerView {
   screen: MediaStream | null;
 }
 
+export interface Devices {
+  microphones: MediaDeviceInfo[];
+  cameras: MediaDeviceInfo[];
+  /** What is in use, which is not always what was asked for. */
+  microphoneId: string | null;
+  cameraId: string | null;
+}
+
+/** What the connection is actually doing, read from the peer statistics. */
+export interface CallStats {
+  /** Round trip to the other end, in milliseconds. */
+  latencyMs: number | null;
+  /** Share of packets that never arrived, as a percentage. */
+  lossPercent: number | null;
+  /** Incoming, in kilobits per second. */
+  inboundKbps: number | null;
+}
+
 export interface CallView {
   channelId: string | null;
   /**
@@ -50,8 +68,16 @@ export interface CallView {
   speaking: boolean;
   camera: MediaStream | null;
   screen: MediaStream | null;
+  devices: Devices;
   peers: PeerView[];
 }
+
+const NO_DEVICES: Devices = {
+  microphones: [],
+  cameras: [],
+  microphoneId: null,
+  cameraId: null,
+};
 
 const IDLE: CallView = {
   channelId: null,
@@ -64,6 +90,7 @@ const IDLE: CallView = {
   sharing: false,
   speaking: false,
   camera: null,
+  devices: NO_DEVICES,
   screen: null,
   peers: [],
 };
@@ -86,6 +113,7 @@ export class CallSession {
   private display: MediaStream | null = null;
   private monitor: SpeakingMonitor | null = null;
   private heartbeat: ReturnType<typeof setInterval> | null = null;
+  private chosen: { microphoneId?: string; cameraId?: string } = {};
 
   constructor(private readonly realtime: Realtime) {
     realtime.on((event) => this.accept(event));
@@ -114,8 +142,19 @@ export class CallSession {
 
     try {
       this.local = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        video: options.video ? { width: 1280, height: 720 } : false,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          ...(this.chosen.microphoneId ? { deviceId: { exact: this.chosen.microphoneId } } : {}),
+        },
+        video: options.video
+          ? {
+              width: 1280,
+              height: 720,
+              ...(this.chosen.cameraId ? { deviceId: { exact: this.chosen.cameraId } } : {}),
+            }
+          : false,
       });
     } catch {
       this.update({
@@ -143,6 +182,122 @@ export class CallSession {
     );
 
     this.update({ ...this.view, status: 'live', camera: this.local });
+    await this.readDevices();
+  }
+
+  /**
+   * The microphones and cameras this browser will admit to.
+   *
+   * Labels are blank until permission has been granted, which is why this runs
+   * after the stream is open rather than before: a list of "Microphone 1,
+   * Microphone 2" is no use to anybody choosing between them.
+   */
+  async readDevices(): Promise<void> {
+    if (!navigator.mediaDevices.enumerateDevices) return;
+
+    const all = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+    const settings = {
+      microphoneId: this.local?.getAudioTracks()[0]?.getSettings().deviceId ?? null,
+      cameraId: this.local?.getVideoTracks()[0]?.getSettings().deviceId ?? null,
+    };
+
+    this.update({
+      ...this.view,
+      devices: {
+        microphones: all.filter((device) => device.kind === 'audioinput'),
+        cameras: all.filter((device) => device.kind === 'videoinput'),
+        ...settings,
+      },
+    });
+  }
+
+  /**
+   * Swaps one input for another without renegotiating.
+   *
+   * `replaceTrack` changes what a sender is sending in place, so the other end
+   * sees a new picture and never knows anything happened. Removing and adding
+   * a track would tear the connection down and build it again in front of
+   * everybody.
+   */
+  async useDevice(kind: 'audio' | 'video', deviceId: string): Promise<void> {
+    if (!this.local) return;
+
+    if (kind === 'audio') this.chosen.microphoneId = deviceId;
+    else this.chosen.cameraId = deviceId;
+
+    const replacement = await navigator.mediaDevices
+      .getUserMedia(
+        kind === 'audio'
+          ? { audio: { deviceId: { exact: deviceId }, echoCancellation: true } }
+          : { video: { deviceId: { exact: deviceId }, width: 1280, height: 720 } },
+      )
+      .catch(() => null);
+
+    const track = replacement?.getTracks()[0];
+    if (!track) return;
+
+    const previous = kind === 'audio' ? this.local.getAudioTracks() : this.local.getVideoTracks();
+    for (const old of previous) {
+      this.local.removeTrack(old);
+      old.stop();
+    }
+
+    track.enabled = kind === 'audio' ? !this.view.muted : this.view.video;
+    this.local.addTrack(track);
+
+    for (const peer of this.peers.values()) {
+      const sender = peer.connection.getSenders().find((one) => one.track?.kind === kind);
+      if (sender) await sender.replaceTrack(track);
+    }
+
+    if (kind === 'audio') {
+      this.monitor?.forget('self');
+      this.monitor?.watch('self', this.local);
+    }
+
+    this.update({ ...this.view, camera: this.local });
+    await this.readDevices();
+  }
+
+  /**
+   * What the connection is doing, from the browser's own statistics.
+   *
+   * Read on demand rather than polled: nobody needs this until they open the
+   * panel, and gathering it on every call for everybody would cost more than
+   * it tells anyone.
+   */
+  async readStats(): Promise<CallStats> {
+    const first = [...this.peers.values()][0];
+    if (!first) return { latencyMs: null, lossPercent: null, inboundKbps: null };
+
+    const report = await first.connection.getStats();
+    let latencyMs: number | null = null;
+    let lossPercent: number | null = null;
+    let inboundKbps: number | null = null;
+
+    report.forEach((entry) => {
+      if (entry.type === 'candidate-pair' && entry.state === 'succeeded') {
+        const trip = (entry as { currentRoundTripTime?: number }).currentRoundTripTime;
+        if (typeof trip === 'number') latencyMs = Math.round(trip * 1000);
+      }
+
+      if (entry.type === 'inbound-rtp' && entry.kind === 'audio') {
+        const stat = entry as {
+          packetsLost?: number;
+          packetsReceived?: number;
+          bytesReceived?: number;
+        };
+        const received = stat.packetsReceived ?? 0;
+        const lost = stat.packetsLost ?? 0;
+
+        if (received + lost > 0) lossPercent = Math.round((lost / (received + lost)) * 1000) / 10;
+        if (typeof stat.bytesReceived === 'number') {
+          inboundKbps = Math.round((stat.bytesReceived * 8) / 1000);
+        }
+      }
+    });
+
+    return { latencyMs, lossPercent, inboundKbps };
   }
 
   leave(): void {

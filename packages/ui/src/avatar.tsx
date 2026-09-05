@@ -5,7 +5,7 @@ export type PresenceState = 'active' | 'away' | 'busy' | 'offline' | 'call';
 export interface AvatarProps {
   name: string;
   url?: string | null;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   /**
    * Drawn as a dot on the corner. Omit it entirely where presence is not the
    * point, rather than passing "offline", so a list of names does not turn
@@ -19,12 +19,15 @@ const SIZES = {
   sm: 'size-6 text-2xs',
   md: 'size-8 text-xs',
   lg: 'size-11 text-sm',
+  /* Large enough to judge a crop by, for the one place that shows your own. */
+  xl: 'size-20 rounded-2xl text-xl',
 } as const;
 
 const DOT_SIZES = {
   sm: 'size-2 border',
   md: 'size-2.5 border-2',
   lg: 'size-3 border-2',
+  xl: 'size-4 border-2',
 } as const;
 
 /*

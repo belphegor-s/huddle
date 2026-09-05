@@ -236,7 +236,7 @@ export function MenuItem({
       {icon ? <Icon name={icon} className="size-4 shrink-0 opacity-80" /> : null}
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {selected ? <Icon name="check" className="text-accent size-4 shrink-0" /> : null}
-      {hint ? <span className="text-text-muted shrink-0 text-xs capitalize">{hint}</span> : null}
+      {hint ? <span className="text-text-muted shrink-0 text-xs">{hint}</span> : null}
     </button>
   );
 }

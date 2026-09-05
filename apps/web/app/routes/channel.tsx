@@ -206,6 +206,7 @@ function ChannelView({
 
         {call.channelId === summary.channel.id ? (
           <CallStage
+            session={session}
             call={call}
             members={members}
             meId={me.user.id}

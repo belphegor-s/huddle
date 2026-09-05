@@ -1,10 +1,12 @@
 import type { MemberProfile } from '@huddle/core';
 import { cx, Icon, type IconName } from '@huddle/ui';
 import { useEffect, useState } from 'react';
-import type { CallView, PeerView } from '../lib/call';
+import type { CallSession, CallView, PeerView } from '../lib/call';
+import { CallSettings, type CallLayout } from './call-settings';
 import { CallTile } from './call-tile';
 
 interface CallStageProps {
+  session: CallSession;
   call: CallView;
   members: MemberProfile[];
   meId: string;
@@ -25,6 +27,7 @@ interface CallStageProps {
  * never does nothing.
  */
 export function CallStage({
+  session,
   call,
   members,
   meId,
@@ -41,6 +44,7 @@ export function CallStage({
    * drawing on the whiteboard is not always the person sharing it.
    */
   const [pinned, setPinned] = useState<string | null>(null);
+  const [layout, setLayout] = useState<CallLayout>('auto');
 
   // Escape leaves fullscreen on its own, and this keeps our own idea of the
   // size honest when it does. It also covers the case where the browser
@@ -85,11 +89,21 @@ export function CallStage({
     pinned !== null && (pinned === 'self' || call.peers.some((one) => one.sessionId === pinned));
   const focus = stillHere ? pinned : null;
 
-  const shared = focus
-    ? focusedTile(focus, call, members, me)
-    : call.sharing
-      ? { stream: call.screen, name: 'Your screen', contain: true, self: true }
-      : screenOf(call.peers, members);
+  /*
+   * Grid never gives anybody the stage, even while a screen is being shared.
+   * Spotlight always does, falling back to whoever is speaking when nothing
+   * has been pinned and nothing is being shared.
+   */
+  const automatic = call.sharing
+    ? { stream: call.screen, name: 'Your screen', contain: true, self: true }
+    : screenOf(call.peers, members);
+
+  const shared =
+    layout === 'grid'
+      ? null
+      : focus
+        ? focusedTile(focus, call, members, me)
+        : (automatic ?? (layout === 'spotlight' ? loudestTile(call, members, me) : null));
 
   const tiles = [
     <CallTile
@@ -223,6 +237,7 @@ export function CallStage({
           on={expanded}
           onClick={() => setExpanded((open) => !open)}
         />
+        <CallSettings session={session} call={call} layout={layout} onLayout={setLayout} />
         <Control icon="hangUp" label="Leave the huddle" danger onClick={onLeave} />
       </div>
     </section>
@@ -320,4 +335,24 @@ function gridFor(count: number): string {
   if (count <= 4) return 'grid-cols-2';
   if (count <= 6) return 'grid-cols-2 sm:grid-cols-3';
   return 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4';
+}
+
+/** Who to put on the stage when nothing is shared and nothing is pinned. */
+function loudestTile(
+  call: CallView,
+  members: MemberProfile[],
+  me: MemberProfile | undefined,
+): Stage {
+  const speaking = call.peers.find((peer) => peer.speaking) ?? call.peers[0];
+  if (!speaking) {
+    return { stream: call.camera, name: me?.displayName ?? 'You', contain: false, self: true };
+  }
+
+  const member = members.find((one) => one.id === speaking.userId);
+  return {
+    stream: speaking.camera,
+    name: member?.displayName ?? 'Someone',
+    contain: false,
+    self: false,
+  };
 }

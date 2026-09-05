@@ -38,7 +38,9 @@ export function WorkspaceSwitcher({ current, workspaces, role }: WorkspaceSwitch
           <MenuItem
             key={workspace.id}
             selected={workspace.id === current.id}
-            hint={theirs}
+            // A role reads as a proper noun beside a name. The hint itself is
+            // not capitalised for everybody, because most are sentences.
+            hint={`${theirs.charAt(0).toUpperCase()}${theirs.slice(1)}`}
             onSelect={() => {
               if (workspace.id !== current.id) void navigate(`/w/${workspace.slug}`);
             }}
