@@ -40,6 +40,11 @@ describe('inline marks', () => {
     expect(shape(parseInline('a _word_ here'))).toBe('a emphasis(word) here');
   });
 
+  it('lets punctuation follow the closing underscore', () => {
+    expect(shape(parseInline('with _emphasis_, and more'))).toBe('with emphasis(emphasis), and more');
+    expect(shape(parseInline('ends in _this_.'))).toBe('ends in emphasis(this).');
+  });
+
   it('suspends every other rule inside code', () => {
     expect(shape(parseInline('use `**not bold**` here'))).toBe('use code(**not bold**) here');
   });

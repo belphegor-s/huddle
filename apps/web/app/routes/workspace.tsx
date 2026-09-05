@@ -17,7 +17,7 @@ import { Sidebar } from '../components/sidebar';
 import { api, ApiError } from '../lib/api';
 import { CallSession } from '../lib/call';
 import { deviceIdentity } from '../lib/device';
-import { shareOrCreateKeyring } from '../lib/keyring';
+import { shareOrCreateKeyring, shareWithWaitingDevices } from '../lib/keyring';
 import { Realtime } from '../lib/realtime';
 import { requireMe } from '../lib/session';
 import type { WorkspaceContext } from '../lib/workspace';
@@ -94,6 +94,19 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
    * rather than trusting the number, so one revalidation settles every badge at
    * once however many arrived.
    */
+  /*
+   * Somebody in a channel this browser has a key for cannot read it yet. The
+   * server cannot help, so whoever holds the key answers. This listens across
+   * the whole workspace rather than only the open channel: the person waiting
+   * is usually not the one being looked at.
+   */
+  useEffect(() => {
+    return realtime.on((event) => {
+      if (event.type !== 'keys_needed') return;
+      void shareWithWaitingDevices(event.channelId, event.epoch).catch(() => undefined);
+    });
+  }, [realtime]);
+
   useEffect(() => {
     return realtime.on((event) => {
       if (event.type === 'unread' && event.channelId !== params.ref) refresh();

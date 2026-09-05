@@ -197,7 +197,14 @@ export function Sidebar({
         {direct.length === 0 ? <Empty collapsed={collapsed}>No conversations yet</Empty> : null}
       </ul>
 
-      <div className={cx('mt-auto', collapsed && 'md:hidden')}>
+      {/*
+        The spacer is what pins the footer down, and it has to exist in both
+        states: it used to be the push toggle carrying mt-auto, and that is
+        hidden in the rail, which let the profile row float up the sidebar.
+      */}
+      <div className="mt-auto" />
+
+      <div className={collapsed ? 'md:hidden' : ''}>
         <PushToggle />
       </div>
 

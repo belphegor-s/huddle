@@ -1,5 +1,26 @@
+import { highlightCode, type TokenKind } from '@huddle/core';
+
 export type Emphasis =
-  'plain' | 'marker' | 'strong' | 'emphasis' | 'strike' | 'code' | 'link' | 'mention' | 'quote';
+  | 'plain'
+  | 'marker'
+  | 'heading'
+  | 'strong'
+  | 'emphasis'
+  | 'strike'
+  | 'code'
+  | 'link'
+  | 'mention'
+  | 'quote'
+  | 'code-plain'
+  | 'code-comment'
+  | 'code-string'
+  | 'code-number'
+  | 'code-keyword'
+  | 'code-literal'
+  | 'code-function'
+  | 'code-tag'
+  | 'code-attribute'
+  | 'code-punctuation';
 
 export interface Segment {
   text: string;
@@ -16,7 +37,7 @@ export interface Segment {
  * sit precisely behind the caret of a plain textarea.
  */
 const RULES: Array<{ pattern: RegExp; style: Emphasis; markerLength: number }> = [
-  { pattern: /```[\s\S]*?```|`[^`\n]+`/, style: 'code', markerLength: 0 },
+  { pattern: /`[^`\n]+`/, style: 'code', markerLength: 0 },
   { pattern: /\[[^\]\n]+\]\((?:https?:\/\/)[^\s)]+\)/, style: 'link', markerLength: 0 },
   { pattern: /https?:\/\/[^\s<]+[^\s<>"'.,;:!?)\]}]/, style: 'link', markerLength: 0 },
   { pattern: /@[\w.-]{1,80}/, style: 'mention', markerLength: 0 },
@@ -24,29 +45,96 @@ const RULES: Array<{ pattern: RegExp; style: Emphasis; markerLength: number }> =
   { pattern: /__[^\n]+?__/, style: 'strong', markerLength: 2 },
   { pattern: /~~[^\n]+?~~/, style: 'strike', markerLength: 2 },
   { pattern: /\*[^*\n]+?\*/, style: 'emphasis', markerLength: 1 },
-  { pattern: /(?:^|(?<=\s))_[^_\n]+?_(?=\s|$)/, style: 'emphasis', markerLength: 1 },
+  { pattern: /(?:^|(?<=\s))_[^_\n]+?_(?=[\s.,;:!?)\]}'"]|$)/, style: 'emphasis', markerLength: 1 },
 ];
 
+const CODE_STYLE: Record<TokenKind, Emphasis> = {
+  plain: 'code-plain',
+  comment: 'code-comment',
+  string: 'code-string',
+  number: 'code-number',
+  keyword: 'code-keyword',
+  literal: 'code-literal',
+  function: 'code-function',
+  tag: 'code-tag',
+  attribute: 'code-attribute',
+  punctuation: 'code-punctuation',
+};
+
+const FENCE = /^```(\w*)\s*$/;
+const HEADING = /^(#{1,6}\s+)(.*)$/;
+const QUOTE = /^>\s?/;
+const BULLET = /^(\s*(?:[-*]|\d+[.)])\s+)(.*)$/;
+
 export function highlight(source: string): Segment[] {
+  const lines = source.split('\n');
   const segments: Segment[] = [];
 
-  for (const [index, line] of source.split('\n').entries()) {
+  let index = 0;
+  while (index < lines.length) {
     if (index > 0) segments.push({ text: '\n', style: 'plain' });
+    const line = lines[index] ?? '';
 
-    const quote = /^>\s?/.exec(line);
-    if (quote) {
-      segments.push({ text: line, style: 'quote' });
+    const fence = FENCE.exec(line);
+    if (fence) {
+      /*
+       * A fence spans lines, so it cannot be an inline rule: the scanner works
+       * a line at a time to keep the newlines exactly where the textarea puts
+       * them. The body is coloured by the same tokeniser the rendered message
+       * uses, so a block looks the same while it is typed and after it is sent.
+       */
+      segments.push({ text: line, style: 'marker' });
+      index += 1;
+
+      const body: string[] = [];
+      while (index < lines.length && !FENCE.test(lines[index] ?? '')) {
+        body.push(lines[index] ?? '');
+        index += 1;
+      }
+
+      if (body.length > 0) {
+        segments.push({ text: '\n', style: 'code-plain' });
+        for (const token of highlightCode(body.join('\n'), fence[1] || null)) {
+          segments.push({ text: token.text, style: CODE_STYLE[token.kind] });
+        }
+      }
+
+      // An unterminated fence is the normal state halfway through typing one.
+      if (index < lines.length) {
+        segments.push({ text: '\n', style: 'plain' });
+        segments.push({ text: lines[index] ?? '', style: 'marker' });
+        index += 1;
+      }
+
       continue;
     }
 
-    const bullet = /^(\s*(?:[-*]|\d+[.)])\s+)(.*)$/.exec(line);
+    const heading = HEADING.exec(line);
+    if (heading) {
+      segments.push({ text: heading[1] ?? '', style: 'marker' });
+      for (const segment of inline(heading[2] ?? '')) {
+        segments.push(segment.style === 'plain' ? { ...segment, style: 'heading' } : segment);
+      }
+      index += 1;
+      continue;
+    }
+
+    if (QUOTE.test(line)) {
+      segments.push({ text: line, style: 'quote' });
+      index += 1;
+      continue;
+    }
+
+    const bullet = BULLET.exec(line);
     if (bullet) {
       segments.push({ text: bullet[1] ?? '', style: 'marker' });
       segments.push(...inline(bullet[2] ?? ''));
+      index += 1;
       continue;
     }
 
     segments.push(...inline(line));
+    index += 1;
   }
 
   return merge(segments);

@@ -52,6 +52,13 @@ export function useMessages(
   const { encrypted, keyEpoch } = channel;
 
   const [messages, setMessages] = useState<Message[]>([]);
+  /*
+   * The same list, readable without being a dependency. Editing needs to know
+   * which key a message was written under, and taking `messages` as a
+   * dependency would rebuild the callback on every arriving message and
+   * re-render every row in the channel.
+   */
+  const known = useRef<Message[]>([]);
   const [locked, setLocked] = useState<ReadonlySet<string>>(() => new Set());
   const [hasKey, setHasKey] = useState(() => !encrypted || holdsKey(channelId, keyEpoch));
   const [loading, setLoading] = useState(true);
@@ -89,6 +96,10 @@ export function useMessages(
 
     return { ...incoming, body: toDocument(plaintext), text: plaintext };
   }, []);
+
+  useEffect(() => {
+    known.current = messages;
+  }, [messages]);
 
   const upsert = useCallback((incoming: Message) => {
     setMessages((current) => {
@@ -183,11 +194,30 @@ export function useMessages(
           setPresent(event.userIds);
           return;
 
+        case 'keys_ready': {
+          /*
+           * Somebody sealed a key across while this channel was open. The
+           * messages already on screen were stored without their ciphertext,
+           * so the history is fetched again rather than reopened in place.
+           */
+          if (event.epoch !== keyEpoch || holdsKey(channelId, keyEpoch)) return;
+
+          void (async () => {
+            await syncChannelKeys(channelId, keyEpoch).catch(() => undefined);
+            if (!holdsKey(channelId, keyEpoch)) return;
+
+            setHasKey(true);
+            const page = await api.history(channelId);
+            setMessages(await Promise.all(page.messages.map(open)));
+          })();
+          return;
+        }
+
         default:
           return;
       }
     });
-  }, [channelId, open, realtime, upsert, userId]);
+  }, [channelId, keyEpoch, open, realtime, upsert, userId]);
 
   const loadOlder = useCallback(async () => {
     const oldest = messages.find((message) => message.seq > 0);
@@ -290,9 +320,33 @@ export function useMessages(
 
   const edit = useCallback(
     async (messageId: string, text: string) => {
-      upsert(await api.edit(channelId, messageId, { body: toDocument(text), text: toPlain(text) }));
+      /*
+       * Sealed the same way a send is, under the key the message was written
+       * with rather than the channel's current one: an edit does not move a
+       * message to a newer epoch, so encrypting it there would leave it
+       * unreadable to everybody, the author included.
+       */
+      const epoch = known.current.find((message) => message.id === messageId)?.epoch ?? null;
+
+      const body =
+        epoch === null
+          ? toDocument(text)
+          : await encryptBody(toDocument(text), {
+              channelId,
+              messageId,
+              authorId: userId,
+              epoch,
+            });
+
+      const saved = await api.edit(channelId, messageId, {
+        body,
+        text: epoch === null ? toPlain(text) : '',
+      });
+
+      // The local copy carries the plain text: this device wrote it.
+      upsert({ ...saved, body: toDocument(text), text: toPlain(text) });
     },
-    [channelId, upsert],
+    [channelId, upsert, userId],
   );
 
   const remove = useCallback(

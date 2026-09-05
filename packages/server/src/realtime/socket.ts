@@ -2,6 +2,7 @@ import { decodeClientEvent, encodeEvent, ulid, WIRE_VERSION, type ServerEvent } 
 import type { AppContext } from '../context.js';
 import {
   deleteMessage,
+  devicesAwaitingKeys,
   editMessage,
   heartbeatCall,
   joinCall,
@@ -139,6 +140,32 @@ async function handle(ctx: AppContext, subscriber: Subscriber, raw: string): Pro
         channelId: event.channelId,
         userIds: ctx.hub.presence(event.channelId),
       });
+
+      /*
+       * Opening an encrypted channel with no key for it is the moment to ask
+       * for one. Waiting for somebody who has it to happen to open the channel
+       * themselves left people looking at a room full of messages they could
+       * not read, which is the whole feature failing quietly.
+       */
+      if (access.value.channel.encrypted) {
+        ctx.background('keys_needed', async () => {
+          const waiting = await devicesAwaitingKeys(ctx, {
+            channelId: event.channelId,
+            userId: subscriber.userId,
+          });
+          if (!waiting.ok) return;
+
+          const mine = waiting.value.devices.some((device) => device.userId === subscriber.userId);
+          if (!mine) return;
+
+          ctx.hub.publish(event.channelId, {
+            type: 'keys_needed',
+            channelId: event.channelId,
+            epoch: waiting.value.epoch,
+          });
+        });
+      }
+
       return;
     }
 

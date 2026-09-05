@@ -77,6 +77,16 @@ export function keyRoutes(): Hono<ApiEnv> {
     });
 
     if (!stored.ok) return failure(c, stored.error);
+
+    // Told to the channel rather than to the devices sealed for: the server
+    // does not know which of them is watching, and a client that already has
+    // its key does nothing with this.
+    c.var.app.hub.publish(c.req.param('channelId'), {
+      type: 'keys_ready',
+      channelId: c.req.param('channelId'),
+      epoch: input.epoch,
+    });
+
     return c.json({ stored: stored.value }, 201);
   });
 

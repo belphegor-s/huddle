@@ -1,6 +1,7 @@
 import type { Attachment, MemberProfile } from '@huddle/core';
 import { Button, cx, Icon } from '@huddle/ui';
 import { useRef, useState } from 'react';
+import { continueList, insideFence } from '../lib/composing';
 import { formatDuration } from '../lib/format';
 import { VoiceRecorder } from '../lib/recorder';
 import { findMentions } from '../lib/rich-text';
@@ -17,6 +18,12 @@ const SHORTCUTS: Record<string, { before: string; after: string }> = {
   b: { before: '**', after: '**' },
   i: { before: '_', after: '_' },
   e: { before: '`', after: '`' },
+};
+
+/** Shift makes the block form of the same mark. */
+const BLOCK_SHORTCUTS: Record<string, { before: string; after: string }> = {
+  e: { before: '```\n', after: '\n```' },
+  x: { before: '~~', after: '~~' },
 };
 
 /** Roughly eight lines, after which the field scrolls instead of growing. */
@@ -187,7 +194,8 @@ export function Composer({
           }}
           onKeyDown={(event) => {
             if (event.metaKey || event.ctrlKey) {
-              const wrap = SHORTCUTS[event.key.toLowerCase()];
+              const key = event.key.toLowerCase();
+              const wrap = event.shiftKey ? BLOCK_SHORTCUTS[key] : SHORTCUTS[key];
               if (wrap) {
                 event.preventDefault();
                 applyWrap(wrap);
@@ -222,11 +230,34 @@ export function Composer({
               }
             }
 
-            // Enter sends, Shift and Enter makes a line. On a touch keyboard
-            // Enter is a newline, because there is a send button right there.
-            if (event.key === 'Enter' && !event.shiftKey && !isTouch()) {
-              event.preventDefault();
-              void send();
+            if (event.key === 'Enter') {
+              const element = event.currentTarget;
+              const caret = element.selectionStart;
+
+              // Inside an open fence Enter is always a newline. Someone
+              // halfway through pasting a stack trace has an unterminated
+              // block by definition, and sending on the first line would cut
+              // the message in half.
+              const newline = event.shiftKey || isTouch() || insideFence(text, caret);
+
+              if (newline && caret === element.selectionEnd) {
+                const carried = continueList(text, caret);
+                if (carried) {
+                  event.preventDefault();
+                  setText(carried.value);
+                  requestAnimationFrame(() => {
+                    element.setSelectionRange(carried.caret, carried.caret);
+                  });
+                  return;
+                }
+              }
+
+              // Enter sends, Shift and Enter makes a line. On a touch keyboard
+              // Enter is a newline, because there is a send button right there.
+              if (!newline) {
+                event.preventDefault();
+                void send();
+              }
             }
           }}
         />

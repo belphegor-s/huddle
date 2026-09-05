@@ -48,34 +48,65 @@ const SHARED =
   'block w-full px-3 py-[0.5625rem] font-ui whitespace-pre-wrap break-words ' +
   'text-base leading-[1.6] [@media(pointer:coarse)]:text-[16px] [@media(pointer:coarse)]:leading-[1.5]';
 
+/*
+ * Nothing here may change how wide a character is.
+ *
+ * The caret belongs to the textarea, which lays its text out in one font at
+ * one weight. A heavier face or a monospace one behind it would move the
+ * glyphs and leave the caret standing between the wrong two letters, which
+ * reads as broken in a way plain text never does.
+ *
+ * So: colour, underline, strike and stroke, all of which paint without
+ * measuring. Bold is a stroke on the outline rather than the 600 weight, and
+ * italic is safe because there is no italic face to load, so the browser
+ * shears the regular one and the advances stay put. Code reads as code by
+ * colour, from the same tokeniser that colours a sent message, so a snippet
+ * looks the same while it is typed and after it lands.
+ */
+const BOLD = '[-webkit-text-stroke:0.4px_currentColor]';
+
 const STYLES: Record<Emphasis, string> = {
   plain: '',
   marker: 'text-text-muted',
-  strong: 'font-semibold',
+  heading: BOLD,
+  strong: BOLD,
   emphasis: 'italic',
   strike: 'line-through',
-  code: 'font-mono text-[0.95em] text-accent',
+  code: 'text-accent',
   link: 'text-accent underline decoration-1 underline-offset-2',
-  mention: 'text-accent font-medium',
+  mention: `text-accent ${BOLD}`,
   quote: 'text-text-secondary italic',
+  'code-plain': 'text-text-primary',
+  'code-comment': 'text-syntax-comment italic',
+  'code-string': 'text-syntax-string',
+  'code-number': 'text-syntax-number',
+  'code-keyword': 'text-syntax-keyword',
+  'code-literal': 'text-syntax-number',
+  'code-function': 'text-syntax-function',
+  'code-tag': 'text-syntax-tag',
+  'code-attribute': 'text-syntax-attribute',
+  'code-punctuation': 'text-text-secondary',
 };
 
 interface MarkdownInputProps {
   value: string;
-  placeholder: string;
+  placeholder?: string;
   maxHeight: number;
+  /** Distinct per field, so an edit in place is not another Message box. */
+  label?: string;
   onChange(event: ChangeEvent<HTMLTextAreaElement>): void;
   onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void;
-  onPaste(event: ClipboardEvent<HTMLTextAreaElement>): void;
-  onBlur(): void;
-  onSelect(event: { currentTarget: HTMLTextAreaElement }): void;
+  onPaste?(event: ClipboardEvent<HTMLTextAreaElement>): void;
+  onBlur?(): void;
+  onSelect?(event: { currentTarget: HTMLTextAreaElement }): void;
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
 }
 
 export function MarkdownInput({
   value,
-  placeholder,
+  placeholder = '',
   maxHeight,
+  label = 'Message',
   onChange,
   onKeyDown,
   onPaste,
@@ -130,7 +161,7 @@ export function MarkdownInput({
         ref={inputRef}
         value={value}
         rows={1}
-        aria-label="Message"
+        aria-label={label}
         onChange={onChange}
         onKeyDown={onKeyDown}
         onPaste={onPaste}

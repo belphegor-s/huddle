@@ -199,8 +199,8 @@ function ChannelView({
         {stream.waitingForKey ? (
           <p className="border-border bg-surface-raised text-text-secondary flex items-center gap-2 border-b px-3 py-2 text-sm md:px-5">
             <Icon name="lock" className="text-text-muted size-4 shrink-0" />
-            This device has no key for this conversation yet. Anybody already in it will pass one
-            over when they next open it.
+            Waiting for a key. Nobody who has one is online right now, and the server cannot hand
+            one over: that is what makes this conversation private.
           </p>
         ) : null}
 

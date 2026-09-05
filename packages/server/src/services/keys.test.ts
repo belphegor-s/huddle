@@ -136,6 +136,58 @@ describe('devices', () => {
   });
 });
 
+describe('who may hold a key', () => {
+  it('offers a public channel key to everyone in the workspace', async () => {
+    // A public channel is readable by anybody here, who can join with one
+    // click and be handed the key anyway. Withholding it from somebody
+    // reading the channel buys nothing and leaves them staring at nothing.
+    const ada = await member(null, 'ada');
+    const workspaceId = await workspace(ada.userId);
+    const grace = await member(workspaceId, 'grace');
+
+    const channel = await createChannel(app.ctx, {
+      workspaceId,
+      userId: ada.userId,
+      name: 'general',
+      topic: null,
+      isPrivate: false,
+      encrypted: true,
+    });
+    if (!channel.ok) throw new Error('channel');
+
+    const waiting = await devicesAwaitingKeys(app.ctx, {
+      channelId: channel.value.channel.id,
+      userId: ada.userId,
+    });
+
+    // Grace has never joined the channel.
+    expect(waiting.ok && waiting.value.devices.map((one) => one.id)).toContain(grace.device.id);
+  });
+
+  it('keeps a private channel key to the people actually in it', async () => {
+    const ada = await member(null, 'ada');
+    const workspaceId = await workspace(ada.userId);
+    const grace = await member(workspaceId, 'grace');
+
+    const channel = await createChannel(app.ctx, {
+      workspaceId,
+      userId: ada.userId,
+      name: 'secret',
+      topic: null,
+      isPrivate: true,
+      encrypted: true,
+    });
+    if (!channel.ok) throw new Error('channel');
+
+    const waiting = await devicesAwaitingKeys(app.ctx, {
+      channelId: channel.value.channel.id,
+      userId: ada.userId,
+    });
+
+    expect(waiting.ok && waiting.value.devices.map((one) => one.id)).not.toContain(grace.device.id);
+  });
+});
+
 describe('channel keys', () => {
   it('carries a key from one person to another without the server reading it', async () => {
     const ada = await member(null, 'ada');

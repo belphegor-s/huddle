@@ -1,6 +1,6 @@
 import { err, ok, ulid, type DeviceRecord, type Result, type SealedKeyRecord } from '@huddle/core';
-import { channelKeys, channelMembers, channels, devices } from '@huddle/db';
-import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
+import { channelKeys, channelMembers, channels, devices, memberships } from '@huddle/db';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { AppContext } from '../context.js';
 import { requireChannel, type ChannelError } from './channels.js';
 
@@ -65,7 +65,35 @@ export async function registerDevice(
   return toDevice(row);
 }
 
-/** Every device belonging to a member of this channel, so keys can be sealed. */
+/**
+ * Who may hold this channel's key, as a query over devices.
+ *
+ * It follows read access rather than membership. A public channel is readable
+ * by everyone in the workspace, who can join it with one click and be handed
+ * the key anyway, so withholding it from a person reading the channel buys
+ * nothing and leaves them looking at a wall of ciphertext. A private channel
+ * and a direct message are the opposite: only the people actually in them.
+ */
+function readersOf(
+  ctx: AppContext,
+  channel: { id: string; workspaceId: string; isPrivate: boolean; kind: string },
+) {
+  if (channel.isPrivate || channel.kind !== 'channel') {
+    return ctx.db
+      .select({ device: devices })
+      .from(channelMembers)
+      .innerJoin(devices, eq(devices.userId, channelMembers.userId))
+      .where(eq(channelMembers.channelId, channel.id));
+  }
+
+  return ctx.db
+    .select({ device: devices })
+    .from(memberships)
+    .innerJoin(devices, eq(devices.userId, memberships.userId))
+    .where(eq(memberships.workspaceId, channel.workspaceId));
+}
+
+/** Every device that may hold this channel's key, so keys can be sealed. */
 export async function channelDevices(
   ctx: AppContext,
   input: { channelId: string; userId: string },
@@ -73,17 +101,13 @@ export async function channelDevices(
   const access = await requireChannel(ctx, input);
   if (!access.ok) return err(access.error);
 
-  const rows = await ctx.db
-    .select({ device: devices })
-    .from(channelMembers)
-    .innerJoin(devices, eq(devices.userId, channelMembers.userId))
-    .where(eq(channelMembers.channelId, input.channelId));
+  const rows = await readersOf(ctx, access.value.channel);
 
   return ok(rows.map((row) => toDevice(row.device)));
 }
 
 /**
- * Devices in this channel with no key for the current epoch.
+ * Devices that may read this channel and have no key for the current epoch.
  *
  * Anybody already holding the key can seal it for them, which is how a person
  * who joins after a channel was made ever gets in. There is no server side
@@ -98,18 +122,17 @@ export async function devicesAwaitingKeys(
 
   const epoch = access.value.channel.keyEpoch;
 
-  const held = ctx.db
+  const held = await ctx.db
     .select({ id: channelKeys.deviceId })
     .from(channelKeys)
     .where(and(eq(channelKeys.channelId, input.channelId), eq(channelKeys.epoch, epoch)));
 
-  const rows = await ctx.db
-    .select({ device: devices })
-    .from(channelMembers)
-    .innerJoin(devices, eq(devices.userId, channelMembers.userId))
-    .where(and(eq(channelMembers.channelId, input.channelId), notInArray(devices.id, held)));
+  const heldBy = new Set(held.map((row) => row.id));
 
-  return ok({ epoch, devices: rows.map((row) => toDevice(row.device)) });
+  const rows = await readersOf(ctx, access.value.channel);
+  const waiting = rows.filter((row) => !heldBy.has(row.device.id));
+
+  return ok({ epoch, devices: waiting.map((row) => toDevice(row.device)) });
 }
 
 /**

@@ -84,21 +84,21 @@ test('a conversation is readable by both people and by nobody else', async ({ br
   const ownerMessages = ownerPage.getByRole('list', { name: 'Messages' });
   await expect(ownerMessages.getByText(secret)).toBeVisible();
 
-  // Grace opens the conversation. Her device has no key until Ada's browser
-  // seals one for it, which happens because Ada has the channel open.
+  /*
+   * Grace opens the conversation and reads it, with nobody touching Ada's
+   * window. Her device holds no key, so it asks for one, and Ada's browser
+   * answers because it is connected and has it.
+   *
+   * The version before this waited for somebody who had the key to happen to
+   * open the channel themselves, which left the second person looking at a
+   * room full of messages they could not read.
+   */
   await guestPage.reload();
-  await guestPage
-    .getByRole('link', { name: /Ada|ada/ })
-    .first()
-    .click();
+  await guestPage.getByRole('link', { name: /Ada|ada/ }).first().click();
 
-  await ownerPage.reload();
-  await ownerPage.waitForTimeout(2500);
-  await guestPage.reload();
-
-  await expect(guestPage.getByRole('list', { name: 'Messages' }).getByText(secret)).toBeVisible({
-    timeout: 30_000,
-  });
+  await expect(
+    guestPage.getByRole('list', { name: 'Messages' }).getByText(secret),
+  ).toBeVisible({ timeout: 30_000 });
 
   /*
    * The point of the whole exercise. The API is asked, with a valid session
@@ -119,6 +119,37 @@ test('a conversation is readable by both people and by nobody else', async ({ br
   expect(served).toContain('"epoch":0');
   expect(served).not.toContain(secret);
   expect(served).not.toContain('merger');
+
+  /*
+   * An edit is sealed the same way a send is. The version before this sent the
+   * new body as plain text, which put the words the channel exists to hide
+   * straight into the database and left the message unreadable to everyone,
+   * the author included.
+   */
+  const corrected = `${secret} at noon`;
+  const row = ownerMessages.getByRole('listitem').last();
+  await row.hover();
+  await row.getByRole('button', { name: 'Edit message' }).click();
+
+  const editor = ownerPage.locator('textarea[aria-label="Edit message"]');
+  await editor.fill(corrected);
+  await editor.press('Enter');
+
+  await expect(editor).toBeHidden();
+  await expect(ownerMessages.getByText(corrected)).toBeVisible();
+  await expect(
+    guestPage.getByRole('list', { name: 'Messages' }).getByText(corrected),
+  ).toBeVisible({ timeout: 15_000 });
+
+  const afterEdit = await guestPage.evaluate(async (id: string) => {
+    const response = await fetch(`/api/channels/${id}/messages`, {
+      headers: { accept: 'application/json' },
+    });
+    return await response.text();
+  }, channelId);
+
+  expect(afterEdit).not.toContain('at noon');
+  expect(afterEdit).not.toContain('merger');
 
   await guest.close();
   await owner.close();

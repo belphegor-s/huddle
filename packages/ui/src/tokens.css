@@ -93,6 +93,18 @@
 
   --focus-ring: var(--cobalt-500);
 
+  /*
+   * Code colouring, kept off the accent on purpose. Cobalt means something in
+   * this product, and a keyword in a pasted snippet is not about you.
+   */
+  --syntax-comment: var(--sand-500);
+  --syntax-string: #2f7d4f;
+  --syntax-number: #9a6a12;
+  --syntax-keyword: #7c4dbe;
+  --syntax-function: #0f7a86;
+  --syntax-tag: #b4342b;
+  --syntax-attribute: #9a6a12;
+
   --shadow-sheet: 0 12px 32px -8px rgb(23 22 19 / 0.18);
   --shadow-popover: 0 4px 16px -4px rgb(23 22 19 / 0.14);
 }
@@ -130,6 +142,14 @@
     --caution: #d5a13c;
     --critical: #e3675c;
 
+    --syntax-comment: var(--sand-500);
+    --syntax-string: #5cb27c;
+    --syntax-number: #d5a13c;
+    --syntax-keyword: #bb96ec;
+    --syntax-function: #62c3cf;
+    --syntax-tag: #e3675c;
+    --syntax-attribute: #d5a13c;
+
     --shadow-sheet: 0 12px 32px -8px rgb(0 0 0 / 0.6);
     --shadow-popover: 0 4px 16px -4px rgb(0 0 0 / 0.5);
   }
@@ -162,6 +182,14 @@
   --caution: #d5a13c;
   --critical: #e3675c;
 
+  --syntax-comment: var(--sand-500);
+  --syntax-string: #5cb27c;
+  --syntax-number: #d5a13c;
+  --syntax-keyword: #bb96ec;
+  --syntax-function: #62c3cf;
+  --syntax-tag: #e3675c;
+  --syntax-attribute: #d5a13c;
+
   --shadow-sheet: 0 12px 32px -8px rgb(0 0 0 / 0.6);
   --shadow-popover: 0 4px 16px -4px rgb(0 0 0 / 0.5);
 }
@@ -187,4 +215,11 @@
   --color-critical: var(--critical);
   --color-critical-soft: var(--critical-soft);
   --color-focus-ring: var(--focus-ring);
+  --color-syntax-comment: var(--syntax-comment);
+  --color-syntax-string: var(--syntax-string);
+  --color-syntax-number: var(--syntax-number);
+  --color-syntax-keyword: var(--syntax-keyword);
+  --color-syntax-function: var(--syntax-function);
+  --color-syntax-tag: var(--syntax-tag);
+  --color-syntax-attribute: var(--syntax-attribute);
 }

@@ -138,6 +138,28 @@ export const ServerEvent = z.discriminatedUnion('type', [
     to: Id,
     data: z.string(),
   }),
+  /**
+   * Somebody in this channel has a device with no key for it.
+   *
+   * Sent to everybody in the channel, because the server cannot help: it holds
+   * no key and could not seal one if it wanted to. Whichever client is
+   * connected and already holds the key answers this by sealing it across.
+   */
+  z.object({
+    type: z.literal('keys_needed'),
+    channelId: Id,
+    epoch: z.number().int().nonnegative(),
+  }),
+  /**
+   * The answer to that: somebody sealed a key across. Anyone in the channel
+   * who could not read it tries again, because the one that just landed may
+   * be theirs.
+   */
+  z.object({
+    type: z.literal('keys_ready'),
+    channelId: Id,
+    epoch: z.number().int().nonnegative(),
+  }),
   /** The sidebar dot. Sent to members who are not looking at the channel. */
   z.object({
     type: z.literal('call_activity'),

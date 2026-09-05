@@ -29,7 +29,9 @@ export function NewChannelDialog({ workspaceSlug, onClose, onCreate }: NewChanne
   const [name, setName] = useState('');
   const [topic, setTopic] = useState('');
   const [isPrivate, setPrivate] = useState(false);
-  const [encrypted, setEncrypted] = useState(false);
+  // On unless somebody turns it off. The cost is stated beside it, and a
+  // conversation nobody but its members can read is the better default.
+  const [encrypted, setEncrypted] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 

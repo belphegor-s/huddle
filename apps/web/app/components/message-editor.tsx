@@ -1,5 +1,7 @@
 import { Button } from '@huddle/ui';
 import { useEffect, useRef, useState } from 'react';
+import { continueList, insideFence } from '../lib/composing';
+import { MarkdownInput } from './markdown-input';
 
 interface MessageEditorProps {
   initial: string;
@@ -24,7 +26,6 @@ export function MessageEditor({ initial, onSave, onCancel }: MessageEditorProps)
     // The caret goes to the end, not the start: an edit is usually an addition
     // or a fix at the end, never a rewrite from the first character.
     element.setSelectionRange(element.value.length, element.value.length);
-    element.style.height = `${Math.min(element.scrollHeight, 240)}px`;
   }, []);
 
   async function save() {
@@ -44,23 +45,45 @@ export function MessageEditor({ initial, onSave, onCancel }: MessageEditorProps)
 
   return (
     <div className="mt-1 flex flex-col gap-2">
-      <textarea
-        ref={field}
+      <MarkdownInput
         value={text}
-        aria-label="Edit message"
+        maxHeight={240}
+        label="Edit message"
+        inputRef={field}
         onChange={(event) => {
           setText(event.target.value);
-          event.target.style.height = 'auto';
-          event.target.style.height = `${Math.min(event.target.scrollHeight, 240)}px`;
         }}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') onCancel();
-          if (event.key === 'Enter' && !event.shiftKey) {
+          if (event.key === 'Escape') {
+            onCancel();
+            return;
+          }
+
+          if (event.key !== 'Enter') return;
+
+          const element = event.currentTarget;
+          const caret = element.selectionStart;
+          // Enter saves, except where it has to make a line: a message being
+          // edited is as likely to hold a code block as one being written.
+          const newline = event.shiftKey || insideFence(text, caret);
+
+          if (newline && caret === element.selectionEnd) {
+            const carried = continueList(text, caret);
+            if (carried) {
+              event.preventDefault();
+              setText(carried.value);
+              requestAnimationFrame(() => {
+                element.setSelectionRange(carried.caret, carried.caret);
+              });
+              return;
+            }
+          }
+
+          if (!newline) {
             event.preventDefault();
             void save();
           }
         }}
-        className="border-border bg-surface-sunken leading-message max-h-60 w-full resize-none overflow-y-auto rounded-lg border px-3 py-2 text-base"
       />
 
       <div className="flex items-center gap-2">

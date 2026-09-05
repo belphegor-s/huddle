@@ -5,9 +5,9 @@
  * elements, so a message containing `<script>` is text in every path, and no
  * renderer anywhere needs to be trusted to escape it.
  *
- * The subset is what people actually type in chat. Headings, tables, images and
- * reference links are left out on purpose: they are rare in a message, and each
- * one is a way for a stray character to change how a sentence looks.
+ * The subset is what people actually type in chat. Tables, images and reference
+ * links are left out on purpose: they are rare in a message, and each one is a
+ * way for a stray character to change how a sentence looks.
  */
 
 export type Inline =
@@ -21,6 +21,7 @@ export type Inline =
 
 export type Block =
   | { kind: 'paragraph'; children: Inline[] }
+  | { kind: 'heading'; level: number; children: Inline[] }
   | { kind: 'quote'; children: Inline[] }
   | { kind: 'list'; ordered: boolean; items: Inline[][] }
   | { kind: 'codeBlock'; language: string | null; value: string };
@@ -29,6 +30,7 @@ const FENCE = /^```(\w*)\s*$/;
 const BULLET = /^\s*[-*]\s+(.*)$/;
 const NUMBERED = /^\s*\d+[.)]\s+(.*)$/;
 const QUOTE = /^>\s?(.*)$/;
+const HEADING = /^(#{1,6})\s+(.*)$/;
 
 export function parseMarkdown(source: string): Block[] {
   const lines = source.split('\n');
@@ -53,6 +55,17 @@ export function parseMarkdown(source: string): Block[] {
       index += 1;
 
       blocks.push({ kind: 'codeBlock', language, value: body.join('\n') });
+      continue;
+    }
+
+    const heading = HEADING.exec(line);
+    if (heading) {
+      blocks.push({
+        kind: 'heading',
+        level: (heading[1] ?? '#').length,
+        children: parseInline(heading[2] ?? ''),
+      });
+      index += 1;
       continue;
     }
 
@@ -145,8 +158,9 @@ const RULES: Array<{
     build: (match) => ({ kind: 'emphasis', children: parseInline(match[1] ?? '') }),
   },
   {
-    // Underscores only between word boundaries, or snake_case_names break up.
-    pattern: /(?:^|(?<=\s))_([^_\n]+?)_(?=\s|$)/,
+    // Underscores only at a word boundary, or snake_case_names break up. The
+    // closing one may be followed by punctuation: _like this_, is a sentence.
+    pattern: /(?:^|(?<=\s))_([^_\n]+?)_(?=[\s.,;:!?)\]}'"]|$)/,
     build: (match) => ({ kind: 'emphasis', children: parseInline(match[1] ?? '') }),
   },
 ];

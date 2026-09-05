@@ -1,4 +1,11 @@
-import { parseMarkdown, type Block, type Inline, type MemberProfile } from '@huddle/core';
+import {
+  highlightCode,
+  parseMarkdown,
+  type Block,
+  type Inline,
+  type MemberProfile,
+  type TokenKind,
+} from '@huddle/core';
 import { cx, Icon } from '@huddle/ui';
 import { useMemo, useState } from 'react';
 import { handleOf } from '../lib/rich-text';
@@ -43,6 +50,22 @@ function BlockNode({ block, handles, meId }: { block: Block } & Context) {
   switch (block.kind) {
     case 'codeBlock':
       return <CodeBlock language={block.language} value={block.value} />;
+
+    case 'heading': {
+      /*
+       * A heading in a chat message is a label on a paragraph, not a page
+       * title, so the scale is small and the weight does the work. Anything
+       * larger turns one person's list into a billboard in a shared window.
+       */
+      const Tag = `h${String(Math.min(block.level, 6))}` as 'h1';
+      const size = block.level === 1 ? 'text-lg' : block.level === 2 ? 'text-[1rem]' : 'text-base';
+
+      return (
+        <Tag className={cx('mt-1 font-semibold break-words first:mt-0', size)}>
+          <Inlines nodes={block.children} handles={handles} meId={meId} />
+        </Tag>
+      );
+    }
 
     case 'quote':
       return (
@@ -154,12 +177,31 @@ function InlineNode({ node, handles, meId }: { node: Inline } & Context) {
   }
 }
 
+const TOKENS: Record<TokenKind, string> = {
+  plain: '',
+  comment: 'text-syntax-comment italic',
+  string: 'text-syntax-string',
+  number: 'text-syntax-number',
+  keyword: 'text-syntax-keyword',
+  literal: 'text-syntax-number',
+  function: 'text-syntax-function',
+  tag: 'text-syntax-tag',
+  attribute: 'text-syntax-attribute',
+  punctuation: 'text-text-secondary',
+};
+
 /**
  * Code is the one thing people paste in order to have it taken back out again,
  * so copying it is a button rather than a careful selection drag.
+ *
+ * The colouring is ours and runs in the client on a string, never on markup:
+ * the tokeniser returns runs of text and each one becomes a span, so a snippet
+ * containing a tag is still text. A hosted highlighter would be a third party
+ * request from a page that promises not to make any.
  */
 function CodeBlock({ language, value }: { language: string | null; value: string }) {
   const [copied, setCopied] = useState(false);
+  const tokens = useMemo(() => highlightCode(value, language), [value, language]);
 
   return (
     <div className="border-border bg-surface-sunken group/code relative my-1 overflow-hidden rounded-lg border">
@@ -170,7 +212,13 @@ function CodeBlock({ language, value }: { language: string | null; value: string
       ) : null}
 
       <pre className="overflow-x-auto px-3 py-2">
-        <code className="font-mono text-[0.85rem] leading-relaxed">{value}</code>
+        <code className="font-mono text-[0.85rem] leading-relaxed">
+          {tokens.map((token, index) => (
+            <span key={index} className={TOKENS[token.kind]}>
+              {token.text}
+            </span>
+          ))}
+        </code>
       </pre>
 
       <button
