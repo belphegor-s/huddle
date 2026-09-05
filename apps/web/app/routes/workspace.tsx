@@ -11,7 +11,7 @@ import {
 } from 'react-router';
 import { NewChannelDialog } from '../components/new-channel-dialog';
 import { NewDmDialog } from '../components/new-dm-dialog';
-import { CallDock } from '../components/call-dock';
+import { CallStage } from '../components/call-stage';
 import { ConnectionBanner } from '../components/connection-banner';
 import { Sidebar } from '../components/sidebar';
 import { api, ApiError } from '../lib/api';
@@ -20,6 +20,7 @@ import { deviceIdentity } from '../lib/device';
 import { shareOrCreateKeyring, shareWithWaitingDevices } from '../lib/keyring';
 import { Realtime } from '../lib/realtime';
 import { requireMe } from '../lib/session';
+import { useCall } from '../lib/use-call';
 import type { WorkspaceContext } from '../lib/workspace';
 import type { Route } from './+types/workspace';
 
@@ -59,6 +60,12 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
   const params = useParams();
   const location = useLocation();
   const [dialog, setDialog] = useState<'channel' | 'dm' | null>(null);
+  /**
+   * Whether the call has been put in the corner. It belongs to the workspace
+   * rather than to the channel view, because a huddle outlives walking to
+   * another conversation and the corner is where it waits.
+   */
+  const [docked, setDocked] = useState(false);
 
   // One socket for the whole session, kept across channel and workspace
   // navigations, because the connection is per person and the subscriptions on
@@ -117,6 +124,13 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
     });
   }, [params.ref, realtime, refresh, workspace.id]);
 
+  const { call: callView, leave, toggleMuted, toggleVideo, toggleSharing } = useCall(call);
+
+  // A new call opens over the panel, whatever was chosen for the last one.
+  useEffect(() => {
+    setDocked(false);
+  }, [callView.channelId]);
+
   const context: WorkspaceContext = {
     me,
     workspace,
@@ -136,7 +150,6 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <ConnectionBanner realtime={realtime} />
-      <CallDock call={call} workspaceSlug={workspace.slug} />
 
       <div className="flex min-h-0 flex-1">
         <Sidebar
@@ -152,8 +165,31 @@ export default function WorkspaceLayout({ loaderData }: Route.ComponentProps) {
           onChanged={refresh}
         />
 
-        <main className={cx('min-w-0 flex-1', inRoom ? 'flex' : 'hidden md:flex')}>
+        <main className={cx('relative min-w-0 flex-1', inRoom ? 'flex' : 'hidden md:flex')}>
           <Outlet context={context} />
+
+          {/*
+            Over the conversation it belongs to, or in the corner: never a
+            slice of the panel with the messages squeezed under it. Rendered
+            here rather than in the channel view so that walking to another
+            channel moves the call to the corner instead of tearing it down.
+          */}
+          {callView.channelId !== null && callView.status !== 'idle' ? (
+            <CallStage
+              session={call}
+              call={callView}
+              members={members}
+              meId={me.user.id}
+              placement={docked || params.ref !== callView.channelRef ? 'docked' : 'panel'}
+              channelPath={`/w/${workspace.slug}/c/${callView.channelRef ?? ''}`}
+              onDock={() => setDocked(true)}
+              onOpen={() => setDocked(false)}
+              onToggleMuted={toggleMuted}
+              onToggleVideo={toggleVideo}
+              onToggleSharing={toggleSharing}
+              onLeave={leave}
+            />
+          ) : null}
         </main>
       </div>
 

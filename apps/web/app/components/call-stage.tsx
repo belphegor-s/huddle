@@ -1,15 +1,24 @@
 import type { MemberProfile } from '@huddle/core';
 import { cx, Icon, type IconName } from '@huddle/ui';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import type { CallSession, CallView, PeerView } from '../lib/call';
 import { CallSettings, type CallLayout } from './call-settings';
 import { CallTile } from './call-tile';
+
+/** Where the call is drawn. Fullscreen is a fourth state the stage owns. */
+export type CallPlacement = 'panel' | 'docked';
 
 interface CallStageProps {
   session: CallSession;
   call: CallView;
   members: MemberProfile[];
   meId: string;
+  placement: CallPlacement;
+  /** Where the conversation is, for the way back out of the corner. */
+  channelPath: string;
+  onDock(): void;
+  onOpen(): void;
   onToggleMuted(): void;
   onToggleVideo(): void;
   onToggleSharing(): void;
@@ -17,20 +26,28 @@ interface CallStageProps {
 }
 
 /**
- * The call, above the conversation rather than on top of it, because a huddle
- * is something people keep talking in chat during. It takes a share of the
- * height and gives the rest back to the messages.
+ * The call takes the panel, not a slice of it.
  *
- * Expanded, it takes the screen instead, which is what a call with a screen
- * being shared in it is actually for. Real fullscreen is asked for as well,
- * and if the browser refuses the call still fills the window, so the control
- * never does nothing.
+ * A split, with the call above and the messages squeezed below, gave neither
+ * enough room: a shared screen was unreadable and the conversation was three
+ * lines tall. So a huddle covers the conversation it belongs to, and the way
+ * to keep reading is to put it in the corner, which is a decision rather than
+ * a side effect of the window being short.
+ *
+ * Three placements. Over the panel, which is the default. In the corner, which
+ * is where it goes when it is collapsed or when you walk to another channel.
+ * And fullscreen, asked for properly, with the call still filling the window
+ * if the browser refuses so the control never does nothing.
  */
 export function CallStage({
   session,
   call,
   members,
   meId,
+  placement,
+  channelPath,
+  onDock,
+  onOpen,
   onToggleMuted,
   onToggleVideo,
   onToggleSharing,
@@ -138,25 +155,37 @@ export function CallStage({
     }),
   ];
 
+  const docked = placement === 'docked' && !expanded;
+
   return (
     <section
       ref={setStage}
       aria-label="Huddle"
       className={cx(
-        'flex flex-col gap-2 bg-neutral-950 p-2 text-white',
+        'flex flex-col gap-2 bg-neutral-950 text-white',
         expanded
-          ? 'fixed inset-0 z-50 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]'
-          : 'border-border shrink-0 border-b',
+          ? 'fixed inset-0 z-50 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]'
+          : docked
+            ? // Clear of the composer and of a phone's home indicator.
+              'shadow-sheet fixed right-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 w-72 overflow-hidden rounded-xl border border-white/10 p-1.5'
+            : 'absolute inset-0 z-30 p-2',
       )}
     >
-      {shared ? (
-        <div
-          className={cx(
-            'flex min-h-0 flex-col gap-2 lg:flex-row',
-            expanded && 'flex-1 overflow-hidden',
-          )}
+      {docked ? (
+        <Link
+          to={channelPath}
+          onClick={onOpen}
+          className="flex min-h-8 items-center gap-1.5 px-1 text-xs font-medium text-white/80 no-underline hover:text-white"
         >
-          <div className={cx('min-h-48 flex-1', expanded ? 'lg:min-h-0' : 'lg:min-h-64')}>
+          <span className="bg-positive size-1.5 shrink-0 rounded-full" />
+          <span className="min-w-0 flex-1 truncate">{call.channelName}</span>
+          <Icon name="expand" className="size-3.5 shrink-0" />
+        </Link>
+      ) : null}
+
+      {shared ? (
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden lg:flex-row">
+          <div className="min-h-0 flex-1">
             <CallTile
               contain={shared.contain}
               name={shared.name}
@@ -176,7 +205,12 @@ export function CallStage({
             is on the stage is left out of it: the same face in two places at
             once reads as a rendering fault rather than as emphasis.
           */}
-          <ul className="flex gap-2 overflow-x-auto lg:w-40 lg:flex-col lg:overflow-x-visible lg:overflow-y-auto">
+          <ul
+            className={cx(
+              'flex shrink-0 gap-2 overflow-x-auto lg:w-40 lg:flex-col lg:overflow-x-visible lg:overflow-y-auto',
+              docked && 'hidden',
+            )}
+          >
             {tiles
               .filter((tile) => tile.key !== focus)
               .map((tile) => (
@@ -189,13 +223,7 @@ export function CallStage({
       ) : (
         // A fixed height with equal rows: the stage keeps its share of the
         // screen whether there are two people in it or eight.
-        <ul
-          className={cx(
-            'grid auto-rows-fr gap-2',
-            expanded ? 'min-h-0 flex-1' : 'h-52 lg:h-72',
-            gridFor(tiles.length),
-          )}
-        >
+        <ul className={cx('grid min-h-0 flex-1 auto-rows-fr gap-2', gridFor(tiles.length))}>
           {tiles.map((tile) => (
             <li key={tile.key} className="min-h-0">
               {tile}
@@ -204,12 +232,24 @@ export function CallStage({
         </ul>
       )}
 
-      <div className="flex items-center gap-2 pt-1">
-        <p className="flex-1 truncate text-xs text-white/60">
-          {call.status === 'joining'
-            ? 'Joining'
-            : `${String(tiles.length)} ${tiles.length === 1 ? 'person' : 'people'}`}
-        </p>
+      {/*
+        Wrapped rather than squeezed. Seven controls at the size a thumb needs
+        is wider than a phone, and a row that overflows takes the way out of
+        the call with it.
+      */}
+      <div
+        className={cx(
+          'flex shrink-0 flex-wrap items-center justify-center gap-1.5',
+          docked ? '' : 'pt-1',
+        )}
+      >
+        {docked ? null : (
+          <p className="min-w-0 flex-1 truncate text-xs text-white/60">
+            {call.status === 'joining'
+              ? 'Joining'
+              : `${String(tiles.length)} ${tiles.length === 1 ? 'person' : 'people'}`}
+          </p>
+        )}
 
         <Control
           icon={call.muted ? 'micOff' : 'mic'}
@@ -223,21 +263,39 @@ export function CallStage({
           active={!call.video}
           onClick={onToggleVideo}
         />
-        <Control
-          icon="screen"
-          label={call.sharing ? 'Stop sharing' : 'Share your screen'}
-          on={call.sharing}
-          onClick={onToggleSharing}
-          // Only Chromium hands a tab or a window to a page on a phone.
-          className="hidden sm:grid"
-        />
-        <Control
-          icon={expanded ? 'collapse' : 'expand'}
-          label={expanded ? 'Shrink the huddle' : 'Expand the huddle'}
-          on={expanded}
-          onClick={() => setExpanded((open) => !open)}
-        />
-        <CallSettings session={session} call={call} layout={layout} onLayout={setLayout} />
+
+        {docked ? null : (
+          <>
+            <Control
+              icon="screen"
+              label={call.sharing ? 'Stop sharing' : 'Share your screen'}
+              on={call.sharing}
+              onClick={onToggleSharing}
+              // Only Chromium hands a tab or a window to a page on a phone.
+              className="hidden sm:grid"
+            />
+            <Control
+              icon={expanded ? 'collapse' : 'expand'}
+              label={expanded ? 'Leave full screen' : 'Full screen'}
+              on={expanded}
+              onClick={() => setExpanded((open) => !open)}
+            />
+            {/*
+              Out of the way rather than gone: the call keeps running in the
+              corner and the conversation underneath becomes readable again.
+            */}
+            <Control
+              icon="minus"
+              label="Put the huddle in the corner"
+              onClick={() => {
+                setExpanded(false);
+                onDock();
+              }}
+            />
+            <CallSettings session={session} call={call} layout={layout} onLayout={setLayout} />
+          </>
+        )}
+
         <Control icon="hangUp" label="Leave the huddle" danger onClick={onLeave} />
       </div>
     </section>

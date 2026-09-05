@@ -3,7 +3,6 @@ import { Avatar, Button, Icon, Popover, PopoverButton } from '@huddle/ui';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { AssistantPanel } from '../components/assistant-panel';
-import { CallStage } from '../components/call-stage';
 import { ChannelMenu } from '../components/channel-menu';
 import { Composer } from '../components/composer';
 import { MessageList } from '../components/message-list';
@@ -100,7 +99,7 @@ function ChannelView({
   joined,
   onChanged,
 }: ChannelViewProps) {
-  const { call, join, leave, toggleMuted, toggleVideo, toggleSharing } = useCall(session);
+  const { call, join } = useCall(session);
   const inCall = useCallRoster(realtime, summary.channel.id, summary.callCount);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [catchingUp, setCatchingUp] = useState(false);
@@ -208,19 +207,6 @@ function ChannelView({
             Waiting for a key. Nobody who has one is online right now, and the server cannot hand
             one over: that is what makes this conversation private.
           </p>
-        ) : null}
-
-        {call.channelId === summary.channel.id ? (
-          <CallStage
-            session={session}
-            call={call}
-            members={members}
-            meId={me.user.id}
-            onToggleMuted={toggleMuted}
-            onToggleVideo={toggleVideo}
-            onToggleSharing={toggleSharing}
-            onLeave={leave}
-          />
         ) : null}
 
         {call.error !== null && call.channelId === null ? (

@@ -462,3 +462,46 @@ test('an invite link is copied the same way the address is', async ({ page, cont
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await link.textContent());
   await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
 });
+
+test('a huddle starting does not shove the channel list along', async ({ page }) => {
+  const slug = unique('shove');
+  await signIn(page, `${slug}@example.com`);
+
+  await page.getByLabel('Team name').fill('Shove');
+  await page.getByLabel('Address').fill(slug);
+  await page.getByRole('button', { name: 'Create workspace' }).click();
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  await page.getByRole('button', { name: 'New channel' }).click();
+  await page.getByLabel('Name').fill('general');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page).toHaveURL(/\/c\/general$/);
+
+  const sidebar = page.getByRole('navigation');
+  await expect(sidebar.getByRole('link', { name: /general/ })).toBeVisible();
+
+  const label = () =>
+    page.evaluate(() => {
+      const link = [...document.querySelectorAll('nav a')].find((one) =>
+        one.textContent?.includes('general'),
+      );
+      const text = [...(link?.querySelectorAll('span') ?? [])].find(
+        (one) => one.textContent?.trim() === 'general',
+      );
+      const box = text?.getBoundingClientRect();
+      return { x: Math.round(box?.x ?? 0), width: Math.round(box?.width ?? 0) };
+    });
+
+  const before = await label();
+  expect(before.width).toBeGreaterThan(0);
+
+  await page.getByRole('button', { name: 'Start a huddle' }).click();
+
+  /*
+   * The dot rides on the channel mark. In the row it appeared out of nowhere
+   * and pushed the name along with it, so the whole list twitched whenever a
+   * call started somewhere.
+   */
+  await expect(page.getByLabel('1 in a huddle')).toBeVisible({ timeout: 20_000 });
+  expect(await label(), 'the channel name moved when a huddle started').toEqual(before);
+});

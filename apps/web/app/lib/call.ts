@@ -114,6 +114,12 @@ export class CallSession {
   private monitor: SpeakingMonitor | null = null;
   private heartbeat: ReturnType<typeof setInterval> | null = null;
   private chosen: { microphoneId?: string; cameraId?: string } = {};
+  /**
+   * A camera asked for before there was a call to put it in. Opening the
+   * microphone takes a moment and the control is on screen throughout, so the
+   * press has to be kept rather than dropped on the floor.
+   */
+  private wantsVideo: boolean | null = null;
 
   constructor(private readonly realtime: Realtime) {
     realtime.on((event) => this.accept(event));
@@ -183,6 +189,12 @@ export class CallSession {
 
     this.update({ ...this.view, status: 'live', camera: this.local });
     await this.readDevices();
+
+    if (this.wantsVideo !== null) {
+      const wish = this.wantsVideo;
+      this.wantsVideo = null;
+      await this.setVideo(wish).catch(() => undefined);
+    }
   }
 
   /**
@@ -335,7 +347,15 @@ export class CallSession {
   }
 
   async setVideo(on: boolean): Promise<void> {
-    const existing = this.local?.getVideoTracks() ?? [];
+    // Pressed while the call is still opening. Kept, and applied as soon as
+    // there is a stream to put the track on.
+    if (!this.local) {
+      this.wantsVideo = on;
+      this.update({ ...this.view, video: on });
+      return;
+    }
+
+    const existing = this.local.getVideoTracks();
 
     if (!on) {
       for (const track of existing) track.enabled = false;
@@ -350,13 +370,24 @@ export class CallSession {
       // Joining without a camera means never asking for one, so the first time
       // it is turned on the track has to be acquired and offered around.
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 1280, height: 720 },
+        video: {
+          width: 1280,
+          height: 720,
+          // The camera somebody picked in the settings, not whichever one the
+          // browser reaches for first.
+          ...(this.chosen.cameraId ? { deviceId: { exact: this.chosen.cameraId } } : {}),
+        },
       });
       const track = stream.getVideoTracks()[0];
-      if (!track || !this.local) return;
+      if (!track) return;
 
       this.local.addTrack(track);
       for (const peer of this.peers.values()) peer.connection.addTrack(track, this.local);
+
+      // The stream keeps its id, so the other end still knows which of the two
+      // is the camera. Said again because a peer that joined while this was
+      // audio only has nothing on record for it.
+      this.describeStreams();
     }
 
     this.update({ ...this.view, video: true, camera: this.local });

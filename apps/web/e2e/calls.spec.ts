@@ -130,23 +130,48 @@ test('two people huddle, see each other and hang up', async ({ browser }) => {
     expect(players.some((one) => one.tracks > 0 && !one.paused && one.advanced)).toBe(true);
   }
 
-  // Expanded, the call takes the screen rather than a strip of it.
-  const strip = (await ownerStage.boundingBox())?.height ?? 0;
-  await ownerPage.getByRole('button', { name: 'Expand the huddle' }).click();
+  /*
+   * The call takes the panel rather than a slice of it. A split gave neither
+   * half enough room: a shared screen was unreadable and the conversation was
+   * three lines tall.
+   */
+  const window = ownerPage.viewportSize();
+  const covered = () =>
+    ownerPage.evaluate(() => {
+      const field = document.querySelector('textarea[aria-label="Message"]');
+      if (!field) return true;
 
-  const full = (await ownerStage.boundingBox())?.height ?? 0;
-  expect(full).toBeGreaterThan(strip * 1.5);
+      const box = field.getBoundingClientRect();
+      const at = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+      return at === null || at.closest('[aria-label="Huddle"]') !== null;
+    });
+
+  // Covered rather than hidden: the composer is still in the page, and what
+  // matters is that nothing of the conversation is left half visible under a
+  // call taking a slice of the panel.
+  expect(await covered()).toBe(true);
+
+  await ownerPage.getByRole('button', { name: 'Full screen' }).click();
+  const full = (await ownerStage.boundingBox())?.width ?? 0;
+  expect(full).toBeGreaterThan((window?.width ?? 0) * 0.9);
   await expect(ownerStage.getByText('2 people')).toBeVisible();
 
   // Back through the control rather than Escape: once the browser has granted
   // real fullscreen, Escape belongs to the browser, and the visible way out is
   // the one that has to work.
-  await ownerPage.getByRole('button', { name: 'Shrink the huddle' }).click();
-  await expect(ownerPage.getByRole('button', { name: 'Expand the huddle' })).toBeVisible();
-  // Leaving fullscreen resizes the window, which the layout follows a frame
-  // or two later.
-  await expect.poll(async () => (await ownerStage.boundingBox())?.height ?? 0).toBeLessThan(full);
-  await expect(ownerPage.getByLabel('Message', { exact: true })).toBeVisible();
+  await ownerPage.getByRole('button', { name: 'Leave full screen' }).click();
+  await expect(ownerPage.getByRole('button', { name: 'Full screen' })).toBeVisible();
+
+  // In the corner, the conversation underneath is readable again and the call
+  // is still running.
+  await ownerPage.getByRole('button', { name: 'Put the huddle in the corner' }).click();
+  await expect
+    .poll(async () => (await ownerStage.boundingBox())?.width ?? 0)
+    .toBeLessThan((window?.width ?? 0) / 2);
+  expect(await covered()).toBe(false);
+
+  // And every control that matters is still reachable there.
+  await expect(ownerStage.getByRole('button', { name: 'Leave the huddle' })).toBeVisible();
 
   // Mute travels over the roster rather than over the media, so it is visible
   // to the other end even though nothing about the stream changed.
@@ -184,9 +209,80 @@ test('a huddle survives walking to another channel', async ({ page }) => {
   // down the page, and hanging up is the correct thing for that to do.
   await page.getByRole('link', { name: 'random', exact: true }).click();
   await expect(page).toHaveURL(/\/c\/random$/);
-  await expect(page.getByRole('link', { name: 'In a huddle in #general' })).toBeVisible();
 
-  // Back where it started, the call is the stage again rather than the strip.
-  await page.getByRole('link', { name: 'In a huddle in #general' }).click();
-  await expect(page.getByRole('region', { name: 'Huddle' })).toBeVisible();
+  /*
+   * Still running, in the corner. The call does not belong to the channel view
+   * any more, so walking away moves it rather than tearing it down.
+   */
+  const stage = page.getByRole('region', { name: 'Huddle' });
+  await expect(stage).toBeVisible();
+
+  const corner = await stage.boundingBox();
+  const window = page.viewportSize();
+  expect(corner?.width ?? 0).toBeLessThan((window?.width ?? 0) / 2);
+
+  // Back where it started, it takes the panel again.
+  await page.getByRole('link', { name: '#general' }).click();
+  await expect(page).toHaveURL(/\/c\/general$/);
+  await expect
+    .poll(async () => (await stage.boundingBox())?.width ?? 0)
+    .toBeGreaterThan((window?.width ?? 0) / 2);
+});
+
+test('a camera turned on mid call reaches the other end', async ({ browser }) => {
+  const slug = unique('late');
+
+  const owner = await browser.newContext();
+  const ownerPage = await owner.newPage();
+  await signIn(ownerPage, `owner-${slug}@example.com`);
+
+  await ownerPage.getByLabel('Team name').fill('Late');
+  await ownerPage.getByLabel('Address').fill(slug);
+  await ownerPage.getByRole('button', { name: 'Create workspace' }).click();
+  await expect(ownerPage).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  await ownerPage.getByRole('button', { name: 'New channel' }).click();
+  await ownerPage.getByLabel('Name').fill('general');
+  await ownerPage.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(ownerPage).toHaveURL(/\/c\/general$/);
+
+  await ownerPage.goto(`/w/${slug}/people`);
+  await ownerPage.getByRole('button', { name: 'New link' }).click();
+  const invite = new URL((await ownerPage.locator('output').first().textContent()) ?? '').pathname;
+
+  const guest = await browser.newContext();
+  const guestPage = await guest.newPage();
+  await signIn(guestPage, `guest-${slug}@example.com`);
+  await guestPage.goto(invite);
+  await guestPage.getByRole('button', { name: 'Join workspace' }).click();
+  await expect(guestPage).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  await ownerPage.goto(`/w/${slug}/c/general`);
+  await guestPage.goto(`/w/${slug}/c/general`);
+
+  await ownerPage.getByRole('button', { name: 'Start a huddle' }).click();
+  await guestPage.getByRole('button', { name: /Join the huddle/ }).click();
+  await expect(guestPage.getByRole('region', { name: 'Huddle' })).toBeVisible();
+
+  /*
+   * Nobody joins with a camera, and turning one on later adds a track, which
+   * asks for a renegotiation. An ask that arrived at the wrong moment used to
+   * be dropped with nothing to run it again, so the camera went nowhere until
+   * whoever turned it on rejoined the call.
+   */
+  const inbound = () =>
+    guestPage.evaluate(() =>
+      [...document.querySelectorAll('video')].some((element) => {
+        const stream = element.srcObject as MediaStream | null;
+        return (stream?.getVideoTracks() ?? []).some((track) => track.readyState === 'live');
+      }),
+    );
+
+  await expect.poll(inbound, { timeout: 10_000 }).toBe(false);
+
+  await ownerPage.getByRole('button', { name: 'Turn the camera on' }).click();
+  await expect.poll(inbound, { timeout: 30_000 }).toBe(true);
+
+  await guest.close();
+  await owner.close();
 });

@@ -366,7 +366,13 @@ function ChannelRow({
                 />
               </span>
             ) : (
-              <>
+              /*
+               * The call dot rides on the mark rather than in the row. Sitting
+               * in the row it appeared out of nowhere when somebody started a
+               * huddle and pushed the name along with it, so a channel list
+               * twitched every time a call began.
+               */
+              <span className="relative shrink-0">
                 <Icon
                   name={icon}
                   className={cx('text-text-muted size-4', collapsed && 'md:hidden')}
@@ -389,22 +395,18 @@ function ChannelRow({
                     {label.slice(0, 1)}
                   </span>
                 ) : null}
-              </>
+
+                {summary.callCount > 0 ? (
+                  <span
+                    aria-label={`${String(summary.callCount)} in a huddle`}
+                    className="bg-positive ring-surface-sunken absolute -top-1 -right-1 size-2 rounded-full ring-2 motion-safe:animate-pulse"
+                  />
+                ) : null}
+              </span>
             )}
             <span className={cx('min-w-0 flex-1 truncate', collapsed && 'md:sr-only')}>
               {label}
             </span>
-            {/*
-          A call is happening whether or not you have read the channel, so it
-          reads before the unread badge rather than replacing it.
-        */}
-            {summary.callCount > 0 ? (
-              <span
-                className="bg-positive size-2 rounded-full motion-safe:animate-pulse"
-                aria-label={`${String(summary.callCount)} in a huddle`}
-              />
-            ) : null}
-
             {summary.mentionCount > 0 ? (
               <span className="bg-accent text-on-accent text-2xs rounded-full px-1.5 py-0.5 font-semibold">
                 {summary.mentionCount}

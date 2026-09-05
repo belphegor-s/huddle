@@ -49,6 +49,16 @@ export class CallPeer {
   private work: Promise<void> = Promise.resolve();
   private makingOffer = false;
   private ignoringOffer = false;
+  /**
+   * A renegotiation that could not run when it was asked for.
+   *
+   * Turning a camera on adds a track, which asks for one, and the ask can land
+   * while the opening offer is still in flight or while this end is not yet
+   * allowed to make one. Dropping it there is how somebody ends up sending a
+   * camera nobody receives until they rejoin, so it is remembered and run at
+   * the next moment the connection is settled.
+   */
+  private pending = false;
   private closed = false;
   /** True once a description has been exchanged in either direction. */
   private negotiated = false;
@@ -64,8 +74,12 @@ export class CallPeer {
       // unpick. One end owns the first offer instead. From then on either may
       // renegotiate, which is what starting a screen share does, and the rule
       // is there for exactly that.
-      if (options.polite && !this.negotiated) return;
-      void this.negotiate();
+      this.pending = true;
+      this.flush();
+    };
+
+    this.connection.onsignalingstatechange = () => {
+      if (this.connection.signalingState === 'stable') this.flush();
     };
 
     this.connection.onicecandidate = ({ candidate }) => {
@@ -156,12 +170,17 @@ export class CallPeer {
 
     await this.connection.setLocalDescription();
     this.sendLocalDescription();
+
+    // Answering settles the connection, which is the moment anything held back
+    // gets to go out.
+    this.flush();
   }
 
   close(): void {
     this.closed = true;
     this.clearWatchdog();
     this.connection.onnegotiationneeded = null;
+    this.connection.onsignalingstatechange = null;
     this.connection.onicecandidate = null;
     this.connection.ontrack = null;
     this.connection.onconnectionstatechange = null;
@@ -198,6 +217,16 @@ export class CallPeer {
     this.connection.restartIce();
   }
 
+  /** Runs a held renegotiation, if this is a moment one can run in. */
+  private flush(): void {
+    if (!this.pending || this.closed) return;
+    if (this.options.polite && !this.negotiated) return;
+    if (this.makingOffer || this.connection.signalingState !== 'stable') return;
+
+    this.pending = false;
+    void this.negotiate();
+  }
+
   private async negotiate(): Promise<void> {
     if (this.closed) return;
 
@@ -206,8 +235,10 @@ export class CallPeer {
       await this.connection.setLocalDescription();
       this.sendLocalDescription();
     } catch {
-      // A failed offer leaves the connection where it was. The state change
-      // handler restarts ICE if the connection itself is the problem.
+      // Held rather than dropped: whatever was added is still on the
+      // connection and still has to be offered, so it goes out at the next
+      // settled moment instead of never.
+      this.pending = true;
     } finally {
       this.makingOffer = false;
     }
