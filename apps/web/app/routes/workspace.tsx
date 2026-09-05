@@ -1,5 +1,5 @@
 import { CreateChannelInput } from '@huddle/core';
-import { cx } from '@huddle/ui';
+import { Button, cx } from '@huddle/ui';
 import { useCallback, useEffect, useState } from 'react';
 import {
   isRouteErrorResponse,
@@ -219,8 +219,20 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       <p className="text-text-secondary text-sm">
         {missing
           ? 'It may have been deleted, or you may not be a member of it.'
-          : 'The connection dropped or the server is unreachable. Reloading usually fixes it.'}
+          : 'The connection dropped or the server could not be reached.'}
       </p>
+
+      {/*
+        A way back in, not just a way out. A phone loses the network for a
+        second at a time, and the screen this replaces is usually one press
+        away from working again.
+      */}
+      {missing ? null : (
+        <Button type="button" className="w-fit" onClick={() => window.location.reload()}>
+          Try again
+        </Button>
+      )}
+
       <Link to="/" className="text-accent text-sm">
         Go to your workspaces
       </Link>

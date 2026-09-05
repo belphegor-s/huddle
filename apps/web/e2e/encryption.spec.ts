@@ -76,7 +76,9 @@ test('a conversation is readable by both people and by nobody else', async ({ br
     .first()
     .click();
   await ownerPage.getByRole('button', { name: 'Start conversation' }).click();
-  await expect(ownerPage.getByLabel('End to end encrypted')).toBeVisible({ timeout: 15_000 });
+  await expect(ownerPage.getByRole('button', { name: 'End to end encrypted' })).toBeVisible({
+    timeout: 15_000,
+  });
 
   const composer = ownerPage.getByLabel('Message', { exact: true });
   await composer.fill(secret);

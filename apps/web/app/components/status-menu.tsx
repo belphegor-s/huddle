@@ -79,8 +79,13 @@ export function StatusMenu({ me, workspaceSlug, compact = false, onChanged }: St
               </span>
               {line ? <span className="text-text-muted block truncate text-xs">{line}</span> : null}
             </span>
+            {/*
+              Up and down rather than down alone. This row is at the foot of
+              the sidebar and its menu opens upward, so a chevron pointing at
+              the floor was pointing away from where the menu appears.
+            */}
             <Icon
-              name="chevronDown"
+              name="chevronsUpDown"
               className={cx('text-text-muted size-4 shrink-0', compact && 'md:hidden')}
             />
           </MenuButton>

@@ -1,5 +1,5 @@
 import type { ChannelSummary, MemberProfile, Me, Role, Workspace } from '@huddle/core';
-import { Avatar, Button, Icon } from '@huddle/ui';
+import { Avatar, Button, Icon, Popover, PopoverButton } from '@huddle/ui';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { AssistantPanel } from '../components/assistant-panel';
@@ -128,24 +128,22 @@ function ChannelView({
               A channel is marked by a hash or a lock. A conversation is marked
               by whoever is in it, which is the only thing that identifies one.
             */}
-            <h1 className="flex min-w-0 items-center gap-1.5 text-base font-semibold">
-              {direct ? (
-                <Avatar name={title} url={dmAvatar(summary, members, me.user.id)} size="sm" />
-              ) : (
-                <Icon
-                  name={summary.channel.isPrivate ? 'lock' : 'hash'}
-                  className="text-text-muted size-4"
-                />
-              )}
-              <span className="truncate">{title}</span>
-              {summary.channel.encrypted ? (
-                <Icon
-                  name="lock"
-                  label="End to end encrypted"
-                  className="text-positive size-3.5 shrink-0"
-                />
-              ) : null}
-            </h1>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <h1 className="flex min-w-0 items-center gap-1.5 text-base font-semibold">
+                {direct ? (
+                  <Avatar name={title} url={dmAvatar(summary, members, me.user.id)} size="sm" />
+                ) : (
+                  <Icon
+                    name={summary.channel.isPrivate ? 'lock' : 'hash'}
+                    className="text-text-muted size-4"
+                  />
+                )}
+                <span className="truncate">{title}</span>
+              </h1>
+              {/* Beside the heading rather than inside it: the name of a
+                  channel is the heading, and a control is not part of it. */}
+              {summary.channel.encrypted ? <EncryptionNote /> : null}
+            </div>
             {summary.channel.topic ? (
               <p className="text-text-muted truncate text-xs">{summary.channel.topic}</p>
             ) : null}
@@ -401,6 +399,9 @@ function HuddleButton({
     <button
       type="button"
       onClick={onJoin}
+      // Named, because the words beside the icon are gone on a phone and a
+      // control with no name at all is one a screen reader cannot offer.
+      aria-label={others > 0 ? `Join the huddle, ${String(others)} in it` : 'Start a huddle'}
       className={
         others > 0
           ? 'bg-positive flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-white'
@@ -410,5 +411,47 @@ function HuddleButton({
       <Icon name="mic" className="size-4" />
       <span className="hidden sm:inline">{others > 0 ? `Join (${String(others)})` : 'Huddle'}</span>
     </button>
+  );
+}
+
+/**
+ * What the lock means, on being asked.
+ *
+ * A popover rather than a hover tooltip: a phone has no hover, and this is the
+ * one badge in the app that makes a promise worth being able to read. The
+ * limitation is in here too, because a search that quietly returns nothing is
+ * worse than one that says why.
+ */
+function EncryptionNote() {
+  return (
+    <Popover
+      label="End to end encrypted"
+      align="start"
+      className="w-72"
+      trigger={
+        <PopoverButton
+          aria-label="End to end encrypted"
+          className="text-positive hover:bg-surface-hover grid size-6 shrink-0 place-items-center rounded-md"
+        >
+          <Icon name="lock" className="size-3.5" />
+        </PopoverButton>
+      }
+    >
+      <div className="flex flex-col gap-2 p-2">
+        <p className="text-text-primary flex items-center gap-1.5 text-sm font-semibold">
+          <Icon name="lock" className="text-positive size-4" />
+          End to end encrypted
+        </p>
+        <p className="text-text-secondary text-sm">
+          Messages are sealed in your browser and opened in the browsers of the people here. The
+          server keeps what it cannot read: it never holds the key, so nobody running it can see
+          them.
+        </p>
+        <p className="text-text-muted text-xs">
+          Search and the assistant skip this channel, because there is no text for them to read.
+          Files are not encrypted yet.
+        </p>
+      </div>
+    </Popover>
   );
 }

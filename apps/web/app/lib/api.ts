@@ -62,14 +62,7 @@ export interface SearchResult {
  * and nothing in the client ever holds a token it could leak.
  */
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    credentials: 'same-origin',
-    headers: {
-      ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
-      ...init.headers,
-    },
-  });
+  const response = await send(path, init);
 
   if (response.status === 204) return undefined as T;
 
@@ -79,6 +72,35 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   return body as T;
+}
+
+/**
+ * One retry, and only for a read that never reached the server.
+ *
+ * A phone loses the network a second at a time, when it changes cell or comes
+ * back from the background, and a single dropped fetch inside a loader takes
+ * the whole screen down to an error page. An HTTP answer is not retried: the
+ * server said something and it meant it. Neither is a write, which may well
+ * have arrived.
+ */
+async function send(path: string, init: RequestInit): Promise<Response> {
+  const request: RequestInit = {
+    ...init,
+    credentials: 'same-origin',
+    headers: {
+      ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
+      ...init.headers,
+    },
+  };
+
+  try {
+    return await fetch(path, request);
+  } catch (error) {
+    if ((init.method ?? 'GET') !== 'GET') throw error;
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return await fetch(path, request);
+  }
 }
 
 const post = <T>(path: string, body?: unknown): Promise<T> =>

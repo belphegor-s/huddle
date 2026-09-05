@@ -111,7 +111,7 @@ test('a huddle tile can be pinned to the stage', async ({ page }) => {
   const slug = unique('pin');
   await workspaceWithChannel(page, slug);
 
-  await page.getByRole('button', { name: 'Huddle', exact: true }).click();
+  await page.getByRole('button', { name: 'Start a huddle' }).click();
   const stage = page.getByRole('region', { name: 'Huddle' });
   await expect(stage).toBeVisible();
 

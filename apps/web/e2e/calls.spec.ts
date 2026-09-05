@@ -76,14 +76,14 @@ test('two people huddle, see each other and hang up', async ({ browser }) => {
   await guestPage.goto(`/w/${slug}/c/general`);
 
   await ownerPage.goto(`/w/${slug}/c/general`);
-  await ownerPage.getByRole('button', { name: 'Huddle', exact: true }).click();
+  await ownerPage.getByRole('button', { name: 'Start a huddle' }).click();
 
   const ownerStage = ownerPage.getByRole('region', { name: 'Huddle' });
   await expect(ownerStage).toBeVisible();
   await expect(ownerStage.getByText('1 person')).toBeVisible();
 
   // The guest is told about the call without being in it or reloading.
-  const join = guestPage.getByRole('button', { name: 'Join (1)' });
+  const join = guestPage.getByRole('button', { name: 'Join the huddle, 1 in it' });
   await expect(join).toBeVisible({ timeout: 10_000 });
   await join.click();
 
@@ -177,7 +177,7 @@ test('a huddle survives walking to another channel', async ({ page }) => {
   }
 
   await page.goto(`/w/${slug}/c/general`);
-  await page.getByRole('button', { name: 'Huddle', exact: true }).click();
+  await page.getByRole('button', { name: 'Start a huddle' }).click();
   await expect(page.getByRole('region', { name: 'Huddle' })).toBeVisible();
 
   // Through the sidebar rather than a reload: a full navigation would tear

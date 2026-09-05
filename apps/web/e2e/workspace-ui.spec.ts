@@ -311,3 +311,88 @@ test('the workspace chevron sits at the end of its row on a phone', async ({ pag
   // The row's own padding, and nothing more.
   expect(gap).toBeLessThanOrEqual(10);
 });
+
+test('the rail marks the channel you are in with a ring, not a block', async ({ page }) => {
+  const slug = unique('ring');
+  await signIn(page, `${slug}@example.com`);
+
+  await page.getByLabel('Team name').fill('Rings');
+  await page.getByLabel('Address').fill(slug);
+  await page.getByRole('button', { name: 'Create workspace' }).click();
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  for (const name of ['general', 'design']) {
+    await page.getByRole('button', { name: 'New channel' }).click();
+    await page.getByLabel('Name').fill(name);
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/c/${name}$`));
+  }
+
+  const sidebar = page.getByRole('navigation');
+  const row = sidebar.getByRole('link', { name: /design/ });
+
+  await page.getByRole('button', { name: 'Narrow the sidebar' }).click();
+  await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeLessThan(120);
+
+  /*
+   * Filled, the selected row was a block the width of the whole rail, which
+   * reads as the row having grown rather than as the one you are in. The mark
+   * is the only thing in there with a shape, so the ring goes on the mark.
+   */
+  const drawn = await row.evaluate((link) => {
+    const mark = link.querySelector('span[aria-hidden]');
+    return {
+      rowFilled: getComputedStyle(link).backgroundColor,
+      markRing: mark === null ? '' : getComputedStyle(mark).outlineWidth,
+      markShadow: mark === null ? '' : getComputedStyle(mark).boxShadow,
+    };
+  });
+
+  expect(drawn.rowFilled, 'the selected row is still a filled block').toBe('rgba(0, 0, 0, 0)');
+  // Tailwind draws a ring as a box shadow, so that is where it shows up.
+  expect(drawn.markShadow, 'the selected mark has no ring').not.toBe('none');
+
+  // The one not selected has no ring at all, or the ring says nothing.
+  const other = await sidebar.getByRole('link', { name: /general/ }).evaluate((link) => {
+    const mark = link.querySelector('span[aria-hidden]');
+    return mark === null ? '' : getComputedStyle(mark).boxShadow;
+  });
+
+  expect(other).toBe('none');
+});
+
+test('the lock says what it means, on a phone as well', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const slug = unique('lock');
+  await signIn(page, `${slug}@example.com`);
+
+  await page.getByLabel('Team name').fill('Locks');
+  await page.getByLabel('Address').fill(slug);
+  await page.getByRole('button', { name: 'Create workspace' }).click();
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  await page.getByRole('button', { name: 'New channel' }).click();
+  await page.getByLabel('Name').fill('general');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page).toHaveURL(/\/c\/general$/);
+
+  /*
+   * Pressed rather than hovered. A hover tooltip is nothing at all on a phone,
+   * and this is the one badge in the app that makes a promise worth reading.
+   */
+  const lock = page.getByRole('button', { name: 'End to end encrypted' });
+  await lock.click();
+
+  const note = page.getByRole('dialog', { name: 'End to end encrypted' });
+  await expect(note).toBeVisible();
+  await expect(note).toContainText('never holds the key');
+
+  // It fits the phone it is on.
+  const box = await note.boundingBox();
+  expect(box?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390);
+
+  await lock.click();
+  await expect(note).toBeHidden();
+});

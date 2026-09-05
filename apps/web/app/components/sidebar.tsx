@@ -158,18 +158,47 @@ export function Sidebar({
           <li key={channel.id}>
             <NavLink
               to={`/w/${workspace.slug}/c/${channel.name ?? channel.id}`}
+              title={channel.name ?? ''}
               className={({ isActive }) =>
                 cx(
                   'flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm no-underline',
+                  collapsed && 'md:justify-center md:px-0',
                   isActive
-                    ? 'bg-surface-active text-text-primary'
+                    ? cx(
+                        'text-text-primary',
+                        collapsed ? 'bg-surface-active md:bg-transparent' : 'bg-surface-active',
+                      )
                     : 'text-text-muted hover:bg-surface-hover',
                 )
               }
             >
-              <Icon name="hash" className="size-4 opacity-60" />
-              <span className="min-w-0 flex-1 truncate">{channel.name}</span>
-              <span className="text-2xs text-text-muted shrink-0">Join</span>
+              {({ isActive }) => (
+                <>
+                  <Icon name="hash" className={cx('size-4 opacity-60', collapsed && 'md:hidden')} />
+                  {/* Dashed in the rail, because this is one nobody has joined. */}
+                  {collapsed ? (
+                    <span
+                      aria-hidden
+                      className={cx(
+                        'text-2xs hidden size-7 place-items-center rounded-md border border-dashed font-semibold uppercase md:grid',
+                        isActive
+                          ? cx('border-accent text-accent', RING)
+                          : 'border-border-strong text-text-muted',
+                      )}
+                    >
+                      {(channel.name ?? '').slice(0, 1)}
+                    </span>
+                  ) : null}
+                  <span className={cx('min-w-0 flex-1 truncate', collapsed && 'md:sr-only')}>
+                    {channel.name}
+                  </span>
+                  <span
+                    className={cx('text-2xs text-text-muted shrink-0', collapsed && 'md:hidden')}
+                  >
+                    Join
+                  </span>
+                </>
+              )}
             </NavLink>
           </li>
         ))}
@@ -273,6 +302,12 @@ function otherMember(
   return members.find((one) => one.id === otherId) ?? null;
 }
 
+/**
+ * The selected mark in the rail: a ring rather than a fill, offset against the
+ * sidebar so it reads as drawn around the mark and not as a second block.
+ */
+const RING = 'md:ring-accent md:ring-offset-surface-sunken md:ring-2 md:ring-offset-2';
+
 function ChannelRow({
   workspaceSlug,
   summary,
@@ -301,8 +336,17 @@ function ChannelRow({
           cx(
             'flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm no-underline',
             collapsed && 'md:justify-center md:px-0',
+            /*
+             * In the rail the selection is drawn on the mark rather than as a
+             * filled row. A block the width of the whole rail reads as the row
+             * having grown rather than as the one you are in, and it is the
+             * only thing in there with a shape of its own.
+             */
             isActive
-              ? 'bg-surface-active text-text-primary'
+              ? cx(
+                  'text-text-primary',
+                  collapsed ? 'bg-surface-active md:bg-transparent' : 'bg-surface-active',
+                )
               : 'text-text-secondary hover:bg-surface-hover',
             // Unread is weight and colour, never a dot on its own: a dot alone
             // is invisible to anyone scanning a long list quickly.
@@ -310,49 +354,66 @@ function ChannelRow({
           )
         }
       >
-        {member ? (
-          <Avatar
-            name={label}
-            url={avatarUrl}
-            size="sm"
-            presence={presenceOf(member, summary.callCount > 0)}
-          />
-        ) : (
+        {({ isActive }) => (
           <>
-            <Icon name={icon} className={cx('text-text-muted size-4', collapsed && 'md:hidden')} />
-            {/*
-              A rail of identical hashes tells nobody which channel is which.
-              The first letter does, and keeps the row the size of every other.
-            */}
-            {collapsed ? (
-              <span
-                aria-hidden
-                className="bg-surface-active text-text-secondary text-2xs hidden size-7 place-items-center rounded-md font-semibold uppercase md:grid"
-              >
-                {label.slice(0, 1)}
+            {member ? (
+              <span className={cx('rounded-full', collapsed && isActive && RING)}>
+                <Avatar
+                  name={label}
+                  url={avatarUrl}
+                  size="sm"
+                  presence={presenceOf(member, summary.callCount > 0)}
+                />
               </span>
-            ) : null}
-          </>
-        )}
-        <span className={cx('min-w-0 flex-1 truncate', collapsed && 'md:sr-only')}>{label}</span>
-        {/*
+            ) : (
+              <>
+                <Icon
+                  name={icon}
+                  className={cx('text-text-muted size-4', collapsed && 'md:hidden')}
+                />
+                {/*
+                  A rail of identical hashes tells nobody which channel is
+                  which. The first letter does, and keeps the row the size of
+                  every other.
+                */}
+                {collapsed ? (
+                  <span
+                    aria-hidden
+                    className={cx(
+                      'text-2xs hidden size-7 place-items-center rounded-md font-semibold uppercase md:grid',
+                      isActive
+                        ? cx('bg-accent-soft text-accent', RING)
+                        : 'bg-surface-active text-text-secondary',
+                    )}
+                  >
+                    {label.slice(0, 1)}
+                  </span>
+                ) : null}
+              </>
+            )}
+            <span className={cx('min-w-0 flex-1 truncate', collapsed && 'md:sr-only')}>
+              {label}
+            </span>
+            {/*
           A call is happening whether or not you have read the channel, so it
           reads before the unread badge rather than replacing it.
         */}
-        {summary.callCount > 0 ? (
-          <span
-            className="bg-positive size-2 rounded-full motion-safe:animate-pulse"
-            aria-label={`${String(summary.callCount)} in a huddle`}
-          />
-        ) : null}
+            {summary.callCount > 0 ? (
+              <span
+                className="bg-positive size-2 rounded-full motion-safe:animate-pulse"
+                aria-label={`${String(summary.callCount)} in a huddle`}
+              />
+            ) : null}
 
-        {summary.mentionCount > 0 ? (
-          <span className="bg-accent text-on-accent text-2xs rounded-full px-1.5 py-0.5 font-semibold">
-            {summary.mentionCount}
-          </span>
-        ) : unread ? (
-          <span className="bg-text-muted size-1.5 rounded-full" aria-label="Unread" />
-        ) : null}
+            {summary.mentionCount > 0 ? (
+              <span className="bg-accent text-on-accent text-2xs rounded-full px-1.5 py-0.5 font-semibold">
+                {summary.mentionCount}
+              </span>
+            ) : unread ? (
+              <span className="bg-text-muted size-1.5 rounded-full" aria-label="Unread" />
+            ) : null}
+          </>
+        )}
       </NavLink>
     </li>
   );
