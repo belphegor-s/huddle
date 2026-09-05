@@ -434,13 +434,32 @@ export class CallSession {
 
     let stream: MediaStream;
     try {
+      if (!navigator.mediaDevices.getDisplayMedia) {
+        throw new Error('This browser cannot share a screen.');
+      }
+
       stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-    } catch {
-      // Dismissing the picker is a decision, not an error worth reporting.
+    } catch (error) {
+      /*
+       * Dismissing the picker is a decision, not an error worth reporting.
+       * Anything else is the share failing to start, and saying nothing left
+       * somebody pressing a button that did nothing at all.
+       */
+      const dismissed = error instanceof DOMException && error.name === 'NotAllowedError';
+      if (!dismissed) {
+        this.update({
+          ...this.view,
+          error: 'huddle could not start sharing your screen. Check the site permissions.',
+        });
+      }
+
       return;
     }
 
     this.display = stream;
+    // Whatever went wrong last time did not this time.
+    this.update({ ...this.view, error: null });
+
     for (const peer of this.peers.values()) {
       for (const track of stream.getTracks()) peer.connection.addTrack(track, stream);
     }

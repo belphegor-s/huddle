@@ -111,6 +111,30 @@ test('a shared screen reaches the other end', async ({ browser }) => {
 
   expect(await hears(b), 'the other end went quiet while a screen was shared').toBe(true);
 
+  /*
+   * Choosing the grid used to make a shared screen disappear from the call
+   * entirely: it was only ever drawn as the thing on the stage, and the grid
+   * has no stage. It is a tile like any other now.
+   */
+  await b.getByRole('button', { name: 'Huddle settings' }).click();
+  await b.getByRole('menuitem', { name: /Grid/ }).click();
+
+  await expect(b.getByText('is sharing')).toBeVisible();
+
+  // Polled: switching layout remounts the element, and a video reports no
+  // size until the first frame lands in it.
+  await expect
+    .poll(
+      () =>
+        b.evaluate(
+          () =>
+            [...document.querySelectorAll('video')].filter((element) => element.videoWidth > 0)
+              .length,
+        ),
+      { timeout: 20_000, message: 'the shared screen vanished when the grid was chosen' },
+    )
+    .toBeGreaterThan(0);
+
   // Stopping puts everybody back in the grid rather than leaving a dead pane.
   await a.getByRole('button', { name: 'Stop sharing' }).click();
   await expect(b.getByText('is sharing')).toHaveCount(0, { timeout: 15_000 });

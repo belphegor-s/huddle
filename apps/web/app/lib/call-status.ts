@@ -9,10 +9,13 @@ import type { CallView } from './call';
  * leaves the person who has to fix it with nothing to go on.
  */
 export function callStatus(
-  call: Pick<CallView, 'status' | 'peers' | 'relay'>,
+  call: Pick<CallView, 'status' | 'peers' | 'relay' | 'error'>,
   tiles: number,
 ): string {
   if (call.status === 'joining') return 'Joining';
+
+  // Something the caller asked for and did not get, which outranks the count.
+  if (call.error !== null) return call.error;
 
   const failed = call.peers.filter((peer) => peer.link === 'failed').length;
 

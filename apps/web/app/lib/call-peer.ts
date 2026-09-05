@@ -22,8 +22,17 @@ export type PeerLink = 'connecting' | 'connected' | 'failed';
  */
 const STALLED_MS = 8_000;
 
-/** Retries past this are not going to help, and the tile says so instead. */
-const RESTART_ATTEMPTS = 3;
+/** Backing off, because a network that is down stays down for a while. */
+const MAX_WAIT_MS = 30_000;
+
+/**
+ * How long a connection has to be down before it is called failed.
+ *
+ * Only what the tile says. A retry is never given up on: a phone that changes
+ * cell, a laptop that sleeps, a router that reboots, all come back, and they
+ * should find the call still trying rather than a tile that stopped caring.
+ */
+const GIVE_UP_MS = 30_000;
 
 interface PeerOptions {
   /** Lower session id yields on a collision. Deterministic on both ends. */
@@ -72,7 +81,9 @@ export class CallPeer {
   /** True once a description has been exchanged in either direction. */
   private negotiated = false;
   private stalled: ReturnType<typeof setTimeout> | null = null;
-  private restarts = 0;
+  private attempts = 0;
+  /** When this connection last stopped being up, or null while it is up. */
+  private downSince: number | null = null;
 
   constructor(private readonly options: PeerOptions) {
     this.connection = new RTCPeerConnection({ iceServers: options.iceServers });
@@ -122,15 +133,27 @@ export class CallPeer {
     this.connection.onconnectionstatechange = () => {
       const state = this.connection.connectionState;
 
-      if (state === 'connected') this.link = 'connected';
-      else if (state === 'failed') this.link = 'failed';
-      else if (state === 'disconnected' || state === 'connecting') this.link = 'connecting';
+      if (state === 'connected') {
+        this.link = 'connected';
+        this.downSince = null;
+        this.clearWatchdog();
+        options.onChange();
+        return;
+      }
+
+      /*
+       * Down, which is not the same as gone. A few lost packets put a
+       * connection here for a second at a time, so it is only called failed
+       * once it has been down long enough to mean it, and the retry carries
+       * on either way.
+       */
+      this.downSince ??= Date.now();
+      this.link = Date.now() - this.downSince > GIVE_UP_MS ? 'failed' : 'connecting';
 
       // A path that dies mid call usually comes back, and restarting ICE is
       // cheaper and far less visible than tearing the call down.
       if (state === 'failed') this.restart();
-      if (state === 'connected') this.clearWatchdog();
-      else this.armWatchdog();
+      this.armWatchdog();
 
       options.onChange();
     };
@@ -216,28 +239,33 @@ export class CallPeer {
   private armWatchdog(): void {
     if (this.closed || this.stalled !== null) return;
 
+    // Backing off rather than hammering: the first retry is quick, and a
+    // connection that has been down for a minute is not helped by trying
+    // every eight seconds.
+    const wait = Math.min(STALLED_MS * 2 ** Math.min(this.attempts, 4), MAX_WAIT_MS);
+
     this.stalled = setTimeout(() => {
       this.stalled = null;
-      if (this.connection.connectionState === 'connected') return;
+      if (this.closed || this.connection.connectionState === 'connected') return;
 
-      if (this.restarts < RESTART_ATTEMPTS) {
-        this.restarts += 1;
-        // Both ends restarting at once is a collision the politeness rule then
-        // has to unpick, which is slower than one of them owning the retry.
-        if (!this.options.polite) this.restart();
-        this.armWatchdog();
-        return;
-      }
+      this.attempts += 1;
+      this.downSince ??= Date.now();
+      if (Date.now() - this.downSince > GIVE_UP_MS) this.link = 'failed';
 
-      this.link = 'failed';
+      // Both ends restarting at once is a collision the politeness rule then
+      // has to unpick, which is slower than one of them owning the retry. It
+      // never stops trying: whoever comes back should find a call still here.
+      if (!this.options.polite) this.restart();
+
       this.options.onChange();
-    }, STALLED_MS);
+      this.armWatchdog();
+    }, wait);
   }
 
   private clearWatchdog(): void {
     if (this.stalled !== null) clearTimeout(this.stalled);
     this.stalled = null;
-    this.restarts = 0;
+    this.attempts = 0;
   }
 
   private restart(): void {

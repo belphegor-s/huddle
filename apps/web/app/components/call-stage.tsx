@@ -100,6 +100,21 @@ export function CallStage({
   }, [expanded, stage]);
 
   const me = members.find((member) => member.id === meId);
+  const sharingNow = [
+    call.sharing ? 'self' : '',
+    ...call.peers.filter((peer) => peer.sharing).map((peer) => peer.sessionId),
+  ]
+    .filter((one) => one !== '')
+    .join(',');
+
+  /*
+   * A pin set minutes ago should not keep a screen that has just gone up off
+   * the stage. Pinning again during the share still wins, because this only
+   * runs when the set of people sharing changes.
+   */
+  useEffect(() => {
+    if (sharingNow !== '') setPinned(null);
+  }, [sharingNow]);
 
   // A pin outlives the person leaving, so it is cleared rather than left
   // pointing at a tile that is no longer there.
@@ -122,6 +137,42 @@ export function CallStage({
       : focus
         ? focusedTile(focus, call, members, me)
         : (automatic ?? (layout === 'spotlight' ? loudestTile(call, members, me) : null));
+
+  /*
+   * A shared screen is a tile in its own right, not only something that can
+   * take the stage. Without this, choosing the grid made a screen somebody was
+   * sharing disappear from the call entirely rather than sit among the faces.
+   */
+  const screens = [
+    ...(call.sharing && call.screen
+      ? [{ key: 'self-screen', stream: call.screen, name: 'Your screen', self: true }]
+      : []),
+    ...call.peers
+      .filter((peer) => peer.sharing && peer.screen)
+      .map((peer) => ({
+        key: `${peer.sessionId}-screen`,
+        stream: peer.screen,
+        name: `${members.find((one) => one.id === peer.userId)?.displayName ?? 'Someone'} is sharing`,
+        self: false,
+      })),
+  ];
+
+  const screenTiles = screens.map((screen) => (
+    <CallTile
+      key={screen.key}
+      contain
+      silent
+      name={screen.name}
+      avatarUrl={null}
+      stream={screen.stream}
+      video
+      muted={false}
+      speaking={false}
+      self={screen.self}
+      pinned={focus === screen.key}
+      onPin={() => setPinned(focus === screen.key ? null : screen.key)}
+    />
+  ));
 
   const tiles = [
     <CallTile
@@ -229,8 +280,13 @@ export function CallStage({
       ) : (
         // A fixed height with equal rows: the stage keeps its share of the
         // screen whether there are two people in it or eight.
-        <ul className={cx('grid min-h-0 flex-1 auto-rows-fr gap-2', gridFor(tiles.length))}>
-          {tiles.map((tile) => (
+        <ul
+          className={cx(
+            'grid min-h-0 flex-1 auto-rows-fr gap-2',
+            gridFor(tiles.length + screenTiles.length),
+          )}
+        >
+          {[...screenTiles, ...tiles].map((tile) => (
             <li key={tile.key} className="min-h-0">
               {tile}
             </li>
