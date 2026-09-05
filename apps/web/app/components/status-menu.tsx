@@ -86,7 +86,9 @@ export function StatusMenu({ me, workspaceSlug, compact = false, onChanged }: St
             */}
             <Icon
               name="chevronsUpDown"
-              className={cx('text-text-muted size-4 shrink-0', compact && 'md:hidden')}
+              // A shade larger than a single chevron would be: it is two marks
+              // in the space one usually takes.
+              className={cx('text-text-muted size-[18px] shrink-0', compact && 'md:hidden')}
             />
           </MenuButton>
         }

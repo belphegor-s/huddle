@@ -23,8 +23,12 @@ const PATHS = {
   minus: 'M5 12h14',
   /* Two chevrons pointing the same way, as a collapse control does. */
   chevronsLeft: 'M11.5 6.5 6 12l5.5 5.5M18 6.5 12.5 12l5.5 5.5',
-  /* One up, one down: a control that opens whichever way there is room. */
-  chevronsUpDown: 'm8 10.5 4-4 4 4M16 13.5l-4 4-4-4',
+  /*
+   * One up, one down. The heads are wide and shallow and the gap between them
+   * is eight units, because two marks stacked inside sixteen pixels turn into
+   * one smudge at anything tighter.
+   */
+  chevronsUpDown: 'm7.5 8 4.5-3.5 4.5 3.5M16.5 16 12 19.5l-4.5-3.5',
   hash: 'M9.5 4 7.5 20M16.5 4l-2 16M4.5 9h15M3.5 15h15',
   lock: 'M7 10.5V8a5 5 0 0 1 10 0v2.5M6 10.5h12v9.5H6v-9.5Z',
   search: 'M11 4.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13ZM15.8 15.8 20 20',
