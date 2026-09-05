@@ -44,6 +44,13 @@ async function makeChannel(page: Page, name: string): Promise<void> {
   await expect(page).toHaveURL(new RegExp(`/c/${name}$`));
 }
 
+/** `rgb(a, b, c)` as `#aabbcc`, so a computed colour can meet a token. */
+function hexOf(colour: string): string {
+  const parts = (colour.match(/\d+/g) ?? []).slice(0, 3).map(Number);
+  if (parts.length < 3) return colour;
+  return `#${parts.map((one) => one.toString(16).padStart(2, '0')).join('')}`;
+}
+
 /** The button in the confirm dialog, not one behind it wearing the same word. */
 async function confirmWith(page: Page, action: string): Promise<void> {
   await page.locator('dialog[open]').getByRole('button', { name: action, exact: true }).click();
@@ -148,7 +155,34 @@ test('an archived channel can be read, restored and finally deleted', async ({ p
   await expect(page.getByText(/Another channel is called launch/)).toBeVisible();
 
   const archivedRow = page.getByRole('listitem').filter({ hasText: '#launch' });
-  await archivedRow.getByRole('button', { name: 'Delete' }).click();
+  const remove = archivedRow.getByRole('button', { name: 'Delete' });
+
+  /*
+   * Red, and a box rather than a run of text. A ghost button with a critical
+   * colour class on it drew grey: two colour utilities of the same weight, and
+   * the stylesheet decides which one wins rather than the order they are
+   * written in.
+   */
+  const drawn = await remove.evaluate((button) => {
+    const style = getComputedStyle(button);
+    return { colour: style.color, border: style.borderColor };
+  });
+
+  const critical = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--critical').trim(),
+  );
+
+  expect(critical).not.toBe('');
+  expect(hexOf(drawn.colour), 'the delete button is not the danger colour').toBe(critical);
+  expect(hexOf(drawn.border), 'the delete button has no danger border').toBe(critical);
+
+  // The pair sits flush at the end of the row rather than floating in it.
+  const row = await archivedRow.boundingBox();
+  const box = await remove.boundingBox();
+  const gap = (row?.x ?? 0) + (row?.width ?? 0) - ((box?.x ?? 0) + (box?.width ?? 0));
+  expect(gap, 'the buttons are not against the end of the row').toBeLessThanOrEqual(8);
+
+  await remove.click();
   await confirmWith(page, 'Delete');
 
   await expect(page.getByText('Nothing is archived.')).toBeVisible();

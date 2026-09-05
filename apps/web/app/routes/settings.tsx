@@ -183,7 +183,7 @@ function ArchivedChannels({
             {channels.map((channel) => (
               <li
                 key={channel.id}
-                className="border-border bg-surface-raised flex min-h-11 items-center gap-2 rounded-lg border px-3"
+                className="border-border bg-surface-raised flex min-h-11 items-center gap-2 rounded-lg border py-1 pr-1.5 pl-3"
               >
                 <Link
                   to={`/w/${slug}/c/${channel.id}`}
@@ -193,14 +193,27 @@ function ArchivedChannels({
                 </Link>
 
                 {canManage ? (
-                  <>
-                    <Button type="button" variant="ghost" onClick={() => void restore(channel)}>
+                  /*
+                   * Both bordered, so what lines up at the end of the row is a
+                   * pair of boxes rather than two runs of floating text, and
+                   * the one that cannot be undone is the red one. A ghost
+                   * button with a red class on it was neither: the two colour
+                   * utilities have the same weight and whichever the stylesheet
+                   * happens to put last wins, which was the grey one.
+                   */
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="px-3"
+                      onClick={() => void restore(channel)}
+                    >
                       Restore
                     </Button>
                     <Button
                       type="button"
-                      variant="ghost"
-                      className="text-critical"
+                      variant="danger"
+                      className="px-3"
                       onClick={() =>
                         confirm({
                           title: `Delete #${channel.name ?? ''}`,
@@ -215,7 +228,7 @@ function ArchivedChannels({
                     >
                       Delete
                     </Button>
-                  </>
+                  </div>
                 ) : null}
               </li>
             ))}
