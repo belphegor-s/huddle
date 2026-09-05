@@ -1,7 +1,8 @@
 import { resampleWaveform, type Attachment } from '@huddle/core';
 import { cx, Icon, IconSolid } from '@huddle/ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatDuration } from '../lib/format';
+import { barIsPlayed, fractionPlayed, lengthInSeconds } from '../lib/playback';
 
 /**
  * Silence still needs a line, or the bar looks like a rendering failure. Low
@@ -40,6 +41,13 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
   const [speed, setSpeed] = useState<number>(1);
 
   const total = attachment.durationMs ?? 0;
+
+  /** The element is not trusted about its own length. See lengthInSeconds. */
+  const seconds = useCallback(
+    (element: HTMLAudioElement) =>
+      lengthInSeconds({ reported: element.duration, recordedMs: total }),
+    [total],
+  );
   const peaks = useMemo(
     () => resampleWaveform(attachment.peaks ?? [], DRAWN_BARS),
     [attachment.peaks],
@@ -49,8 +57,7 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
     const element = audio.current;
     if (!element) return;
 
-    const onTime = () =>
-      setProgress(element.duration > 0 ? element.currentTime / element.duration : 0);
+    const onTime = () => setProgress(fractionPlayed(element.currentTime, seconds(element)));
     const onEnd = () => {
       setPlaying(false);
       setProgress(0);
@@ -60,7 +67,7 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
     const onReady = () => {
       const at = pending.current;
       pending.current = null;
-      if (at !== null && element.duration > 0) element.currentTime = at * element.duration;
+      if (at !== null) element.currentTime = at * seconds(element);
     };
 
     element.addEventListener('timeupdate', onTime);
@@ -75,7 +82,27 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
       element.removeEventListener('play', onPlay);
       element.removeEventListener('loadedmetadata', onReady);
     };
-  }, []);
+  }, [seconds, total]);
+
+  /*
+   * timeupdate fires about four times a second, which makes the highlight
+   * step rather than move. While something is playing the position is read
+   * every frame instead, which costs nothing and is the difference between
+   * looking broken and looking alive.
+   */
+  useEffect(() => {
+    if (!playing) return;
+
+    let frame = 0;
+    const follow = () => {
+      const element = audio.current;
+      if (element) setProgress(fractionPlayed(element.currentTime, seconds(element)));
+      frame = requestAnimationFrame(follow);
+    };
+
+    frame = requestAnimationFrame(follow);
+    return () => cancelAnimationFrame(frame);
+  }, [playing, seconds]);
 
   function cycleSpeed() {
     const next =
@@ -109,11 +136,11 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
     setProgress(clamped);
 
     const element = audio.current;
-    if (element && Number.isFinite(element.duration) && element.duration > 0) {
-      element.currentTime = clamped * element.duration;
-    } else {
-      pending.current = clamped;
-    }
+    if (!element) return;
+
+    const length = seconds(element);
+    if (element.readyState > 0 && length > 0) element.currentTime = clamped * length;
+    else pending.current = clamped;
   }
 
   function onPointer(event: React.PointerEvent<HTMLDivElement>) {
@@ -123,7 +150,7 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
 
   return (
     <div className="border-border bg-surface-raised flex max-w-md items-center gap-3 rounded-xl border px-3 py-2">
-      <audio ref={audio} src={attachment.url} preload="none" />
+      <audio ref={audio} src={attachment.url} preload="metadata" />
 
       <button
         type="button"
@@ -176,7 +203,7 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
                 'min-w-[2px] flex-1 rounded-full motion-safe:transition-colors',
                 // A bar is played once the playhead has passed its middle, so
                 // the colour changes when the bar is actually being heard.
-                (index + 0.5) / peaks.length <= progress ? 'bg-accent' : 'bg-border-strong',
+                barIsPlayed(index, peaks.length, progress) ? 'bg-accent' : 'bg-border-strong',
               )}
               style={{ height: `${String(FLOOR_PERCENT + peak * (100 - FLOOR_PERCENT))}%` }}
             />

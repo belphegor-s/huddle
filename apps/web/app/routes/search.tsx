@@ -1,4 +1,4 @@
-import { Avatar, Select } from '@huddle/ui';
+import { Avatar, Checkbox, Select } from '@huddle/ui';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { api, type SearchResult } from '../lib/api';
@@ -121,15 +121,12 @@ export default function Search() {
           ]}
         />
 
-        <label className="border-border flex min-h-9 items-center gap-2 rounded-lg border px-2 text-sm">
-          <input
-            type="checkbox"
-            checked={files}
-            onChange={(event) => setFilter('files', event.target.checked ? 'true' : '')}
-            className="size-4"
-          />
-          With a file
-        </label>
+        <Checkbox
+          label="With a file"
+          className="border-border min-h-11 items-center rounded-lg border px-3"
+          checked={files}
+          onChange={(event) => setFilter('files', event.target.checked ? 'true' : '')}
+        />
       </div>
 
       {query.trim() !== '' && !searching && results.length === 0 ? (

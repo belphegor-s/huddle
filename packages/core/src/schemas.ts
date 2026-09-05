@@ -46,11 +46,27 @@ export const Email = z
   .transform((value) => value.trim().toLowerCase())
   .pipe(z.email());
 
+/**
+ * A picture, either hosted elsewhere or served by this deployment.
+ *
+ * An upload produces an app relative path, which a strict URL check rejects:
+ * avatars were being refused with a validation error nobody surfaced, so the
+ * picture appeared to change and never persisted.
+ */
+export const ImageRef = z
+  .string()
+  .max(2048)
+  .refine(
+    (value) => value.startsWith('/') || /^https?:\/\//.test(value),
+    'Must be a link, or a path on this server',
+  );
+export type ImageRef = z.infer<typeof ImageRef>;
+
 export const User = z.object({
   id: Id,
   email: z.email(),
   displayName: z.string().min(1).max(80),
-  avatarUrl: z.url().nullable(),
+  avatarUrl: ImageRef.nullable(),
   timezone: z.string().max(64).nullable(),
   presence: z.enum(['active', 'away', 'busy', 'invisible']),
   statusEmoji: z.string().nullable(),
@@ -242,7 +258,7 @@ export type UserStatus = z.infer<typeof UserStatus>;
 export const UpdateProfileInput = z.object({
   displayName: z.string().trim().min(1).max(80).optional(),
   timezone: z.string().max(64).nullable().optional(),
-  avatarUrl: z.url().nullable().optional(),
+  avatarUrl: ImageRef.nullable().optional(),
   presence: Presence.optional(),
   statusEmoji: z.string().trim().max(16).nullable().optional(),
   statusText: z.string().trim().max(80).nullable().optional(),
@@ -379,7 +395,7 @@ export type IceServer = z.infer<typeof IceServer>;
 export const MemberProfile = z.object({
   id: Id,
   displayName: z.string(),
-  avatarUrl: z.url().nullable(),
+  avatarUrl: ImageRef.nullable(),
   role: Role,
   presence: Presence,
   statusEmoji: z.string().nullable(),

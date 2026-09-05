@@ -1,5 +1,5 @@
 import type { ChannelSummary } from '@huddle/core';
-import { Button, TextField } from '@huddle/ui';
+import { Button, Checkbox, TextField } from '@huddle/ui';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Dialog } from './dialog';
@@ -75,36 +75,24 @@ export function NewChannelDialog({ workspaceSlug, onClose, onCreate }: NewChanne
           placeholder="What this channel is for"
         />
 
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={isPrivate}
-            onChange={(event) => setPrivate(event.target.checked)}
-            className="size-4"
-          />
-          Private, visible only to people who are added
-        </label>
+        <Checkbox
+          label="Private"
+          hint="Visible only to people who are added"
+          checked={isPrivate}
+          onChange={(event) => setPrivate(event.target.checked)}
+        />
 
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={encrypted}
-            onChange={(event) => setEncrypted(event.target.checked)}
-            className="mt-0.5 size-4"
-          />
-          <span>
-            End to end encrypted
-            {/*
-              Stated rather than hidden. Somebody choosing this is choosing to
-              give up the two things that need the server to read messages, and
-              finding that out afterwards would be worse than reading it now.
-            */}
-            <span className="text-text-muted block text-xs">
-              Only the people in it can read the messages. Search and the assistant will not work
-              here, and it cannot be turned on later.
-            </span>
-          </span>
-        </label>
+        {/*
+          Stated rather than hidden. Somebody choosing this is choosing to give
+          up the two things that need the server to read messages, and finding
+          that out afterwards would be worse than reading it now.
+        */}
+        <Checkbox
+          label="End to end encrypted"
+          hint="Only the people in it can read the messages. Search and the assistant will not work here, and it cannot be turned on later."
+          checked={encrypted}
+          onChange={(event) => setEncrypted(event.target.checked)}
+        />
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>

@@ -136,6 +136,10 @@ test.describe('avatar', () => {
   });
 
   test('a picture is cropped and shrunk before it is ever uploaded', async ({ page }) => {
+    // Slow by nature: a large image is decoded, re-encoded and sent to a real
+    // bucket. The default budget is for tests that only talk to this process.
+    test.setTimeout(120_000);
+
     const slug = unique('avatar');
     await workspaceWithChannel(page, slug);
     await page.goto(`/w/${slug}/you`);
@@ -198,5 +202,17 @@ test.describe('avatar', () => {
     expect(stored.height).toBe(512);
     expect(stored.type).toContain('webp');
     expect(stored.size).toBeLessThan(original.byteLength / 10);
+
+    /*
+     * And it is kept. Choosing a picture is the decision: showing the new one
+     * and quietly waiting for somebody to also press Save left people
+     * believing they had changed it when nothing had been stored.
+     */
+    const chosen = await picture.getAttribute('src');
+    await page.reload();
+
+    const again = page.locator('img[alt=""]').first();
+    await expect(again).toBeVisible({ timeout: 30_000 });
+    expect(await again.getAttribute('src')).toBe(chosen);
   });
 });

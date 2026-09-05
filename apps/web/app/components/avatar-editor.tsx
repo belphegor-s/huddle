@@ -1,4 +1,4 @@
-import { Button, Icon } from '@huddle/ui';
+import { Button, Icon, type IconName } from '@huddle/ui';
 import { useEffect, useRef, useState } from 'react';
 import { Dialog } from './dialog';
 
@@ -9,6 +9,9 @@ const OUTPUT_PX = 512;
 const BOX_PX = 288;
 
 const MAX_ZOOM = 4;
+
+/** One press is a noticeable step without overshooting the picture. */
+const ZOOM_STEP = 0.25;
 
 interface AvatarEditorProps {
   file: File;
@@ -152,27 +155,44 @@ export function AvatarEditor({ file, onCancel, onDone }: AvatarEditorProps) {
         ) : null}
       </div>
 
-      <div className="flex items-center gap-3">
-        <span className="text-text-muted text-xs">Zoom</span>
-        <input
-          type="range"
-          aria-label="Zoom"
-          min={1}
-          max={MAX_ZOOM}
-          step={0.01}
-          value={zoom}
-          onChange={(event) => setZoom(Number(event.target.value))}
-          className="accent-accent min-h-11 flex-1"
+      {/*
+        Buttons rather than a range input. A slider is an operating system
+        widget that ignores the page's own styling, and it is a poor control
+        for a value with four useful positions and no need for precision.
+      */}
+      <div className="flex items-center justify-center gap-2">
+        <Step
+          icon="minus"
+          label="Zoom out"
+          disabled={zoom <= 1}
+          onPress={() => setZoom((was) => Math.max(1, Number((was - ZOOM_STEP).toFixed(2))))}
         />
-        <button
-          type="button"
-          onClick={() => setTurns((was) => (was + 1) % 4)}
-          aria-label="Rotate a quarter turn"
-          title="Rotate"
-          className="border-border hover:bg-surface-hover grid size-11 shrink-0 place-items-center rounded-lg border"
-        >
-          <Icon name="reply" className="size-4" />
-        </button>
+        <span className="text-text-muted w-14 text-center font-mono text-xs tabular-nums">
+          {zoom.toFixed(2)}x
+        </span>
+        <Step
+          icon="plus"
+          label="Zoom in"
+          disabled={zoom >= MAX_ZOOM}
+          onPress={() => setZoom((was) => Math.min(MAX_ZOOM, Number((was + ZOOM_STEP).toFixed(2))))}
+        />
+
+        <span className="bg-border mx-1 h-6 w-px" />
+
+        <Step
+          icon="reply"
+          label="Rotate a quarter turn"
+          onPress={() => setTurns((was) => (was + 1) % 4)}
+        />
+        <Step
+          icon="expand"
+          label="Fit the whole picture"
+          disabled={zoom === 1 && offset.x === 0 && offset.y === 0}
+          onPress={() => {
+            setZoom(1);
+            setOffset({ x: 0, y: 0 });
+          }}
+        />
       </div>
 
       <p className="text-text-muted text-xs">Drag to move. Saved as a {OUTPUT_PX} pixel square.</p>
@@ -273,4 +293,30 @@ function renderSquare(
       0.9,
     );
   });
+}
+
+/** One control in the editing row, so they cannot drift apart. */
+function Step({
+  icon,
+  label,
+  disabled = false,
+  onPress,
+}: {
+  icon: IconName;
+  label: string;
+  disabled?: boolean;
+  onPress(): void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPress}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="border-border bg-surface hover:bg-surface-hover grid size-11 shrink-0 place-items-center rounded-lg border transition-colors disabled:opacity-40"
+    >
+      <Icon name={icon} className="size-4" />
+    </button>
+  );
 }

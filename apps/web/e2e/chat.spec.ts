@@ -148,7 +148,10 @@ test('a private channel is invisible to a member who is not in it', async ({ bro
 
   await ownerPage.getByRole('button', { name: 'New channel' }).click();
   await ownerPage.getByLabel('Name').fill('leadership');
-  await ownerPage.getByLabel(/Private/).check();
+  // Clicked the way a person clicks it. The real input is visually hidden
+  // behind the drawn box, so the label is what receives the press.
+  await ownerPage.getByText('Private', { exact: true }).click();
+  await expect(ownerPage.getByLabel(/Private/)).toBeChecked();
   await ownerPage.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(ownerPage).toHaveURL(/\/c\/leadership$/);
 

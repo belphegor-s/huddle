@@ -68,6 +68,30 @@ test.describe('voice notes', () => {
     await expect(player).toBeVisible({ timeout: 20_000 });
     expect(await player.locator('span').count()).toBeGreaterThan(16);
 
+    /*
+     * The highlight has to move while it plays. It used to sit at zero for
+     * the whole note, because a file from MediaRecorder carries no duration
+     * in its header and every position worked out from the element read NaN.
+     */
+    await expect(player).toHaveAttribute('aria-valuenow', '0');
+    await page.getByRole('button', { name: 'Play voice note' }).click();
+
+    // Bounded on both sides. Dividing by a length the browser has not worked
+    // out yet gives Infinity, and an unbounded assertion passes on that,
+    // which is how a broken bar can look tested.
+    await expect
+      .poll(async () => Number(await player.getAttribute('aria-valuenow')), { timeout: 20_000 })
+      .toBeGreaterThan(5);
+
+    const position = Number(await player.getAttribute('aria-valuenow'));
+    expect(Number.isFinite(position)).toBe(true);
+    expect(position).toBeLessThanOrEqual(100);
+
+    const bars = player.locator('span.bg-accent');
+    await expect.poll(async () => bars.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+
+    await page.getByRole('button', { name: 'Pause voice note' }).click();
+
     // Scrubbing has to work without a mouse.
     await player.focus();
     await player.press('End');

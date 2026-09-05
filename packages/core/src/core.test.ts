@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isUlid, ulid, ulidTime } from './ids.js';
-import { Email, InternalPath, RequestMagicLinkInput } from './schemas.js';
+import { Email, ImageRef, InternalPath, RequestMagicLinkInput } from './schemas.js';
 import { hashToken, randomToken } from './tokens.js';
 import { ClientEvent, decodeClientEvent, encodeEvent } from './wire.js';
 
@@ -103,5 +103,23 @@ describe('tokens', () => {
     expect(first).toBe(second);
     expect(first).toMatch(/^[0-9a-f]{64}$/);
     expect(await hashToken('correct horse battery stapld')).not.toBe(first);
+  });
+});
+
+describe('image references', () => {
+  it('accepts a picture served by this deployment', () => {
+    // What an upload produces. A strict URL check rejects it, which is why
+    // avatars were refused with a validation error nobody ever saw.
+    expect(ImageRef.safeParse('/api/files/01HZY8').success).toBe(true);
+  });
+
+  it('accepts a picture hosted elsewhere', () => {
+    expect(ImageRef.safeParse('https://example.com/face.png').success).toBe(true);
+  });
+
+  it('refuses anything that is not a location', () => {
+    expect(ImageRef.safeParse('javascript:alert(1)').success).toBe(false);
+    expect(ImageRef.safeParse('face.png').success).toBe(false);
+    expect(ImageRef.safeParse('').success).toBe(false);
   });
 });

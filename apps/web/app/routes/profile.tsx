@@ -1,4 +1,4 @@
-import { Avatar, Button, Icon, TextField } from '@huddle/ui';
+import { Avatar, Button, Icon, Spinner, TextField } from '@huddle/ui';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { AvatarEditor } from '../components/avatar-editor';
@@ -21,6 +21,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [picked, setPicked] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
   const clean = displayName.trim();
@@ -44,20 +45,42 @@ export default function Profile() {
   }
 
   /**
-   * Cropped before it is sent. The original never leaves the browser, so a
-   * four megabyte photo does not become a four megabyte avatar drawn at
-   * thirty two pixels.
+   * Cropped before it is sent, then kept straight away.
+   *
+   * Choosing a picture is the decision. Showing the new one and quietly
+   * waiting for somebody to also press Save left people believing they had
+   * changed it when nothing had been stored.
    */
   async function uploadCropped(file: File) {
     setPicked(null);
     setProblem(null);
+    setUploading(true);
 
     try {
       const attachment = await upload(workspace.id, file);
+      await api.updateProfile({ avatarUrl: attachment.url });
       setAvatarUrl(attachment.url);
-      setSaved(false);
+      refresh();
     } catch (error) {
       setProblem(UPLOAD_MESSAGES[error instanceof UploadError ? error.kind : 'refused']);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  /** Removing one is a decision too, and is kept the same way. */
+  async function removeAvatar() {
+    setUploading(true);
+    setProblem(null);
+
+    try {
+      await api.updateProfile({ avatarUrl: null });
+      setAvatarUrl(null);
+      refresh();
+    } catch {
+      setProblem('That did not save. Try again in a moment.');
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -84,7 +107,18 @@ export default function Profile() {
       </header>
 
       <div className="flex items-center gap-4">
-        <Avatar name={clean || me.user.displayName} url={avatarUrl} size="lg" />
+        <span className="relative">
+          <Avatar name={clean || me.user.displayName} url={avatarUrl} size="lg" />
+          {uploading ? (
+            <span
+              aria-label="Saving your picture"
+              role="status"
+              className="absolute inset-0 grid place-items-center rounded-lg bg-black/45"
+            >
+              <Spinner />
+            </span>
+          ) : null}
+        </span>
         <div className="flex flex-col gap-1">
           <label className="border-border hover:bg-surface-hover inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm">
             <Icon name="image" className="size-4" />
@@ -109,11 +143,9 @@ export default function Profile() {
           {avatarUrl ? (
             <button
               type="button"
-              onClick={() => {
-                setAvatarUrl(null);
-                setSaved(false);
-              }}
-              className="text-text-muted hover:text-text-primary self-start text-xs"
+              disabled={uploading}
+              onClick={() => void removeAvatar()}
+              className="text-text-muted hover:text-text-primary self-start text-xs disabled:opacity-50"
             >
               Remove it
             </button>
@@ -137,6 +169,7 @@ export default function Profile() {
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={saving || !changed || clean === ''}>
+          {saving ? <Spinner /> : null}
           {saving ? 'Saving' : 'Save'}
         </Button>
         {saved && !changed ? (
