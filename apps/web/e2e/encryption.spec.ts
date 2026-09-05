@@ -94,17 +94,37 @@ test('a conversation is readable by both people and by nobody else', async ({ br
    * room full of messages they could not read.
    */
   await guestPage.reload();
-  await guestPage.getByRole('link', { name: /Ada|ada/ }).first().click();
+  await guestPage
+    .getByRole('link', { name: /Ada|ada/ })
+    .first()
+    .click();
 
-  await expect(
-    guestPage.getByRole('list', { name: 'Messages' }).getByText(secret),
-  ).toBeVisible({ timeout: 30_000 });
+  await expect(guestPage.getByRole('list', { name: 'Messages' }).getByText(secret)).toBeVisible({
+    timeout: 30_000,
+  });
 
   /*
    * The point of the whole exercise. The API is asked, with a valid session
    * belonging to somebody in the conversation, for the very messages it just
    * served. It hands over the message and cannot produce the words in it.
    */
+  /*
+   * Read as a sentence, not as the document that carries it. What is sealed is
+   * the body, and opening it used to wrap the serialised document in a second
+   * one, so every message in an encrypted channel drew as a line of JSON.
+   */
+  for (const page of [ownerPage, guestPage]) {
+    const drawn =
+      (await page
+        .getByRole('list', { name: 'Messages' })
+        .getByRole('listitem')
+        .last()
+        .textContent()) ?? '';
+
+    expect(drawn).toContain(secret);
+    expect(drawn, 'the message drew as raw document JSON').not.toContain('"type"');
+  }
+
   const channelId = /\/c\/([^/?#]+)/.exec(guestPage.url())?.[1] ?? '';
   expect(channelId).not.toBe('');
 
@@ -137,9 +157,9 @@ test('a conversation is readable by both people and by nobody else', async ({ br
 
   await expect(editor).toBeHidden();
   await expect(ownerMessages.getByText(corrected)).toBeVisible();
-  await expect(
-    guestPage.getByRole('list', { name: 'Messages' }).getByText(corrected),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(guestPage.getByRole('list', { name: 'Messages' }).getByText(corrected)).toBeVisible({
+    timeout: 15_000,
+  });
 
   const afterEdit = await guestPage.evaluate(async (id: string) => {
     const response = await fetch(`/api/channels/${id}/messages`, {

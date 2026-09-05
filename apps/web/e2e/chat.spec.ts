@@ -112,6 +112,10 @@ test('a second person joins by invite and both see each other live', async ({ br
   await composer.fill('live over the socket');
   await composer.press('Enter');
 
+  // Sent at all, before asking whether it travelled. Without this a send that
+  // failed on the way out reads as a socket that did not deliver.
+  await expect(messages(ownerPage).getByText('live over the socket')).toBeVisible();
+
   await expect(messages(guestPage).getByText('live over the socket')).toBeVisible({
     timeout: 10_000,
   });

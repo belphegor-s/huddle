@@ -71,17 +71,19 @@ export function Composer({
     const element = input.current;
     if (!element) return;
 
+    const value = element.value;
     const from = element.selectionStart;
     const to = element.selectionEnd;
-    const selected = text.slice(from, to);
+    const selected = value.slice(from, to);
+    const next = `${value.slice(0, from)}${before}${selected}${after}${value.slice(to)}`;
 
-    setText(`${text.slice(0, from)}${before}${selected}${after}${text.slice(to)}`);
-
-    requestAnimationFrame(() => {
-      element.focus();
-      const caret = from + before.length + selected.length;
-      element.setSelectionRange(caret, caret);
-    });
+    // Written to the field and to state in the same tick, so a keystroke that
+    // lands before the next render cannot fall in at the wrong offset.
+    element.value = next;
+    element.focus();
+    const caret = from + before.length + selected.length;
+    element.setSelectionRange(caret, caret);
+    setText(next);
   }
 
   async function send() {
@@ -150,11 +152,14 @@ export function Composer({
           onPick={(member) => {
             const chosen = mentions.choose(text, member);
             if (!chosen) return;
+
+            const element = input.current;
+            if (element) {
+              element.value = chosen.value;
+              element.focus();
+              element.setSelectionRange(chosen.caret, chosen.caret);
+            }
             setText(chosen.value);
-            requestAnimationFrame(() => {
-              input.current?.focus();
-              input.current?.setSelectionRange(chosen.caret, chosen.caret);
-            });
           }}
         />
       ) : null}
@@ -212,13 +217,14 @@ export function Composer({
               }
 
               if (event.key === 'Enter' || event.key === 'Tab') {
-                const chosen = mentions.choose(text);
+                const chosen = mentions.choose(event.currentTarget.value);
                 if (chosen) {
                   event.preventDefault();
+
+                  const element = event.currentTarget;
+                  element.value = chosen.value;
+                  element.setSelectionRange(chosen.caret, chosen.caret);
                   setText(chosen.value);
-                  requestAnimationFrame(() => {
-                    input.current?.setSelectionRange(chosen.caret, chosen.caret);
-                  });
                   return;
                 }
               }
@@ -233,21 +239,34 @@ export function Composer({
             if (event.key === 'Enter') {
               const element = event.currentTarget;
               const caret = element.selectionStart;
+              /*
+               * Read from the field, not from state. A keystroke and the
+               * render that follows it are not the same tick, and typing fast
+               * enough to get ahead of React left this deciding what Enter
+               * meant from a line that was one or two characters behind.
+               */
+              const value = element.value;
 
               // Inside an open fence Enter is always a newline. Someone
               // halfway through pasting a stack trace has an unterminated
               // block by definition, and sending on the first line would cut
               // the message in half.
-              const newline = event.shiftKey || isTouch() || insideFence(text, caret);
+              const newline = event.shiftKey || isTouch() || insideFence(value, caret);
 
               if (newline && caret === element.selectionEnd) {
-                const carried = continueList(text, caret);
+                const carried = continueList(value, caret);
                 if (carried) {
                   event.preventDefault();
+                  /*
+                   * Written to the field first and to state after, both in
+                   * this tick. Setting state and putting the caret back on a
+                   * later frame left a window where the next keystrokes
+                   * landed at the wrong offset, and typing straight through a
+                   * new bullet dropped characters.
+                   */
+                  element.value = carried.value;
+                  element.setSelectionRange(carried.caret, carried.caret);
                   setText(carried.value);
-                  requestAnimationFrame(() => {
-                    element.setSelectionRange(carried.caret, carried.caret);
-                  });
                   return;
                 }
               }

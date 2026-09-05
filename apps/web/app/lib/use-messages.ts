@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import { decryptBody, encryptBody, holdsKey, syncChannelKeys } from './keyring';
 import type { Realtime } from './realtime';
-import { toDocument, toPlain } from './rich-text';
+import { toDocument, toLines, toPlain } from './rich-text';
 
 export interface ChannelStream {
   messages: Message[];
@@ -94,7 +94,20 @@ export function useMessages(
       return next;
     });
 
-    return { ...incoming, body: toDocument(plaintext), text: plaintext };
+    /*
+     * What was sealed is the document itself, so it goes back as it is.
+     * Wrapping it a second time put the serialised document inside a
+     * paragraph, and the message drew as a line of JSON.
+     */
+    const lines = toLines(plaintext);
+    const isDocument = lines.length > 0;
+    const source = document ? lines.join('\n') : plaintext;
+
+    return {
+      ...incoming,
+      body: isDocument ? plaintext : toDocument(plaintext),
+      text: toPlain(source),
+    };
   }, []);
 
   useEffect(() => {
@@ -254,6 +267,16 @@ export function useMessages(
     async (input) => {
       const id = ulid();
       const plain = toPlain(input.text);
+
+      /*
+       * A reload empties the keyring in memory, and it is filled again from
+       * the sealed copies on the way into the channel. Somebody who types
+       * straight after a refresh can get there first, and the send used to
+       * fail with nothing to show for it.
+       */
+      if (encrypted && !holdsKey(channelId, keyEpoch)) {
+        await syncChannelKeys(channelId, keyEpoch).catch(() => undefined);
+      }
 
       /*
        * In an encrypted channel the body leaves as ciphertext and no plain

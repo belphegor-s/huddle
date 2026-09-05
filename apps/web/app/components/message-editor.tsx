@@ -63,18 +63,20 @@ export function MessageEditor({ initial, onSave, onCancel }: MessageEditorProps)
 
           const element = event.currentTarget;
           const caret = element.selectionStart;
+          // From the field rather than from state, for the reason in Composer.
+          const value = element.value;
           // Enter saves, except where it has to make a line: a message being
           // edited is as likely to hold a code block as one being written.
-          const newline = event.shiftKey || insideFence(text, caret);
+          const newline = event.shiftKey || insideFence(value, caret);
 
           if (newline && caret === element.selectionEnd) {
-            const carried = continueList(text, caret);
+            const carried = continueList(value, caret);
             if (carried) {
               event.preventDefault();
+              // Field first, state after, both in this tick. See Composer.
+              element.value = carried.value;
+              element.setSelectionRange(carried.caret, carried.caret);
               setText(carried.value);
-              requestAnimationFrame(() => {
-                element.setSelectionRange(carried.caret, carried.caret);
-              });
               return;
             }
           }
