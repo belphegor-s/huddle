@@ -70,6 +70,15 @@ export interface CallView {
   screen: MediaStream | null;
   devices: Devices;
   peers: PeerView[];
+  /**
+   * Whether this deployment has a relay to fall back on.
+   *
+   * Two browsers that can reach each other need none. Where neither can be
+   * reached from outside, which is most home and office networks, there is no
+   * way through without one, and a call that simply says "Connecting" for ever
+   * tells nobody why.
+   */
+  relay: boolean;
 }
 
 const NO_DEVICES: Devices = {
@@ -93,6 +102,7 @@ const IDLE: CallView = {
   devices: NO_DEVICES,
   screen: null,
   peers: [],
+  relay: false,
 };
 
 export class CallSession {
@@ -174,6 +184,7 @@ export class CallSession {
     // Fetched per call rather than at page load: a minted relay credential
     // expires, so one taken at sign in would already be stale.
     this.iceServers = await api.iceServers().catch(() => []);
+    this.update({ ...this.view, relay: this.iceServers.length > 0 });
 
     this.monitor = new SpeakingMonitor((speaking) => {
       this.speakingIds = speaking;

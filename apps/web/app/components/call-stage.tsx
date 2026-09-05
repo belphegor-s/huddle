@@ -3,6 +3,7 @@ import { cx, Icon, type IconName } from '@huddle/ui';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import type { CallSession, CallView, PeerView } from '../lib/call';
+import { callStatus } from '../lib/call-status';
 import { CallSettings, type CallLayout } from './call-settings';
 import { CallTile } from './call-tile';
 
@@ -148,6 +149,7 @@ export function CallStage({
           muted={peer.muted}
           speaking={peer.speaking}
           connecting={peer.link === 'connecting'}
+          failed={peer.link === 'failed'}
           pinned={focus === peer.sessionId}
           onPin={() => setPinned(focus === peer.sessionId ? null : peer.sessionId)}
         />
@@ -156,6 +158,7 @@ export function CallStage({
   ];
 
   const docked = placement === 'docked' && !expanded;
+  const unreachable = call.peers.some((peer) => peer.link === 'failed');
 
   return (
     <section
@@ -247,10 +250,13 @@ export function CallStage({
         )}
       >
         {docked ? null : (
-          <p className="min-w-0 flex-1 truncate text-xs text-white/60">
-            {call.status === 'joining'
-              ? 'Joining'
-              : `${String(tiles.length)} ${tiles.length === 1 ? 'person' : 'people'}`}
+          <p
+            className={cx(
+              'min-w-0 flex-1 text-xs',
+              unreachable ? 'text-caution' : 'truncate text-white/60',
+            )}
+          >
+            {callStatus(call, tiles.length)}
           </p>
         )}
 

@@ -78,11 +78,20 @@ export class CallPeer {
     this.connection = new RTCPeerConnection({ iceServers: options.iceServers });
 
     this.connection.onnegotiationneeded = () => {
-      // Both ends add their tracks at the same moment, so both would offer and
-      // every call would open with a collision for the politeness rule to
-      // unpick. One end owns the first offer instead. From then on either may
-      // renegotiate, which is what starting a screen share does, and the rule
-      // is there for exactly that.
+      /*
+       * Both ends add their tracks at the same moment, so both would offer and
+       * every call would open with a collision for the politeness rule to
+       * unpick. One end owns the first offer instead, and the answer to it
+       * carries this end's tracks anyway, so there is nothing here to keep:
+       * queueing it made the polite end offer again the instant it answered,
+       * which is a renegotiation in the middle of connecting.
+       *
+       * After that first exchange either end may renegotiate, which is what
+       * turning a camera on does, and one that cannot run yet is held rather
+       * than dropped.
+       */
+      if (options.polite && !this.negotiated) return;
+
       this.pending = true;
       this.flush();
     };
@@ -198,21 +207,30 @@ export class CallPeer {
   }
 
   /**
-   * Only the impolite end restarts. Both doing it at once is a collision that
-   * the politeness rule then has to unpick, which is slower than one of them
-   * simply owning the retry.
+   * A connection that never reports a failure and never connects is the hard
+   * case, and it is the common one where there is no relay: the candidates
+   * simply have nowhere to meet. Both ends watch for it, only one retries,
+   * and when the retries are spent it is called what it is rather than left
+   * saying "Connecting" for the rest of the call.
    */
   private armWatchdog(): void {
-    if (this.closed || this.options.polite || this.stalled !== null) return;
-    if (this.restarts >= RESTART_ATTEMPTS) return;
+    if (this.closed || this.stalled !== null) return;
 
     this.stalled = setTimeout(() => {
       this.stalled = null;
       if (this.connection.connectionState === 'connected') return;
 
-      this.restarts += 1;
-      this.restart();
-      this.armWatchdog();
+      if (this.restarts < RESTART_ATTEMPTS) {
+        this.restarts += 1;
+        // Both ends restarting at once is a collision the politeness rule then
+        // has to unpick, which is slower than one of them owning the retry.
+        if (!this.options.polite) this.restart();
+        this.armWatchdog();
+        return;
+      }
+
+      this.link = 'failed';
+      this.options.onChange();
     }, STALLED_MS);
   }
 
@@ -230,7 +248,6 @@ export class CallPeer {
   /** Runs a held renegotiation, if this is a moment one can run in. */
   private flush(): void {
     if (!this.pending || this.closed) return;
-    if (this.options.polite && !this.negotiated) return;
     if (this.makingOffer || this.connection.signalingState !== 'stable') return;
 
     this.pending = false;

@@ -14,6 +14,8 @@ interface CallTileProps {
   /** A shared screen carries no voice, so it needs no speaker of its own. */
   silent?: boolean;
   connecting?: boolean;
+  /** Tried and could not. Said plainly rather than left as "Connecting". */
+  failed?: boolean;
   /** A shared screen is letterboxed. A face fills the tile. */
   contain?: boolean;
   pinned?: boolean;
@@ -31,6 +33,7 @@ export function CallTile({
   self = false,
   silent = false,
   connecting = false,
+  failed = false,
   contain = false,
   pinned = false,
   onPin,
@@ -107,9 +110,9 @@ export function CallTile({
         </button>
       ) : null}
 
-      {connecting ? (
-        <span className="absolute inset-0 grid place-items-center bg-black/50 text-xs text-white/80">
-          Connecting
+      {failed || connecting ? (
+        <span className="absolute inset-0 grid place-items-center bg-black/50 px-2 text-center text-xs text-white/80">
+          {failed ? 'Could not connect' : 'Connecting'}
         </span>
       ) : null}
 
