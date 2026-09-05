@@ -84,7 +84,7 @@ export function Sidebar({
             collapsed && 'md:hidden',
           )}
         >
-          <Icon name="chevronLeft" className="size-4" />
+          <Icon name="arrows" className="size-4" />
         </button>
       </header>
 
@@ -97,7 +97,7 @@ export function Sidebar({
           title="Widen the sidebar"
           className="text-text-muted hover:text-text-primary hover:bg-surface-hover mx-auto hidden size-9 place-items-center rounded-lg md:grid"
         >
-          <Icon name="chevronLeft" className="size-4 rotate-180" />
+          <Icon name="arrows" className="size-4" />
         </button>
       ) : null}
 

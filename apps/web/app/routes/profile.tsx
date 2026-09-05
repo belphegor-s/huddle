@@ -126,14 +126,12 @@ export default function Profile() {
         </span>
 
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div>
-            <p className="text-sm font-medium">Picture</p>
+          <p className="text-sm font-medium">Picture</p>
+          {features.files ? null : (
             <p className="text-text-muted text-xs">
-              {features.files
-                ? 'Cropped here and saved as a small square. The original never leaves this device.'
-                : 'Pictures need object storage, which this instance has not configured.'}
+              Pictures need object storage, which this instance has not configured.
             </p>
-          </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             <label
