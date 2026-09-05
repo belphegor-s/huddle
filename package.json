@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:dashes": "node scripts/check-no-em-dash.mjs",
+    "check:relay": "node scripts/check-relay.mjs",
     "db:generate": "pnpm --filter @huddle/db generate"
   },
   "devDependencies": {

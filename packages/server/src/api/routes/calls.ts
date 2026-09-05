@@ -27,6 +27,18 @@ export function iceServers(app: AppContext, userId: string): IceServer[] {
   const { urls, secret, username, password, ttlSeconds } = app.config.turn;
   if (urls.length === 0) return [];
 
+  /*
+   * Split by scheme. A STUN server only tells a browser its own public
+   * address, so it takes no credentials, and handing it a set that belongs to
+   * the relay is at best ignored and at worst refused. Both usually live on
+   * the same coturn, which is why they arrive in one list.
+   */
+  const stun = urls.filter((url) => url.startsWith('stun:'));
+  const relay = urls.filter((url) => !url.startsWith('stun:'));
+
+  const servers: IceServer[] = stun.length === 0 ? [] : [{ urls: stun }];
+  if (relay.length === 0) return servers;
+
   if (secret !== '') {
     // The convention coturn implements for `use-auth-secret`: the username is
     // the expiry, and the password is its HMAC. Including the user makes a
@@ -35,15 +47,16 @@ export function iceServers(app: AppContext, userId: string): IceServer[] {
     const name = `${expiry}:${userId}`;
 
     return [
+      ...servers,
       {
-        urls,
+        urls: relay,
         username: name,
         credential: createHmac('sha1', secret).update(name).digest('base64'),
       },
     ];
   }
 
-  if (username !== '') return [{ urls, username, credential: password }];
+  if (username !== '') return [...servers, { urls: relay, username, credential: password }];
 
-  return [{ urls }];
+  return [...servers, { urls: relay }];
 }

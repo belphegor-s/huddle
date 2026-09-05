@@ -301,6 +301,39 @@ describe('ice servers', () => {
     expect(server?.credential).toBeTruthy();
   });
 
+  it('keeps a stun server out of the credentialled entry', () => {
+    /*
+     * The two usually live on the same coturn and arrive in one list. A STUN
+     * server only tells a browser its own address and takes no credentials,
+     * and handing it the relay's is at best ignored.
+     */
+    app.ctx.config.turn = {
+      urls: ['stun:relay.example:3478', 'turn:relay.example:3478'],
+      secret: 'shh',
+      username: '',
+      password: '',
+      ttlSeconds: 600,
+    };
+
+    const servers = iceServers(app.ctx, 'user');
+
+    expect(servers[0]).toEqual({ urls: ['stun:relay.example:3478'] });
+    expect(servers[1]?.urls).toEqual(['turn:relay.example:3478']);
+    expect(servers[1]?.credential).toBeTruthy();
+  });
+
+  it('offers a stun server on its own where that is all there is', () => {
+    app.ctx.config.turn = {
+      urls: ['stun:relay.example:3478'],
+      secret: 'shh',
+      username: '',
+      password: '',
+      ttlSeconds: 600,
+    };
+
+    expect(iceServers(app.ctx, 'user')).toEqual([{ urls: ['stun:relay.example:3478'] }]);
+  });
+
   it('passes a fixed credential through untouched', () => {
     app.ctx.config.turn = {
       urls: ['turn:relay.example:3478'],

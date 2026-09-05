@@ -136,9 +136,40 @@ their own is a strict NAT, where neither end is reachable from outside. For
 that, point huddle at a relay of your own:
 
 ```
-TURN_URLS=turn:relay.example.com:3478
+TURN_URLS=stun:relay.example.com:3478,turn:relay.example.com:3478
 TURN_SECRET=...
 ```
+
+List both. The STUN half is what lets two browsers find each other's public
+address and connect directly, which is most calls and costs the relay nothing.
+The TURN half carries only the ones that cannot, which is where the bandwidth
+goes. coturn serves both on the same port.
+
+A relay on a small box is enough. Audio is about 50kbps each way and video
+around 1Mbps, and only relayed calls touch it at all:
+
+```
+docker run -d --name coturn --network host coturn/coturn   -n --realm=huddle.example.com   --use-auth-secret --static-auth-secret=THE_SAME_SECRET   --min-port=49160 --max-port=49200 --no-cli
+```
+
+Open 3478 on TCP and UDP, and 49160 to 49200 on UDP. Both places, if the host
+has a cloud firewall as well as its own:
+
+```
+ufw allow 3478
+ufw allow 49160:49200/udp
+```
+
+Then ask the relay the two questions a browser will ask it, from a machine that
+is not the one hosting it:
+
+```
+TURN_URLS=... TURN_SECRET=... pnpm check:relay
+```
+
+It sends a real STUN binding request and a real signed TURN allocate, and says
+which of the two failed. A closed port and a refused credential look identical
+from inside a call, and the browser will not tell you which one it was.
 
 With `TURN_SECRET` set, huddle mints each caller a credential that expires
 within the hour, which is what coturn's `use-auth-secret` mode expects.
