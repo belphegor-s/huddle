@@ -16,3 +16,22 @@
  * @huddle/ui silently generates no CSS and the component renders unstyled.
  */
 @source '../../../packages/ui/src';
+
+/*
+ * Sixteen pixels, or iOS zooms the whole page the moment a field takes focus
+ * and leaves the reader panned somewhere they never asked to be. The app's own
+ * base size is fifteen, so every input tripped it.
+ *
+ * Deliberately unlayered. A rule in @layer base loses to the Tailwind size
+ * utilities the fields already carry, which is exactly what happened the first
+ * time this was written. Unlayered CSS beats every layer, and this is a
+ * platform threshold rather than a preference, which is why it is a hard
+ * number and not a token.
+ */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}

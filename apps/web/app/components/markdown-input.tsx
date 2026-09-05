@@ -34,8 +34,19 @@ import { highlight, type Emphasis } from '../lib/highlight';
  * 0.5625rem above and below, is 2.625rem, and the border either side makes
  * 2.75rem. Both layers share the numbers, so they still wrap identically.
  */
+/*
+ * Both layers carry the same size, including the sixteen pixel floor iOS
+ * needs. Raising it on the textarea alone, which a rule aimed at inputs would
+ * do, would leave the paint behind it a different size and every character
+ * out of place.
+ *
+ * The leading is chosen so the row is the same height either way: fifteen at
+ * 1.6 and sixteen at 1.5 both come to 1.5rem, which with the padding and the
+ * border is the 2.75rem of the buttons beside it.
+ */
 const SHARED =
-  'block w-full px-3 py-[0.5625rem] text-base leading-[1.6] font-ui whitespace-pre-wrap break-words';
+  'block w-full px-3 py-[0.5625rem] font-ui whitespace-pre-wrap break-words ' +
+  'text-base leading-[1.6] [@media(pointer:coarse)]:text-[16px] [@media(pointer:coarse)]:leading-[1.5]';
 
 const STYLES: Record<Emphasis, string> = {
   plain: '',
