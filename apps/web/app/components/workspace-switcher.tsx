@@ -39,8 +39,10 @@ export function WorkspaceSwitcher({
           title={current.name}
           className={cx(
             'hover:bg-surface-hover flex min-h-11 w-full items-center gap-2 rounded-lg text-left',
-            // Room at the end for the collapse control that sits over it.
-            compact ? 'md:justify-center md:px-0' : 'pr-11 pl-2',
+            // Room at the end for the collapse control that sits over it,
+            // which only exists from md up. On a phone that padding left the
+            // chevron floating a button's width in from the edge.
+            compact ? 'px-2 md:justify-center md:px-0' : 'px-2 md:pr-11',
           )}
         >
           <Avatar name={current.name} size="md" />
@@ -51,7 +53,7 @@ export function WorkspaceSwitcher({
             name="chevronDown"
             // Hidden wherever the collapse control sits over this row, which
             // is every width that has one.
-            className={cx('text-text-muted size-4 shrink-0', 'md:hidden')}
+            className="text-text-muted size-4 shrink-0 md:hidden"
           />
         </MenuButton>
       }

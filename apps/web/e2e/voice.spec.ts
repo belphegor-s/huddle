@@ -114,6 +114,35 @@ test.describe('voice notes', () => {
       // Otherwise a voice at double speed is a chipmunk.
       expect(applied.pitch).toBe(true);
     }
+
+    /*
+     * The same note on a phone. Forty eight bars with a two pixel floor and
+     * three pixels between them is wider than a phone before the play button
+     * and the clock are counted, so the player used to hang off the side of
+     * the screen. It draws as many bars as the row is wide enough to hold.
+     */
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(400);
+
+    const drawn = await player.locator('span').count();
+    expect(drawn).toBeGreaterThan(12);
+
+    const overflowing = await page.evaluate(() => {
+      const limit = document.documentElement.clientWidth;
+      return [...document.querySelectorAll<HTMLElement>('body *')]
+        .filter((element) => {
+          const box = element.getBoundingClientRect();
+          if (box.width === 0 || box.height === 0) return false;
+          return box.right > limit + 1 || box.left < -1;
+        })
+        .map(
+          (element) =>
+            `${element.tagName.toLowerCase()}.${element.className.toString().slice(0, 50)}`,
+        )
+        .slice(0, 5);
+    });
+
+    expect(overflowing, 'the voice note is wider than the phone').toEqual([]);
   });
 });
 

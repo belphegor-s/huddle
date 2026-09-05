@@ -58,7 +58,7 @@ export function useMessages(
    * dependency would rebuild the callback on every arriving message and
    * re-render every row in the channel.
    */
-  const known = useRef<Message[]>([]);
+  const seen = useRef<Message[]>([]);
   const [locked, setLocked] = useState<ReadonlySet<string>>(() => new Set());
   const [hasKey, setHasKey] = useState(() => !encrypted || holdsKey(channelId, keyEpoch));
   const [loading, setLoading] = useState(true);
@@ -98,7 +98,7 @@ export function useMessages(
   }, []);
 
   useEffect(() => {
-    known.current = messages;
+    seen.current = messages;
   }, [messages]);
 
   const upsert = useCallback((incoming: Message) => {
@@ -326,7 +326,7 @@ export function useMessages(
        * message to a newer epoch, so encrypting it there would leave it
        * unreadable to everybody, the author included.
        */
-      const epoch = known.current.find((message) => message.id === messageId)?.epoch ?? null;
+      const epoch = seen.current.find((message) => message.id === messageId)?.epoch ?? null;
 
       const body =
         epoch === null

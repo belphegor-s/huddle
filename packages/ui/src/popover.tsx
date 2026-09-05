@@ -160,7 +160,8 @@ export function PopoverButton({ children, ...props }: PopoverButtonProps) {
     <button
       type="button"
       ref={popover.setTrigger}
-      onClick={popover.toggle}
+      // The browser toggles it where it can, for the reason in MenuButton.
+      {...(POPOVER_SUPPORTED ? { popoverTarget: popover.id } : { onClick: popover.toggle })}
       aria-haspopup="dialog"
       aria-expanded={popover.open}
       aria-controls={popover.id}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { barIsPlayed, fractionPlayed, lengthInSeconds } from './playback';
+import { barIsPlayed, barsThatFit, fractionPlayed, lengthInSeconds } from './playback';
 
 describe('lengthInSeconds', () => {
   it('believes the element when it knows', () => {
@@ -68,5 +68,36 @@ describe('barIsPlayed', () => {
 
   it('lights nothing when there are no bars', () => {
     expect(barIsPlayed(0, 0, 1)).toBe(false);
+  });
+});
+
+describe('barsThatFit', () => {
+  it('fills a wide bubble with every bar there is', () => {
+    expect(barsThatFit(600)).toBe(48);
+  });
+
+  it('thins out rather than overflowing a narrow one', () => {
+    // 40 bars at two pixels with three between them is 197.
+    expect(barsThatFit(200)).toBe(40);
+    expect(barsThatFit(120)).toBe(24);
+  });
+
+  it('never draws so few that it stops reading as a voice', () => {
+    expect(barsThatFit(10)).toBe(12);
+  });
+
+  it('has an answer before anything has been measured', () => {
+    expect(barsThatFit(0)).toBe(12);
+    expect(barsThatFit(Number.NaN)).toBe(12);
+  });
+
+  it('draws bars that actually fit', () => {
+    for (const width of [80, 137, 200, 260, 320, 480]) {
+      const bars = barsThatFit(width);
+      const needed = bars * 2 + (bars - 1) * 3;
+      // The floor of twelve is allowed to overflow a track nothing could fill.
+      if (bars > 12)
+        expect(needed, `${String(bars)} bars in ${String(width)}px`).toBeLessThanOrEqual(width);
+    }
   });
 });

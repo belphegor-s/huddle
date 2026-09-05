@@ -2,7 +2,7 @@ import { resampleWaveform, type Attachment } from '@huddle/core';
 import { cx, Icon, IconSolid } from '@huddle/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatDuration } from '../lib/format';
-import { barIsPlayed, fractionPlayed, lengthInSeconds } from '../lib/playback';
+import { barIsPlayed, barsThatFit, fractionPlayed, lengthInSeconds } from '../lib/playback';
 
 /**
  * Silence still needs a line, or the bar looks like a rendering failure. Low
@@ -12,13 +12,6 @@ const FLOOR_PERCENT = 8;
 
 /** Cycled rather than picked from a menu: one tap is the whole interaction. */
 const SPEEDS = [1, 1.5, 2, 0.5] as const;
-
-/**
- * Fewer bars than are stored. A hundred and twenty eight of them in a chat
- * bubble comes out a pixel wide each, which reads as interference rather than
- * a voice. The extra detail stays on the attachment for anywhere wider.
- */
-const DRAWN_BARS = 48;
 
 /** Arrow keys move by this much of the note, which is how every player behaves. */
 const STEP_FRACTION = 0.05;
@@ -39,6 +32,15 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [speed, setSpeed] = useState<number>(1);
+  /*
+   * Fewer bars than are stored, and as many as the track is wide enough to
+   * hold. A hundred and twenty eight of them in a chat bubble comes out a
+   * pixel wide each, which reads as interference rather than a voice, and a
+   * fixed count wide enough to look right on a desktop pushed the whole
+   * player off the side of a phone.
+   */
+  const track = useRef<HTMLDivElement>(null);
+  const [bars, setBars] = useState(() => barsThatFit(0));
 
   const total = attachment.durationMs ?? 0;
 
@@ -49,9 +51,23 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
     [total],
   );
   const peaks = useMemo(
-    () => resampleWaveform(attachment.peaks ?? [], DRAWN_BARS),
-    [attachment.peaks],
+    () => resampleWaveform(attachment.peaks ?? [], bars),
+    [attachment.peaks, bars],
   );
+
+  // The track takes whatever the row leaves it, so measuring it cannot feed
+  // back into its own width however many bars are drawn.
+  useEffect(() => {
+    const element = track.current;
+    if (!element) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      setBars(barsThatFit(entry?.contentRect.width ?? 0));
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const element = audio.current;
@@ -149,7 +165,7 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
   }
 
   return (
-    <div className="border-border bg-surface-raised flex max-w-md items-center gap-3 rounded-xl border px-3 py-2">
+    <div className="border-border bg-surface-raised flex w-full max-w-md items-center gap-2 rounded-xl border px-3 py-2 sm:gap-3">
       <audio ref={audio} src={attachment.url} preload="metadata" />
 
       <button
@@ -173,6 +189,7 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
         middle of a two minute note unreachable without one.
       */}
       <div
+        ref={track}
         role="slider"
         tabIndex={0}
         aria-label="Seek within the voice note"
@@ -191,7 +208,9 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
 
           event.preventDefault();
         }}
-        className="flex h-9 flex-1 cursor-pointer touch-none items-center gap-[3px]"
+        // min-w-0, or the bars set the floor on the row's width and the whole
+        // player grows past the message it sits in.
+        className="flex h-9 min-w-0 flex-1 cursor-pointer touch-none items-center gap-[3px]"
       >
         {peaks.length === 0 ? (
           <span className="bg-border-strong h-0.5 w-full rounded-full" />

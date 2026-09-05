@@ -190,7 +190,14 @@ export function MenuButton({ children, ...props }: MenuButtonProps) {
     <button
       type="button"
       ref={menu.setTrigger}
-      onClick={menu.toggle}
+      /*
+       * The browser does the toggling wherever it can. Doing it from React
+       * reopened the menu on the very click that closed it: light dismiss
+       * fires on the way down, so the click that follows finds a closed menu
+       * and opens it again. The platform knows those two are one gesture and
+       * nothing on this side can tell.
+       */
+      {...(POPOVER_SUPPORTED ? { popoverTarget: menu.id } : { onClick: menu.toggle })}
       aria-haspopup="menu"
       aria-expanded={menu.open}
       aria-controls={menu.id}

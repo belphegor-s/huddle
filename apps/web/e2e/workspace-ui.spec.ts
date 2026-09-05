@@ -239,3 +239,75 @@ test('the sidebar menus line up with the sidebar', async ({ page }) => {
     await page.keyboard.press('Escape');
   }
 });
+
+test('a menu closes on the click that opened it', async ({ page }) => {
+  const slug = unique('toggle');
+  await signIn(page, `${slug}@example.com`);
+
+  await page.getByLabel('Team name').fill('Toggles');
+  await page.getByLabel('Address').fill(slug);
+  await page.getByRole('button', { name: 'Create workspace' }).click();
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  /*
+   * Pressing the trigger again used to reopen it. Light dismiss closes a
+   * popover on the way down of the click, so the click that followed found a
+   * closed menu and opened it, and the menu looked stuck.
+   */
+  for (const [control, name] of [
+    ['Toggles', 'Workspaces'],
+    [/Active/, 'Your status'],
+  ] as const) {
+    const trigger = page.getByRole('button', { name: control }).first();
+    const panel = page.getByRole('menu', { name });
+
+    /*
+     * The trigger hands the toggling to the browser. Asserted directly,
+     * because the ordering that breaks it, light dismiss landing between
+     * pointerup and click, is the browser's own and a synthetic click does
+     * not always reproduce it. What can be checked here is that nothing on
+     * this side is toggling a popover the platform is already toggling.
+     */
+    const controls = (await trigger.getAttribute('aria-controls')) ?? '';
+    expect(controls).not.toBe('');
+    await expect(trigger).toHaveAttribute('popovertarget', controls);
+
+    await trigger.click();
+    await expect(panel).toBeVisible();
+
+    await trigger.click();
+    await expect(panel, `${name} did not close on a second press`).toBeHidden();
+
+    // And it still opens afterwards, rather than needing two presses from now on.
+    await trigger.click();
+    await expect(panel).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+  }
+});
+
+test('the workspace chevron sits at the end of its row on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const slug = unique('chev');
+  await signIn(page, `${slug}@example.com`);
+
+  await page.getByLabel('Team name').fill('Chevrons');
+  await page.getByLabel('Address').fill(slug);
+  await page.getByRole('button', { name: 'Create workspace' }).click();
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  // The collapse control only exists from md up, so the padding that made room
+  // for it left the chevron floating a button's width in from the edge.
+  const gap = await page
+    .getByRole('button', { name: 'Chevrons' })
+    .first()
+    .evaluate((button) => {
+      const icon = button.querySelector('svg:last-of-type');
+      if (!icon) throw new Error('no chevron');
+      return button.getBoundingClientRect().right - icon.getBoundingClientRect().right;
+    });
+
+  // The row's own padding, and nothing more.
+  expect(gap).toBeLessThanOrEqual(10);
+});
