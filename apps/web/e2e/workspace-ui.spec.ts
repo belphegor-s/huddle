@@ -424,5 +424,41 @@ test('the workspace address can be copied in one press', async ({ page, context 
   expect(taken).toBe(await field.inputValue());
 
   // It says so, rather than leaving somebody wondering whether it worked.
-  await expect(page.getByRole('button', { name: 'Address copied' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+});
+
+test('an invite link is copied the same way the address is', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+  const slug = unique('inv');
+  await signIn(page, `${slug}@example.com`);
+
+  await page.getByLabel('Team name').fill('Invites');
+  await page.getByLabel('Address').fill(slug);
+  await page.getByRole('button', { name: 'Create workspace' }).click();
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}$`));
+
+  await page.goto(`/w/${slug}/people`);
+  await page.getByRole('button', { name: 'New link' }).click();
+
+  const link = page.locator('output').first();
+  await expect(link).toBeVisible();
+
+  /*
+   * One control, one shape, everywhere something is handed over. This was a
+   * button beside the value wearing the word Copy while the address was an
+   * icon inside the field, which is two answers to the same question.
+   */
+  const copy = page.getByRole('button', { name: 'Copy the invite link' });
+  const inside = await copy.evaluate((button) => {
+    const box = button.getBoundingClientRect();
+    const field = button.parentElement?.getBoundingClientRect();
+    return field === undefined ? false : box.right <= field.right + 1 && box.left >= field.left - 1;
+  });
+
+  expect(inside, 'the copy control is not inside the field it belongs to').toBe(true);
+
+  await copy.click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await link.textContent());
+  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
 });

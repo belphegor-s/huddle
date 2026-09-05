@@ -1,5 +1,5 @@
 import type { InviteSummary } from '@huddle/core';
-import { Button, cx, Icon } from '@huddle/ui';
+import { Button, CopyButton, cx, Icon } from '@huddle/ui';
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { useConfirm } from './confirm';
@@ -14,7 +14,6 @@ import { formatDay } from '../lib/format';
  */
 export function InvitePanel({ workspaceId }: { workspaceId: string }) {
   const [invites, setInvites] = useState<InviteSummary[]>([]);
-  const [copied, setCopied] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const { confirm, dialog } = useConfirm();
 
@@ -36,14 +35,6 @@ export function InvitePanel({ workspaceId }: { workspaceId: string }) {
     } finally {
       setBusy(false);
     }
-  }
-
-  function copy(invite: InviteSummary) {
-    const link = `${window.location.origin}/join/${invite.token}`;
-    void navigator.clipboard.writeText(link).then(() => {
-      setCopied(invite.id);
-      setTimeout(() => setCopied((current) => (current === invite.id ? null : current)), 1500);
-    });
   }
 
   return (
@@ -108,18 +99,19 @@ export function InvitePanel({ workspaceId }: { workspaceId: string }) {
               </div>
 
               {invite.expired ? null : (
-                <div className="flex items-center gap-2">
-                  <output className="border-border bg-surface min-w-0 flex-1 truncate rounded-lg border px-2 py-1.5 font-mono text-xs">
+                /*
+                 * The same shape as the workspace address: the value in a box
+                 * with the control flush inside it, rather than a button
+                 * sitting off to one side wearing the word Copy.
+                 */
+                <div className="border-border bg-surface flex items-center rounded-lg border py-1 pr-1 pl-2.5">
+                  <output className="min-w-0 flex-1 truncate font-mono text-xs">
                     {`${window.location.origin}/join/${invite.token}`}
                   </output>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => copy(invite)}
-                    className="shrink-0"
-                  >
-                    {copied === invite.id ? 'Copied' : 'Copy'}
-                  </Button>
+                  <CopyButton
+                    value={`${window.location.origin}/join/${invite.token}`}
+                    what="the invite link"
+                  />
                 </div>
               )}
             </li>

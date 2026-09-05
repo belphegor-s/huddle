@@ -3,6 +3,8 @@ export type { AvatarProps, PresenceState } from './avatar.js';
 export { Button } from './button.js';
 export type { ButtonProps } from './button.js';
 export { Checkbox } from './checkbox.js';
+export { CopyButton } from './copy-button.js';
+export type { CopyButtonProps } from './copy-button.js';
 export type { CheckboxProps } from './checkbox.js';
 export { cx } from './cx.js';
 export { Icon, IconSolid } from './icon.js';

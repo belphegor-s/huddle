@@ -6,8 +6,8 @@ import {
   type MemberProfile,
   type TokenKind,
 } from '@huddle/core';
-import { cx, Icon } from '@huddle/ui';
-import { useMemo, useState } from 'react';
+import { CopyButton, cx } from '@huddle/ui';
+import { useMemo } from 'react';
 import { handleOf } from '../lib/rich-text';
 
 interface MessageBodyProps {
@@ -200,7 +200,6 @@ const TOKENS: Record<TokenKind, string> = {
  * request from a page that promises not to make any.
  */
 function CodeBlock({ language, value }: { language: string | null; value: string }) {
-  const [copied, setCopied] = useState(false);
   const tokens = useMemo(() => highlightCode(value, language), [value, language]);
 
   return (
@@ -221,19 +220,11 @@ function CodeBlock({ language, value }: { language: string | null; value: string
         </code>
       </pre>
 
-      <button
-        type="button"
-        aria-label="Copy this code"
-        onClick={() => {
-          void navigator.clipboard.writeText(value).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          });
-        }}
-        className="border-border bg-surface-raised text-text-muted hover:text-text-primary absolute top-1.5 right-1.5 grid size-7 place-items-center rounded-md border opacity-0 transition-opacity group-hover/code:opacity-100 focus:opacity-100"
-      >
-        <Icon name={copied ? 'check' : 'copy'} className="size-3.5" />
-      </button>
+      <CopyButton
+        value={value}
+        what="this code"
+        className="border-border bg-surface-raised absolute top-1.5 right-1.5 size-8 border opacity-0 group-hover/code:opacity-100 focus:opacity-100"
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import type { Channel } from '@huddle/core';
 import { UpdateWorkspaceInput } from '@huddle/core';
-import { Button, cx, Icon, Spinner, TextField } from '@huddle/ui';
+import { Button, CopyButton, Icon, Spinner, TextField } from '@huddle/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useConfirm } from '../components/confirm';
@@ -92,7 +92,7 @@ export default function WorkspaceSettings() {
         // focused, so the one thing anybody wants from this row, the text,
         // was the one thing they could not take.
         hint="Fixed, because every invite link already sent points at it"
-        trailing={<CopyAddress value={address} />}
+        trailing={<CopyButton value={address} what="the address" />}
       />
 
       {canManage ? (
@@ -243,27 +243,5 @@ function ArchivedChannels({
       {problem ? <p className="text-critical text-sm">{problem}</p> : null}
       {dialog}
     </section>
-  );
-}
-
-/** The address is there to be handed to somebody, so it is one press to take. */
-function CopyAddress({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-
-  return (
-    <button
-      type="button"
-      aria-label={copied ? 'Address copied' : 'Copy the address'}
-      title="Copy the address"
-      onClick={() => {
-        void navigator.clipboard.writeText(value).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        });
-      }}
-      className="text-text-muted hover:bg-surface-hover hover:text-text-primary grid size-9 place-items-center rounded-md"
-    >
-      <Icon name={copied ? 'check' : 'copy'} className={cx('size-4', copied && 'text-accent')} />
-    </button>
   );
 }
