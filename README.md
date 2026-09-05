@@ -136,14 +136,16 @@ their own is a strict NAT, where neither end is reachable from outside. For
 that, point huddle at a relay of your own:
 
 ```
-TURN_URLS=stun:relay.example.com:3478,turn:relay.example.com:3478
+TURN_URLS=stun:relay.example.com:3478,turn:relay.example.com:3478,turn:relay.example.com:3478?transport=tcp
 TURN_SECRET=...
 ```
 
-List both. The STUN half is what lets two browsers find each other's public
-address and connect directly, which is most calls and costs the relay nothing.
-The TURN half carries only the ones that cannot, which is where the bandwidth
-goes. coturn serves both on the same port.
+Three entries, and each earns its place. STUN is what lets two browsers find
+each other's public address and connect directly, which is most calls and costs
+the relay nothing. TURN over UDP carries the ones that cannot, which is where
+the bandwidth goes. TURN over TCP is the last resort, for a network that blocks
+UDP outright, which is exactly the network somebody needs a relay from. coturn
+serves all three on the same port.
 
 A relay on a small box is enough. Audio is about 50kbps each way and video
 around 1Mbps, and only relayed calls touch it at all:

@@ -12,6 +12,7 @@
  * internet.
  */
 import { createSocket } from 'node:dgram';
+import { connect } from 'node:net';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 
 const COOKIE = 0x2112a442;
@@ -31,16 +32,18 @@ const secret = process.env.TURN_SECRET ?? '';
 const user = process.env.TURN_USERNAME ?? '';
 const password = process.env.TURN_PASSWORD ?? '';
 
-/** `turn:host:port` and `stun:host:port`, with the port optional. */
+/** `turn:host:port?transport=tcp`, with the port and the transport optional. */
 function split(url) {
-  const [scheme, rest = ''] = url.split(':', 2);
-  const withoutQuery = url.slice(scheme.length + 1).split('?')[0] ?? rest;
-  const parts = withoutQuery.split(':');
+  const [scheme = ''] = url.split(':', 1);
+  const rest = url.slice(scheme.length + 1);
+  const [where = '', query = ''] = rest.split('?');
+  const parts = where.split(':');
 
   return {
     scheme,
     host: parts[0] ?? '',
     port: Number(parts[1] ?? 3478),
+    tcp: /transport=tcp/i.test(query),
   };
 }
 
@@ -104,15 +107,63 @@ function address(value) {
   return `${host}:${String(port)}`;
 }
 
-async function ask(socket, packet, target) {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(null), TIMEOUT_MS);
-    socket.once('message', (reply) => {
-      clearTimeout(timer);
-      resolve(reply);
+/**
+ * One question and one answer, over whichever transport the URL asks for.
+ *
+ * TCP matters more than it looks: a network that blocks UDP is exactly the
+ * network somebody needs a relay from, so a deployment that only answers on
+ * UDP has a hole where its hardest case is.
+ */
+async function ask(channel, packet) {
+  if (!channel.tcp) {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(null), TIMEOUT_MS);
+      channel.socket.once('message', (reply) => {
+        clearTimeout(timer);
+        resolve(reply);
+      });
+      channel.socket.send(packet, channel.port, channel.host);
     });
-    socket.send(packet, target.port, target.host);
+  }
+
+  return new Promise((resolve) => {
+    const chunks = [];
+    const timer = setTimeout(() => resolve(null), TIMEOUT_MS);
+
+    const onData = (chunk) => {
+      chunks.push(chunk);
+      const all = Buffer.concat(chunks);
+      // A message over TCP is its twenty byte header plus the length in it.
+      if (all.length >= 20 && all.length >= 20 + all.readUInt16BE(2)) {
+        clearTimeout(timer);
+        channel.socket.off('data', onData);
+        resolve(all);
+      }
+    };
+
+    channel.socket.on('data', onData);
+    channel.socket.write(packet);
   });
+}
+
+/** A socket ready to carry one exchange, opened for TCP before anything else. */
+async function open(target) {
+  if (!target.tcp) {
+    const socket = createSocket('udp4');
+    socket.on('error', () => undefined);
+    return { ...target, socket, close: () => socket.close() };
+  }
+
+  const socket = connect({ host: target.host, port: target.port, timeout: TIMEOUT_MS });
+  socket.on('error', () => undefined);
+
+  const ready = await new Promise((resolve) => {
+    socket.once('connect', () => resolve(true));
+    socket.once('timeout', () => resolve(false));
+    socket.once('error', () => resolve(false));
+  });
+
+  return { ...target, socket, ready, close: () => socket.destroy() };
 }
 
 let failures = 0;
@@ -124,14 +175,19 @@ for (const url of urls) {
     continue;
   }
 
-  const socket = createSocket('udp4');
-  socket.on('error', () => undefined);
+  const channel = await open(target);
+  if (channel.ready === false) {
+    console.log(`${url}: nothing accepted a connection on that port.`);
+    failures += 1;
+    channel.close();
+    continue;
+  }
 
-  const binding = await ask(socket, frame(0x0001, randomBytes(12), []), target);
+  const binding = await ask(channel, frame(0x0001, randomBytes(12), []));
   if (!binding) {
     console.log(`${url}: no answer. The port is closed, or nothing is listening on it.`);
     failures += 1;
-    socket.close();
+    channel.close();
     continue;
   }
 
@@ -139,28 +195,24 @@ for (const url of urls) {
   console.log(`${url}: answered, and sees this machine at ${seen ?? 'an address it did not say'}`);
 
   if (target.scheme === 'stun') {
-    socket.close();
+    channel.close();
     continue;
   }
 
   if (secret === '' && user === '') {
     console.log(`${url}: no credential configured, so the relay half was not checked`);
-    socket.close();
+    channel.close();
     continue;
   }
 
   const transport = Buffer.alloc(4);
   transport.writeUInt8(17, 0);
 
-  const challenge = await ask(
-    socket,
-    frame(0x0003, randomBytes(12), [pack(0x0019, transport)]),
-    target,
-  );
+  const challenge = await ask(channel, frame(0x0003, randomBytes(12), [pack(0x0019, transport)]));
   if (!challenge) {
     console.log(`${url}: no answer to an allocate request`);
     failures += 1;
-    socket.close();
+    channel.close();
     continue;
   }
 
@@ -171,7 +223,7 @@ for (const url of urls) {
   if (!realm || !nonce) {
     console.log(`${url}: expected a challenge, got type 0x${asked.type.toString(16)}`);
     failures += 1;
-    socket.close();
+    channel.close();
     continue;
   }
 
@@ -183,7 +235,7 @@ for (const url of urls) {
   const key = createHash('md5').update(`${username}:${realm.toString()}:${credential}`).digest();
 
   const allocated = await ask(
-    socket,
+    channel,
     frame(
       0x0003,
       randomBytes(12),
@@ -195,10 +247,9 @@ for (const url of urls) {
       ],
       key,
     ),
-    target,
   );
 
-  socket.close();
+  channel.close();
 
   if (!allocated) {
     console.log(`${url}: no answer to the signed allocate`);
