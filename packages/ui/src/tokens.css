@@ -14,6 +14,12 @@
   --font-ui: 'Switzer', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: 'Bricolage Grotesque', 'Switzer', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Commit Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+  /*
+   * Landing page only, and italic only, which is the single style loaded. It
+   * marks the few words a person would lean on if they were saying the
+   * sentence out loud, so it never appears in the product itself.
+   */
+  --font-script: 'Instrument Serif', ui-serif, Georgia, serif;
 
   /* Set for reading a message list, not for a marketing page. */
   --text-2xs: 0.6875rem;

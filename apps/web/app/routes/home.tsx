@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 /** Where the code actually is. It was pointing at github.com itself. */
 const SOURCE_URL = 'https://github.com/belphegor-s/huddle';
@@ -243,6 +243,20 @@ const DEPLOY_TARGETS = [
   { name: 'Anything with Postgres', detail: 'Plain Node process' },
 ];
 
+/*
+ * Instrument Serif italic against Bricolage semibold. The serif is a single
+ * 400 weight, so it sets optically smaller and lighter beside the grotesque:
+ * the size bump and the reset tracking put the two back on the same line
+ * rather than making the italic look like a mistake.
+ */
+function Said({ children }: { children: ReactNode }) {
+  return (
+    <em className="font-script text-[1.08em] font-normal tracking-normal italic">
+      {children}
+    </em>
+  );
+}
+
 export default function Home() {
   return (
     <main className="mx-auto w-full max-w-5xl px-5 pb-24 sm:px-8">
@@ -266,7 +280,7 @@ export default function Home() {
       <section className="grid items-center gap-10 pt-8 pb-20 md:grid-cols-[1.05fr_1fr] md:gap-14">
         <div className="flex flex-col gap-6">
           <h1 className="font-display text-3xl leading-[1.05] font-semibold sm:text-4xl">
-            Your team is running on a group chat that forgets everything.
+            Your team is running on a group chat that <Said>forgets everything.</Said>
           </h1>
           <p className="text-text-secondary max-w-prose text-lg">
             huddle is team chat with channels, threads, files, voice notes and search that works. It
@@ -321,7 +335,9 @@ export default function Home() {
       </section>
 
       <section className="border-border mt-16 border-t pt-12">
-        <h2 className="font-display text-xl font-semibold">Conversations the server cannot read</h2>
+        <h2 className="font-display text-xl font-semibold">
+          Conversations the server <Said>cannot read</Said>
+        </h2>
         <p className="text-text-secondary mt-2 max-w-prose text-base">
           Direct messages and private channels are end to end encrypted. Keys are made in the
           browser and sealed to each person's devices, so the server stores ciphertext and has
@@ -356,6 +372,21 @@ export default function Home() {
           never leaves your deployment on its own.
         </p>
       </section>
+
+      <footer className="border-border mt-16 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t pt-8">
+        <p className="text-text-muted text-xs">
+          &copy; {new Date().getFullYear()}{' '}
+          <span className="font-script text-text-secondary text-sm italic">Ayush Sharma</span>
+        </p>
+        <a
+          href={SOURCE_URL}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="text-text-muted hover:text-text-primary text-xs no-underline transition-colors"
+        >
+          Source
+        </a>
+      </footer>
     </main>
   );
 }
