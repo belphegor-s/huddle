@@ -6,9 +6,9 @@
  * Switzer is vendored by scripts/fetch-fonts.mjs. The others ship as npm
  * packages, so their files come from node_modules and are bundled by Vite.
  *
- * Fraunces is vendored too, by scripts/subset-display-font.mjs, because the
- * published family is a variable font and this uses one weight of its italic
- * to set two phrases on the landing page.
+ * Playfair Display is vendored too, by scripts/subset-display-font.mjs,
+ * because the published family is a variable font and this uses one weight of
+ * its italic to set two phrases on the landing page.
  */
 
 @import '@fontsource-variable/bricolage-grotesque';
@@ -53,9 +53,9 @@
  * set in this face needs scripts/subset-display-font.mjs run again.
  */
 @font-face {
-  font-family: 'Fraunces Subset';
-  src: url('../fonts/fraunces-italic-500.woff2') format('woff2');
-  font-weight: 500;
+  font-family: 'Playfair Display Subset';
+  src: url('../fonts/playfair-display-italic-400.woff2') format('woff2');
+  font-weight: 400;
   font-style: italic;
   font-display: swap;
 }

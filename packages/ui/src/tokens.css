@@ -19,7 +19,7 @@
    * marks the few words a person would lean on if they were saying the
    * sentence out loud, so it never appears in the product itself.
    */
-  --font-script: 'Fraunces Subset', ui-serif, Georgia, serif;
+  --font-script: 'Playfair Display Subset', ui-serif, Georgia, serif;
 
   /* Set for reading a message list, not for a marketing page. */
   --text-2xs: 0.6875rem;

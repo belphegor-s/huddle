@@ -244,13 +244,14 @@ const DEPLOY_TARGETS = [
 ];
 
 /*
- * Fraunces italic against Bricolage semibold. Fraunces carries enough weight
- * to sit inside a semibold headline without looking like it lost an argument,
- * so it is set at 500 rather than pushed up in size. The tracking is reset
- * because the -0.02em the headline carries is a correction for the grotesque.
+ * Playfair Display italic against Bricolage semibold. The one weight vendored
+ * is 400, so the weight is stated rather than inherited from the headline:
+ * asking for semibold here would get a synthetic slant of a face that already
+ * has a real one. The tracking is reset because the -0.02em the headline
+ * carries is a correction for the grotesque.
  */
 function Said({ children }: { children: ReactNode }) {
-  return <em className="font-script font-medium tracking-normal italic">{children}</em>;
+  return <em className="font-script font-normal tracking-normal italic">{children}</em>;
 }
 
 export default function Home() {

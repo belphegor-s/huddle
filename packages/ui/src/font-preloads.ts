@@ -1,5 +1,5 @@
 import bricolage from '@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2?url';
-import fraunces from '../fonts/fraunces-italic-500.woff2?url';
+import playfair from '../fonts/playfair-display-italic-400.woff2?url';
 import switzer400 from '../fonts/switzer-400.woff2?url';
 import switzer500 from '../fonts/switzer-500.woff2?url';
 import switzer600 from '../fonts/switzer-600.woff2?url';
@@ -24,5 +24,5 @@ export const fontPreloads: readonly string[] = [
   bricolage,
   switzer500,
   switzer600,
-  fraunces,
+  playfair,
 ];
