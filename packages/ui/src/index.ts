@@ -7,6 +7,7 @@ export { CopyButton } from './copy-button.js';
 export type { CopyButtonProps } from './copy-button.js';
 export type { CheckboxProps } from './checkbox.js';
 export { cx } from './cx.js';
+export { fontPreloads } from './font-preloads.js';
 export { Icon, IconSolid } from './icon.js';
 export { Menu, MenuButton, MenuItem, MenuLabel, MenuSeparator } from './menu.js';
 export type { MenuButtonProps, MenuItemProps, MenuProps } from './menu.js';

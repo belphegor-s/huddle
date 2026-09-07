@@ -6,15 +6,14 @@
  * Switzer is vendored by scripts/fetch-fonts.mjs. The others ship as npm
  * packages, so their files come from node_modules and are bundled by Vite.
  *
- * Instrument Serif is loaded as latin italic only. It is used for a handful of
- * emphasised words on the landing page and nowhere in the product, so the
- * roman and the extended subsets would be bytes nobody reads.
+ * Fraunces is vendored too, by scripts/subset-display-font.mjs, because the
+ * published family is a variable font and this uses one weight of its italic
+ * to set two phrases on the landing page.
  */
 
 @import '@fontsource-variable/bricolage-grotesque';
 @import '@fontsource/commit-mono/400.css';
 @import '@fontsource/commit-mono/700.css';
-@import '@fontsource/instrument-serif/latin-400-italic.css';
 
 @font-face {
   font-family: 'Switzer';
@@ -45,5 +44,18 @@
   src: url('../fonts/switzer-700.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
+  font-display: swap;
+}
+
+/*
+ * Printable ASCII, the quotes and the ellipsis, at 500 and italic only. A
+ * character outside that set falls back to Georgia mid sentence, so anything
+ * set in this face needs scripts/subset-display-font.mjs run again.
+ */
+@font-face {
+  font-family: 'Fraunces Subset';
+  src: url('../fonts/fraunces-italic-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: italic;
   font-display: swap;
 }

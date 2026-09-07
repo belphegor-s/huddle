@@ -7,7 +7,25 @@ import {
   ScrollRestoration,
 } from 'react-router';
 import type { Route } from './+types/root';
+import { fontPreloads } from '@huddle/ui';
 import './app.css';
+
+/**
+ * Start the fonts downloading while the document is still parsing, rather than
+ * when React first paints text in them. See fontPreloads for why.
+ *
+ * crossOrigin is not optional on a font preload even for a same origin file:
+ * fonts are fetched anonymously, and a preload whose mode does not match is
+ * discarded and fetched a second time.
+ */
+export const links: Route.LinksFunction = () =>
+  fontPreloads.map((href) => ({
+    rel: 'preload',
+    as: 'font',
+    type: 'font/woff2',
+    href,
+    crossOrigin: 'anonymous',
+  }));
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (

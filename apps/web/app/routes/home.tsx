@@ -244,17 +244,13 @@ const DEPLOY_TARGETS = [
 ];
 
 /*
- * Instrument Serif italic against Bricolage semibold. The serif is a single
- * 400 weight, so it sets optically smaller and lighter beside the grotesque:
- * the size bump and the reset tracking put the two back on the same line
- * rather than making the italic look like a mistake.
+ * Fraunces italic against Bricolage semibold. Fraunces carries enough weight
+ * to sit inside a semibold headline without looking like it lost an argument,
+ * so it is set at 500 rather than pushed up in size. The tracking is reset
+ * because the -0.02em the headline carries is a correction for the grotesque.
  */
 function Said({ children }: { children: ReactNode }) {
-  return (
-    <em className="font-script text-[1.08em] font-normal tracking-normal italic">
-      {children}
-    </em>
-  );
+  return <em className="font-script font-medium tracking-normal italic">{children}</em>;
 }
 
 export default function Home() {
@@ -347,7 +343,13 @@ export default function Home() {
         <dl className="mt-6 grid gap-3 sm:grid-cols-3">
           {CRYPTO.map((item) => (
             <div key={item.term} className="border-border bg-surface-raised rounded-lg border p-4">
-              <dt className="font-mono text-xs font-semibold">{item.term}</dt>
+              {/*
+                Set at the one weight Commit Mono is already loading. Asking for
+                semibold here pulled a second 47kb face down the wire to set
+                three short labels, and the mono against the prose beside it is
+                what marks these as terms anyway.
+              */}
+              <dt className="font-mono text-xs">{item.term}</dt>
               <dd className="text-text-secondary mt-1 text-sm">{item.body}</dd>
             </div>
           ))}
@@ -376,7 +378,7 @@ export default function Home() {
       <footer className="border-border mt-16 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t pt-8">
         <p className="text-text-muted text-xs">
           &copy; {new Date().getFullYear()}{' '}
-          <span className="font-script text-text-secondary text-sm italic">Ayush Sharma</span>
+          <span className="text-text-secondary">Ayush Sharma</span>
         </p>
         <a
           href={SOURCE_URL}
