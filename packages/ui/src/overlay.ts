@@ -65,7 +65,11 @@ export function place(
  * Points the entrance the right way: a panel below its control drops down from
  * it, one above rises up to it. Motion reads as the panel coming from the
  * thing that opened it rather than fading in from nowhere.
+ *
+ * Called twice around opening: once with the preferred side before the popover
+ * is shown, because the starting style is read at that instant, and once with
+ * the side placement actually chose.
  */
 export function aim(element: HTMLElement, from: Side): void {
-  element.style.setProperty('--panel-from-y', from === 'top' ? '4px' : '-4px');
+  element.style.setProperty('--panel-from-y', from === 'top' ? '6px' : '-6px');
 }

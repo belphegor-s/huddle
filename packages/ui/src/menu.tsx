@@ -101,7 +101,12 @@ export function Menu({
       return;
     }
 
-    if (POPOVER_SUPPORTED && !element.matches(':popover-open')) element.showPopover();
+    if (POPOVER_SUPPORTED && !element.matches(':popover-open')) {
+      // Aimed before it is shown: the entrance reads the starting style on the
+      // frame it enters the top layer, so a direction set afterwards is missed.
+      aim(element, side);
+      element.showPopover();
+    }
 
     // Sized before it is placed, or the placement measures the wrong width.
     element.style.width =

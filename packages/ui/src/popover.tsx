@@ -80,7 +80,11 @@ export function Popover({
       return;
     }
 
-    if (POPOVER_SUPPORTED && !element.matches(':popover-open')) element.showPopover();
+    if (POPOVER_SUPPORTED && !element.matches(':popover-open')) {
+      // Aimed before it is shown, for the reason in Menu.
+      aim(element, side);
+      element.showPopover();
+    }
     aim(element, place(element, triggerNode, align, side));
     element.focus({ preventScroll: true });
   }, [open, triggerNode, align, side]);

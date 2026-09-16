@@ -25,16 +25,26 @@
 [popover]:popover-open {
   opacity: 1;
   transform: translateY(0);
+  /*
+   * The move is longer than the fade and lands on the spring, which gives a
+   * menu a little weight as it settles. A flat 140ms fade with no travel is
+   * the thing that reads as no animation at all.
+   */
   transition:
     opacity var(--duration-quick) var(--ease-out-quick),
-    transform var(--duration-quick) var(--ease-out-quick),
+    transform var(--duration-settle) var(--ease-spring),
     display var(--duration-quick) allow-discrete,
     overlay var(--duration-quick) allow-discrete;
 }
 
 [popover]:not(:popover-open) {
   opacity: 0;
-  /* Set by the placement code: it knows which side of the trigger won. */
+  /*
+   * Set by the placement code before the popover is shown, so @starting-style
+   * has it on the frame the panel enters the top layer. Aiming after the fact
+   * is too late: the starting snapshot is already taken, and the panel only
+   * fades with no travel.
+   */
   transform: translateY(var(--panel-from-y, 0px));
 }
 

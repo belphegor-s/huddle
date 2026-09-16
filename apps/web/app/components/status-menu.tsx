@@ -1,7 +1,7 @@
 import type { Me, Presence } from '@huddle/core';
 import { Avatar, cx, Icon, Menu, MenuButton, MenuItem, MenuLabel, MenuSeparator } from '@huddle/ui';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSubmit } from 'react-router';
 import { api } from '../lib/api';
 import { PRESENCE_CHOICES, presenceOf, statusLine } from '../lib/presence';
 import { Dialog } from './dialog';
@@ -24,6 +24,7 @@ interface StatusMenuProps {
  */
 export function StatusMenu({ me, workspaceSlug, compact = false, onChanged }: StatusMenuProps) {
   const navigate = useNavigate();
+  const submit = useSubmit();
   const [editing, setEditing] = useState(false);
 
   const self = {
@@ -125,7 +126,17 @@ export function StatusMenu({ me, workspaceSlug, compact = false, onChanged }: St
           <MenuItem icon="people" onSelect={() => void navigate(`/w/${workspaceSlug}/you`)}>
             Profile
           </MenuItem>
-          <MenuItem icon="trash" danger onSelect={() => void navigate('/signout')}>
+          {/*
+            Submitted, not navigated. The route only signs you out through its
+            action, which is POST on purpose so no other page can end your
+            session with an embedded request. A plain navigation would run the
+            loader instead, which just sends you home still signed in.
+          */}
+          <MenuItem
+            icon="trash"
+            danger
+            onSelect={() => submit(null, { method: 'post', action: '/signout' })}
+          >
             Sign out
           </MenuItem>
         </>
