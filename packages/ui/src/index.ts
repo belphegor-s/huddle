@@ -14,6 +14,8 @@ export type { MenuButtonProps, MenuItemProps, MenuProps } from './menu.js';
 export type { IconName, IconProps } from './icon.js';
 export { Popover, PopoverButton } from './popover.js';
 export type { PopoverButtonProps, PopoverProps } from './popover.js';
+export { EXIT_MS, Presence } from './presence.js';
+export type { PresenceProps } from './presence.js';
 export { Select } from './select.js';
 export { Spinner } from './spinner.js';
 export type { SpinnerProps } from './spinner.js';

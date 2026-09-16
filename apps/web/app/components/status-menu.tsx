@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { api } from '../lib/api';
 import { PRESENCE_CHOICES, presenceOf, statusLine } from '../lib/presence';
+import { Dialog } from './dialog';
 
 interface StatusMenuProps {
   me: Me;
@@ -177,74 +178,65 @@ function StatusDialog({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Set a status"
-      className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <div className="bg-surface-raised border-border w-full max-w-sm rounded-2xl border p-4 shadow-lg">
-        <h2 className="text-base font-semibold">Set a status</h2>
+    <Dialog title="Set a status" onClose={onClose}>
+      {(dismiss) => (
+        <>
+          <div className="flex items-center gap-2">
+            <input
+              aria-label="Status emoji"
+              value={pickedEmoji}
+              onChange={(event) => setEmoji(event.target.value)}
+              maxLength={4}
+              className="border-border bg-surface size-11 shrink-0 rounded-lg border text-center text-lg"
+            />
+            <input
+              aria-label="Status message"
+              value={message}
+              placeholder="What is happening"
+              maxLength={80}
+              autoFocus
+              onChange={(event) => setMessage(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void save();
+              }}
+              className="border-border bg-surface min-h-11 flex-1 rounded-lg border px-3 text-sm"
+            />
+          </div>
 
-        <div className="mt-3 flex items-center gap-2">
-          <input
-            aria-label="Status emoji"
-            value={pickedEmoji}
-            onChange={(event) => setEmoji(event.target.value)}
-            maxLength={4}
-            className="border-border bg-surface size-11 shrink-0 rounded-lg border text-center text-lg"
-          />
-          <input
-            aria-label="Status message"
-            value={message}
-            placeholder="What is happening"
-            maxLength={80}
-            autoFocus
-            onChange={(event) => setMessage(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') void save();
-              if (event.key === 'Escape') onClose();
-            }}
-            className="border-border bg-surface min-h-11 flex-1 rounded-lg border px-3 text-sm"
-          />
-        </div>
+          <ul className="flex flex-wrap gap-1">
+            {SUGGESTED.map((one) => (
+              <li key={one}>
+                <button
+                  type="button"
+                  aria-label={`Use ${one}`}
+                  onClick={() => setEmoji(one)}
+                  className="hover:bg-surface-hover grid size-9 place-items-center rounded-lg text-lg"
+                >
+                  {one}
+                </button>
+              </li>
+            ))}
+          </ul>
 
-        <ul className="mt-3 flex flex-wrap gap-1">
-          {SUGGESTED.map((one) => (
-            <li key={one}>
-              <button
-                type="button"
-                aria-label={`Use ${one}`}
-                onClick={() => setEmoji(one)}
-                className="hover:bg-surface-hover grid size-9 place-items-center rounded-lg text-lg"
-              >
-                {one}
-              </button>
-            </li>
-          ))}
-        </ul>
-
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-text-secondary hover:bg-surface-hover min-h-10 rounded-lg px-3 text-sm"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void save()}
-            className="bg-accent text-on-accent hover:bg-accent-hover min-h-10 rounded-lg px-4 text-sm font-medium disabled:opacity-60"
-          >
-            {saving ? 'Saving' : 'Save'}
-          </button>
-        </div>
-      </div>
-    </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={dismiss}
+              className="text-text-secondary hover:bg-surface-hover min-h-10 rounded-lg px-3 text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void save()}
+              className="bg-accent text-on-accent hover:bg-accent-hover min-h-10 rounded-lg px-4 text-sm font-medium disabled:opacity-60"
+            >
+              {saving ? 'Saving' : 'Save'}
+            </button>
+          </div>
+        </>
+      )}
+    </Dialog>
   );
 }

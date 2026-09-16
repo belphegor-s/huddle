@@ -46,7 +46,7 @@ export function AssistantPanel({ title, run, onClose }: AssistantPanelProps) {
   }, []);
 
   return (
-    <section className="border-accent/40 bg-accent-soft/40 mx-3 mb-2 flex flex-col gap-2 rounded-xl border border-dashed p-3 md:mx-5">
+    <section className="rise-in border-accent/40 bg-accent-soft/40 mx-3 mb-2 flex flex-col gap-2 rounded-xl border border-dashed p-3 md:mx-5">
       <header className="flex items-center gap-2">
         <Icon name="sparkle" className="text-accent size-4" />
         <h2 className="flex-1 text-sm font-semibold">{title}</h2>

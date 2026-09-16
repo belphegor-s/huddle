@@ -35,49 +35,53 @@ export function NewDmDialog({ workspaceSlug, members, onClose, onOpen }: NewDmDi
 
   return (
     <Dialog title="New message" onClose={onClose}>
-      <input
-        value={filter}
-        onChange={(event) => setFilter(event.target.value)}
-        placeholder="Search people"
-        autoFocus
-        aria-label="Search people"
-        className="border-border bg-surface-sunken min-h-11 rounded-lg border px-3 text-base"
-      />
+      {(dismiss) => (
+        <>
+          <input
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+            placeholder="Search people"
+            autoFocus
+            aria-label="Search people"
+            className="border-border bg-surface-sunken min-h-11 rounded-lg border px-3 text-base"
+          />
 
-      <ul className="-mx-1 flex max-h-64 flex-col overflow-y-auto">
-        {shown.map((member) => {
-          const on = selected.includes(member.id);
-          return (
-            <li key={member.id}>
-              <button
-                type="button"
-                onClick={() => toggle(member.id)}
-                aria-pressed={on}
-                className={cx(
-                  'flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm',
-                  on ? 'bg-surface-active' : 'hover:bg-surface-hover',
-                )}
-              >
-                <Avatar name={member.displayName} url={member.avatarUrl} size="sm" />
-                <span className="min-w-0 flex-1 truncate">{member.displayName}</span>
-                {on ? <span className="text-accent text-xs">Selected</span> : null}
-              </button>
-            </li>
-          );
-        })}
-        {shown.length === 0 ? (
-          <li className="text-text-muted px-3 py-3 text-sm">Nobody matches that.</li>
-        ) : null}
-      </ul>
+          <ul className="-mx-1 flex max-h-64 flex-col overflow-y-auto">
+            {shown.map((member) => {
+              const on = selected.includes(member.id);
+              return (
+                <li key={member.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggle(member.id)}
+                    aria-pressed={on}
+                    className={cx(
+                      'flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm',
+                      on ? 'bg-surface-active' : 'hover:bg-surface-hover',
+                    )}
+                  >
+                    <Avatar name={member.displayName} url={member.avatarUrl} size="sm" />
+                    <span className="min-w-0 flex-1 truncate">{member.displayName}</span>
+                    {on ? <span className="text-accent text-xs">Selected</span> : null}
+                  </button>
+                </li>
+              );
+            })}
+            {shown.length === 0 ? (
+              <li className="text-text-muted px-3 py-3 text-sm">Nobody matches that.</li>
+            ) : null}
+          </ul>
 
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="button" onClick={start} disabled={busy || selected.length === 0}>
-          {busy ? 'Opening' : 'Start conversation'}
-        </Button>
-      </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={dismiss}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={start} disabled={busy || selected.length === 0}>
+              {busy ? 'Opening' : 'Start conversation'}
+            </Button>
+          </div>
+        </>
+      )}
     </Dialog>
   );
 }

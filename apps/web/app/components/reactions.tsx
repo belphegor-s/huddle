@@ -21,7 +21,7 @@ export function Reactions({ reactions, meId, onToggle }: ReactionsProps) {
               onClick={() => onToggle(reaction.emoji, !mine)}
               aria-pressed={mine}
               className={cx(
-                'flex min-h-7 items-center gap-1 rounded-full border px-2 text-xs',
+                'pop-in flex min-h-7 items-center gap-1 rounded-full border px-2 text-xs',
                 mine
                   ? 'border-accent bg-accent-soft text-accent'
                   : 'border-border bg-surface-raised text-text-secondary',

@@ -55,7 +55,7 @@ export function Sidebar({
     <nav
       className={cx(
         'border-border bg-surface-sunken flex w-full flex-col gap-1 overflow-x-hidden overflow-y-auto border-r px-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]',
-        'motion-safe:transition-[width] motion-safe:duration-200',
+        'motion-safe:transition-[width] motion-safe:duration-(--duration-settle) motion-safe:ease-(--ease-out-quick)',
         collapsed ? 'md:w-16' : 'md:w-64',
         className,
       )}

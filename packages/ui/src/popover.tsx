@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { cx } from './cx.js';
-import { place, POPOVER_SUPPORTED, type Align, type Side } from './overlay.js';
+import { aim, place, POPOVER_SUPPORTED, type Align, type Side } from './overlay.js';
 
 /**
  * A floating panel that is not a list of choices.
@@ -81,7 +81,7 @@ export function Popover({
     }
 
     if (POPOVER_SUPPORTED && !element.matches(':popover-open')) element.showPopover();
-    place(element, triggerNode, align, side);
+    aim(element, place(element, triggerNode, align, side));
     element.focus({ preventScroll: true });
   }, [open, triggerNode, align, side]);
 
@@ -89,7 +89,7 @@ export function Popover({
     if (!open) return;
 
     const reposition = () => {
-      if (panel.current) place(panel.current, triggerNode, align, side);
+      if (panel.current) aim(panel.current, place(panel.current, triggerNode, align, side));
     };
 
     window.addEventListener('scroll', reposition, true);
@@ -134,11 +134,12 @@ export function Popover({
           close();
           triggerNode?.focus();
         }}
+        // Motion comes from motion.css through :popover-open, for the reason
+        // given in Menu.
         className={cx(
           'border-border bg-surface-raised shadow-popover text-text-primary fixed m-0 rounded-xl border p-1.5',
-          POPOVER_SUPPORTED ? '' : 'z-50',
-          'motion-safe:transition-[opacity,transform] motion-safe:duration-(--duration-instant)',
-          open ? 'scale-100 opacity-100' : 'pointer-events-none scale-95 opacity-0',
+          open ? '' : 'pointer-events-none',
+          POPOVER_SUPPORTED ? '' : cx('z-50', open ? 'opacity-100' : 'opacity-0'),
           className,
         )}
       >

@@ -1,5 +1,5 @@
 import type { ChannelSummary, MemberProfile, Me, Role, Workspace } from '@huddle/core';
-import { Avatar, Button, Icon, Popover, PopoverButton } from '@huddle/ui';
+import { Avatar, Button, Icon, Popover, PopoverButton, Presence } from '@huddle/ui';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { AssistantPanel } from '../components/assistant-panel';
@@ -101,7 +101,11 @@ function ChannelView({
 }: ChannelViewProps) {
   const { call, join } = useCall(session);
   const inCall = useCallRoster(realtime, summary.channel.id, summary.callCount);
-  const [threadId, setThreadId] = useState<string | null>(null);
+  /*
+   * The thread keeps its id after it closes, so the panel has something to
+   * read while it slides away. Presence decides when it is actually gone.
+   */
+  const [thread, setThread] = useState<{ id: string; open: boolean } | null>(null);
   const [catchingUp, setCatchingUp] = useState(false);
   const canModerate = outranksMember(role, 'admin');
   const stream = useMessages(realtime, summary.channel, me.user.id);
@@ -232,7 +236,7 @@ function ChannelView({
           hasMore={stream.hasMore}
           onLoadOlder={() => void stream.loadOlder()}
           onReact={(messageId, emoji, on) => void stream.react(messageId, emoji, on)}
-          onOpenThread={setThreadId}
+          onOpenThread={(id) => setThread({ id, open: true })}
           onEdit={stream.edit}
           onDelete={(messageId) => void stream.remove(messageId)}
         />
@@ -254,19 +258,25 @@ function ChannelView({
         )}
       </div>
 
-      {threadId ? (
-        <ThreadPanel
-          workspaceId={workspace.id}
-          channelId={summary.channel.id}
-          parentId={threadId}
-          members={members}
-          meId={me.user.id}
-          stream={stream}
-          canUseAi={canUseAi}
-          canAttach={canAttach}
-          onClose={() => setThreadId(null)}
-        />
-      ) : null}
+      {/* Presence holds the panel through its leave, so closing it slides. */}
+      <Presence open={thread?.open === true}>
+        {(shown) =>
+          thread === null ? null : (
+            <ThreadPanel
+              workspaceId={workspace.id}
+              channelId={summary.channel.id}
+              parentId={thread.id}
+              members={members}
+              meId={me.user.id}
+              stream={stream}
+              canUseAi={canUseAi}
+              canAttach={canAttach}
+              shown={shown}
+              onClose={() => setThread((current) => current && { ...current, open: false })}
+            />
+          )
+        }
+      </Presence>
     </section>
   );
 }

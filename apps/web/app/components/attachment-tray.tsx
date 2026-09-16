@@ -21,7 +21,7 @@ export function AttachmentTray({ pending, onRemove }: AttachmentTrayProps) {
         <li
           key={entry.id}
           className={cx(
-            'border-border bg-surface-raised relative flex items-center gap-2 overflow-hidden rounded-lg border py-1 pr-1 pl-2',
+            'pop-in border-border bg-surface-raised relative flex items-center gap-2 overflow-hidden rounded-lg border py-1 pr-1 pl-2',
             entry.error && 'border-critical',
           )}
         >

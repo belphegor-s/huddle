@@ -38,31 +38,37 @@ export function useConfirm(): {
   const dialog =
     request === null ? null : (
       <Dialog title={request.title} onClose={close}>
-        <div className="text-text-secondary text-sm">{request.body}</div>
+        {(dismiss) => (
+          <>
+            <div className="text-text-secondary text-sm">{request.body}</div>
 
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={close} disabled={busy}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="danger"
-            autoFocus={false}
-            disabled={busy}
-            onClick={() => {
-              setBusy(true);
-              void (async () => {
-                try {
-                  await request.run();
-                } finally {
-                  close();
-                }
-              })();
-            }}
-          >
-            {busy ? 'Working' : request.action}
-          </Button>
-        </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={dismiss} disabled={busy}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                autoFocus={false}
+                disabled={busy}
+                onClick={() => {
+                  setBusy(true);
+                  void (async () => {
+                    try {
+                      await request.run();
+                    } finally {
+                      // Left the way every other dismissal leaves: drawn out,
+                      // then unmounted by the dialog's own close.
+                      dismiss();
+                    }
+                  })();
+                }}
+              >
+                {busy ? 'Working' : request.action}
+              </Button>
+            </div>
+          </>
+        )}
       </Dialog>
     );
 

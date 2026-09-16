@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { cx } from './cx.js';
-import { place, POPOVER_SUPPORTED, type Align, type Side } from './overlay.js';
+import { aim, place, POPOVER_SUPPORTED, type Align, type Side } from './overlay.js';
 
 /** Long enough not to fire while a pointer crosses the control on its way past. */
 const OPEN_DELAY_MS = 350;
@@ -56,7 +56,7 @@ export function Tooltip({
     }
 
     if (POPOVER_SUPPORTED && !element.matches(':popover-open')) element.showPopover();
-    place(element, trigger, align, side);
+    aim(element, place(element, trigger, align, side));
   }, [open, trigger, align, side]);
 
   useEffect(() => {
@@ -101,11 +101,11 @@ export function Tooltip({
         role="tooltip"
         {...(POPOVER_SUPPORTED ? { popover: 'manual' } : {})}
         hidden={POPOVER_SUPPORTED ? undefined : !open}
+        // Motion comes from motion.css through :popover-open, for the reason
+        // given in Menu.
         className={cx(
           'bg-text-primary text-text-inverse pointer-events-none fixed m-0 max-w-56 rounded-md px-2 py-1 text-xs font-medium shadow-lg',
-          POPOVER_SUPPORTED ? '' : 'z-50',
-          'motion-safe:transition-[opacity,transform] motion-safe:duration-(--duration-instant)',
-          open ? 'scale-100 opacity-100' : 'scale-95 opacity-0',
+          POPOVER_SUPPORTED ? '' : cx('z-50', open ? 'opacity-100' : 'opacity-0'),
         )}
       >
         {label}

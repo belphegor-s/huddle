@@ -3,11 +3,17 @@ import { cx } from '@huddle/ui';
 
 interface DialogProps {
   title: string;
+  /** Called once the dialog has actually closed, after it has left the screen. */
   onClose(): void;
-  children: React.ReactNode;
+  /**
+   * The body. Handed the animated close so a Cancel inside it leaves the same
+   * way Escape does, rather than unmounting the dialog on the spot and taking
+   * the way out with it.
+   */
+  children: React.ReactNode | ((close: () => void) => React.ReactNode);
 }
 
-/** Long enough to be seen, short enough never to be in the way. */
+/** Matches --duration-exit, which is how long the leave below is drawn for. */
 const EXIT_MS = 140;
 
 /**
@@ -65,18 +71,25 @@ export function Dialog({ title, onClose, children }: DialogProps) {
       }}
       className={cx(
         'bg-surface-raised text-text-primary border-border shadow-popover m-auto w-[min(28rem,calc(100vw-2rem))] rounded-xl border p-0',
-        'backdrop:bg-black/40 motion-safe:backdrop:transition-opacity motion-safe:backdrop:duration-150',
+        'backdrop:bg-black/40 backdrop:backdrop-blur-[2px]',
         open ? 'backdrop:opacity-100' : 'backdrop:opacity-0',
-        'motion-safe:transition-[opacity,transform] motion-safe:duration-150',
-        // A slight rise and settle, on the same curve the rest of the app uses
-        // when something arrives.
-        'motion-safe:[transition-timing-function:cubic-bezier(0.16,1,0.3,1)]',
-        open ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-1 scale-[0.98] opacity-0',
+        /*
+         * Leaving is quicker than arriving, so the duration and the curve are
+         * chosen by which direction the dialog is going. The rise is kept
+         * small: a modal that travels far reads as sliding in from somewhere
+         * rather than appearing where it belongs.
+         */
+        'motion-safe:transition-[opacity,transform]',
+        'motion-safe:backdrop:transition-opacity',
+        open
+          ? 'motion-safe:duration-(--duration-settle) motion-safe:[transition-timing-function:var(--ease-spring)] motion-safe:backdrop:duration-(--duration-settle)'
+          : 'motion-safe:duration-(--duration-exit) motion-safe:[transition-timing-function:var(--ease-in-quick)] motion-safe:backdrop:duration-(--duration-exit)',
+        open ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-2 scale-[0.97] opacity-0',
       )}
     >
       <div className="flex flex-col gap-5 p-5">
         <h2 className="text-lg font-semibold">{title}</h2>
-        {children}
+        {typeof children === 'function' ? children(dismiss) : children}
       </div>
     </dialog>
   );

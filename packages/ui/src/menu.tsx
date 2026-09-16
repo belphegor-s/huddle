@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { cx } from './cx.js';
 import { Icon, type IconName } from './icon.js';
-import { place, POPOVER_SUPPORTED, type Align, type Side } from './overlay.js';
+import { aim, place, POPOVER_SUPPORTED, type Align, type Side } from './overlay.js';
 
 /**
  * One dropdown for the whole app.
@@ -109,7 +109,7 @@ export function Menu({
         ? `${String(Math.round(triggerNode.getBoundingClientRect().width))}px`
         : '';
 
-    place(element, triggerNode, align, side);
+    aim(element, place(element, triggerNode, align, side));
 
     // Focus lands on the menu itself rather than the first item, so opening it
     // does not read as having already chosen something.
@@ -122,7 +122,7 @@ export function Menu({
     if (!open) return;
 
     const reposition = () => {
-      if (panel.current) place(panel.current, triggerNode, align, side);
+      if (panel.current) aim(panel.current, place(panel.current, triggerNode, align, side));
     };
 
     window.addEventListener('scroll', reposition, true);
@@ -163,11 +163,18 @@ export function Menu({
         {...(POPOVER_SUPPORTED ? { popover: 'auto' } : {})}
         hidden={POPOVER_SUPPORTED ? undefined : !open}
         onKeyDown={(event) => onMenuKeys(event, close, triggerNode)}
+        /*
+         * Arriving and leaving are pure CSS, keyed off :popover-open in
+         * motion.css. Toggling opacity from here would race the platform's own
+         * close and cut the exit short. The fallback path has no popover to
+         * animate, so it simply appears.
+         */
         className={cx(
           'border-border bg-surface-raised shadow-popover text-text-primary fixed m-0 min-w-52 rounded-xl border p-1',
-          POPOVER_SUPPORTED ? '' : 'z-50',
-          'motion-safe:transition-[opacity,transform] motion-safe:duration-(--duration-instant)',
-          open ? 'scale-100 opacity-100' : 'pointer-events-none scale-95 opacity-0',
+          // A panel on its way out takes no clicks: it is only still painted
+          // because the leave is playing.
+          open ? '' : 'pointer-events-none',
+          POPOVER_SUPPORTED ? '' : cx('z-50', open ? 'opacity-100' : 'opacity-0'),
           className,
         )}
       >

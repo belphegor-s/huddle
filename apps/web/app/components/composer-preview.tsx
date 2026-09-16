@@ -48,7 +48,7 @@ export function ComposerPreview({ workspaceId, text }: { workspaceId: string; te
   if (!preview) return null;
 
   return (
-    <div className="border-border bg-surface-raised mb-2 flex max-w-md items-start gap-3 overflow-hidden rounded-lg border">
+    <div className="pop-in border-border bg-surface-raised mb-2 flex max-w-md items-start gap-3 overflow-hidden rounded-lg border">
       <span aria-hidden className="bg-accent/60 w-1 shrink-0 self-stretch" />
 
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 py-2">

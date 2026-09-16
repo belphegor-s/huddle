@@ -1,0 +1,73 @@
+/*
+ * Motion for everything that floats above the page.
+ *
+ * A popover and a dialog are display:none when they are closed, so a plain
+ * transition can never see the frame they arrive on. @starting-style supplies
+ * that frame, and allow-discrete on display and overlay keeps the element
+ * painted while it leaves instead of blinking out of the top layer. Both are
+ * the platform's own answer, so no timer has to guess when the panel is gone.
+ *
+ * Only opacity and a short translate are used, never a scale. A scale shrinks
+ * the box the panel reports while it plays, which moves the edges a menu is
+ * placed against and makes an attached panel look misaligned mid flight.
+ *
+ * Reduced motion is handled once, globally, in base.css.
+ */
+
+[popover] {
+  transition:
+    opacity var(--duration-exit) var(--ease-in-quick),
+    transform var(--duration-exit) var(--ease-in-quick),
+    display var(--duration-exit) allow-discrete,
+    overlay var(--duration-exit) allow-discrete;
+}
+
+[popover]:popover-open {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--duration-quick) var(--ease-out-quick),
+    transform var(--duration-quick) var(--ease-out-quick),
+    display var(--duration-quick) allow-discrete,
+    overlay var(--duration-quick) allow-discrete;
+}
+
+[popover]:not(:popover-open) {
+  opacity: 0;
+  /* Set by the placement code: it knows which side of the trigger won. */
+  transform: translateY(var(--panel-from-y, 0px));
+}
+
+@starting-style {
+  [popover]:popover-open {
+    opacity: 0;
+    transform: translateY(var(--panel-from-y, 0px));
+  }
+}
+
+/*
+ * Content that arrives on its own, not as a floating panel: a summary, an
+ * attachment chip, a reaction. There is nothing to animate on the way out
+ * because the thing is gone the moment it is dismissed.
+ */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+.rise-in {
+  animation: rise-in var(--duration-settle) var(--ease-out-quick);
+}
+
+.pop-in {
+  animation: pop-in var(--duration-quick) var(--ease-spring);
+}

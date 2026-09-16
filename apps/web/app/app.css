@@ -2,6 +2,7 @@
 
 @import '@huddle/ui/fonts.css';
 @import '@huddle/ui/tokens.css';
+@import '@huddle/ui/motion.css';
 
 /*
  * base.css must land in the base layer. Unlayered CSS wins over anything in

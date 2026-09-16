@@ -56,55 +56,57 @@ export function NewChannelDialog({ workspaceSlug, onClose, onCreate }: NewChanne
 
   return (
     <Dialog title="New channel" onClose={onClose}>
-      <form onSubmit={submit} className="flex flex-col gap-4">
-        <TextField
-          label="Name"
-          value={name}
-          onChange={(event) => setName(toChannelName(event.target.value))}
-          autoFocus
-          required
-          maxLength={80}
-          placeholder="launch"
-          hint="Lowercase letters, numbers, hyphens and underscores."
-          error={error}
-        />
+      {(dismiss) => (
+        <form onSubmit={submit} className="flex flex-col gap-4">
+          <TextField
+            label="Name"
+            value={name}
+            onChange={(event) => setName(toChannelName(event.target.value))}
+            autoFocus
+            required
+            maxLength={80}
+            placeholder="launch"
+            hint="Lowercase letters, numbers, hyphens and underscores."
+            error={error}
+          />
 
-        <TextField
-          label="Topic"
-          value={topic}
-          onChange={(event) => setTopic(event.target.value)}
-          maxLength={280}
-          placeholder="What this channel is for"
-        />
+          <TextField
+            label="Topic"
+            value={topic}
+            onChange={(event) => setTopic(event.target.value)}
+            maxLength={280}
+            placeholder="What this channel is for"
+          />
 
-        <Checkbox
-          label="Private"
-          hint="Visible only to people who are added"
-          checked={isPrivate}
-          onChange={(event) => setPrivate(event.target.checked)}
-        />
+          <Checkbox
+            label="Private"
+            hint="Visible only to people who are added"
+            checked={isPrivate}
+            onChange={(event) => setPrivate(event.target.checked)}
+          />
 
-        {/*
+          {/*
           Stated rather than hidden. Somebody choosing this is choosing to give
           up the two things that need the server to read messages, and finding
           that out afterwards would be worse than reading it now.
         */}
-        <Checkbox
-          label="End to end encrypted"
-          hint="Only the people in it can read the messages. Search and the assistant will not work here, and it cannot be turned on later."
-          checked={encrypted}
-          onChange={(event) => setEncrypted(event.target.checked)}
-        />
+          <Checkbox
+            label="End to end encrypted"
+            hint="Only the people in it can read the messages. Search and the assistant will not work here, and it cannot be turned on later."
+            checked={encrypted}
+            onChange={(event) => setEncrypted(event.target.checked)}
+          />
 
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={busy || name.length === 0}>
-            {busy ? 'Creating' : 'Create'}
-          </Button>
-        </div>
-      </form>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={dismiss}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy || name.length === 0}>
+              {busy ? 'Creating' : 'Create'}
+            </Button>
+          </div>
+        </form>
+      )}
     </Dialog>
   );
 }

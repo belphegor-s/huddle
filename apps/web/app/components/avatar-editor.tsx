@@ -176,168 +176,173 @@ export function AvatarEditor({ file, onCancel, onDone }: AvatarEditorProps) {
 
   return (
     <Dialog title="Crop your picture" onClose={onCancel}>
-      {problem ? <p className="text-critical text-sm">{problem}</p> : null}
+      {(dismiss) => (
+        <>
+          {problem ? <p className="text-critical text-sm">{problem}</p> : null}
 
-      <div className="flex flex-col items-center gap-4">
-        <div
-          role="application"
-          aria-label="Drag to move the picture. Arrow keys nudge it, plus and minus zoom."
-          tabIndex={0}
-          className="bg-surface-sunken relative shrink-0 touch-none overflow-hidden rounded-xl select-none"
-          style={{ width: FRAME_PX, height: FRAME_PX, cursor: dragging ? 'grabbing' : 'grab' }}
-          onPointerDown={(event) => {
-            grab.current = { x: event.clientX - offset.x, y: event.clientY - offset.y };
-            setDragging(true);
-            event.currentTarget.setPointerCapture(event.pointerId);
-          }}
-          onPointerMove={(event) => {
-            const from = grab.current;
-            if (!from) return;
-            setOffset(clamp({ x: event.clientX - from.x, y: event.clientY - from.y }, scale));
-          }}
-          onPointerUp={() => {
-            grab.current = null;
-            setDragging(false);
-          }}
-          onPointerCancel={() => {
-            grab.current = null;
-            setDragging(false);
-          }}
-          onWheel={(event) => zoomTo(zoom - event.deltaY / 500)}
-          onTouchMove={(event) => {
-            // Pinch, which is how anybody on a phone expects to zoom.
-            if (event.touches.length !== 2) return;
-
-            const first = event.touches[0];
-            const second = event.touches[1];
-            if (!first || !second) return;
-
-            const spread = Math.hypot(
-              first.clientX - second.clientX,
-              first.clientY - second.clientY,
-            );
-            const previous = pinch.current;
-            pinch.current = spread;
-
-            if (previous !== null && previous > 0) zoomTo(zoom * (spread / previous));
-          }}
-          onTouchEnd={() => (pinch.current = null)}
-          onKeyDown={(event) => {
-            const step = event.shiftKey ? 20 : 5;
-            const moves: Record<string, Point> = {
-              ArrowLeft: { x: -step, y: 0 },
-              ArrowRight: { x: step, y: 0 },
-              ArrowUp: { x: 0, y: -step },
-              ArrowDown: { x: 0, y: step },
-            };
-
-            const move = moves[event.key];
-            if (move) {
-              event.preventDefault();
-              setOffset((current) =>
-                clamp({ x: current.x + move.x, y: current.y + move.y }, scale),
-              );
-              return;
-            }
-
-            if (event.key === '+' || event.key === '=') zoomTo(zoom + ZOOM_STEP);
-            if (event.key === '-') zoomTo(zoom - ZOOM_STEP);
-          }}
-        >
-          {source ? (
-            <img
-              src={source.url}
-              alt=""
-              draggable={false}
-              className="absolute top-0 left-0 max-w-none select-none"
-              style={{
-                width: width * scale,
-                height: height * scale,
-                transform: `translate(${String(offset.x)}px, ${String(offset.y)}px)`,
+          <div className="flex flex-col items-center gap-4">
+            <div
+              role="application"
+              aria-label="Drag to move the picture. Arrow keys nudge it, plus and minus zoom."
+              tabIndex={0}
+              className="bg-surface-sunken relative shrink-0 touch-none overflow-hidden rounded-xl select-none"
+              style={{ width: FRAME_PX, height: FRAME_PX, cursor: dragging ? 'grabbing' : 'grab' }}
+              onPointerDown={(event) => {
+                grab.current = { x: event.clientX - offset.x, y: event.clientY - offset.y };
+                setDragging(true);
+                event.currentTarget.setPointerCapture(event.pointerId);
               }}
-            />
-          ) : (
-            <span className="text-text-muted absolute inset-0 grid place-items-center">
-              <Spinner />
-            </span>
-          )}
+              onPointerMove={(event) => {
+                const from = grab.current;
+                if (!from) return;
+                setOffset(clamp({ x: event.clientX - from.x, y: event.clientY - from.y }, scale));
+              }}
+              onPointerUp={() => {
+                grab.current = null;
+                setDragging(false);
+              }}
+              onPointerCancel={() => {
+                grab.current = null;
+                setDragging(false);
+              }}
+              onWheel={(event) => zoomTo(zoom - event.deltaY / 500)}
+              onTouchMove={(event) => {
+                // Pinch, which is how anybody on a phone expects to zoom.
+                if (event.touches.length !== 2) return;
 
-          {/*
+                const first = event.touches[0];
+                const second = event.touches[1];
+                if (!first || !second) return;
+
+                const spread = Math.hypot(
+                  first.clientX - second.clientX,
+                  first.clientY - second.clientY,
+                );
+                const previous = pinch.current;
+                pinch.current = spread;
+
+                if (previous !== null && previous > 0) zoomTo(zoom * (spread / previous));
+              }}
+              onTouchEnd={() => (pinch.current = null)}
+              onKeyDown={(event) => {
+                const step = event.shiftKey ? 20 : 5;
+                const moves: Record<string, Point> = {
+                  ArrowLeft: { x: -step, y: 0 },
+                  ArrowRight: { x: step, y: 0 },
+                  ArrowUp: { x: 0, y: -step },
+                  ArrowDown: { x: 0, y: step },
+                };
+
+                const move = moves[event.key];
+                if (move) {
+                  event.preventDefault();
+                  setOffset((current) =>
+                    clamp({ x: current.x + move.x, y: current.y + move.y }, scale),
+                  );
+                  return;
+                }
+
+                if (event.key === '+' || event.key === '=') zoomTo(zoom + ZOOM_STEP);
+                if (event.key === '-') zoomTo(zoom - ZOOM_STEP);
+              }}
+            >
+              {source ? (
+                <img
+                  src={source.url}
+                  alt=""
+                  draggable={false}
+                  className="absolute top-0 left-0 max-w-none select-none"
+                  style={{
+                    width: width * scale,
+                    height: height * scale,
+                    transform: `translate(${String(offset.x)}px, ${String(offset.y)}px)`,
+                  }}
+                />
+              ) : (
+                <span className="text-text-muted absolute inset-0 grid place-items-center">
+                  <Spinner />
+                </span>
+              )}
+
+              {/*
             One element does the dimming and the ring: an enormous spread
             shadow fills everything outside the circle, which is exact at any
             size and needs no second layer to line up with.
           */}
-          <span
-            aria-hidden
-            className="pointer-events-none absolute rounded-full"
-            style={{
-              inset: `${String(PAD)}px`,
-              // Both in one declaration. Tailwind draws a ring with a box
-              // shadow too, so setting this inline silently threw the ring
-              // away and left the circle with no edge at all.
-              boxShadow: 'inset 0 0 0 1px rgb(255 255 255 / 0.85), 0 0 0 9999px rgb(0 0 0 / 0.62)',
-            }}
-          />
+              <span
+                aria-hidden
+                className="pointer-events-none absolute rounded-full"
+                style={{
+                  inset: `${String(PAD)}px`,
+                  // Both in one declaration. Tailwind draws a ring with a box
+                  // shadow too, so setting this inline silently threw the ring
+                  // away and left the circle with no edge at all.
+                  boxShadow:
+                    'inset 0 0 0 1px rgb(255 255 255 / 0.85), 0 0 0 9999px rgb(0 0 0 / 0.62)',
+                }}
+              />
 
-          {/* Guides, only while moving, so they help rather than decorate. */}
-          {dragging ? <Guides /> : null}
-        </div>
+              {/* Guides, only while moving, so they help rather than decorate. */}
+              {dragging ? <Guides /> : null}
+            </div>
 
-        <div className="flex w-full min-w-0 flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <Preview source={source} scale={scale} offset={offset} />
+            <div className="flex w-full min-w-0 flex-col gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <Preview source={source} scale={scale} offset={offset} />
+              </div>
+
+              <div className="flex items-center justify-center gap-1.5">
+                <Step
+                  icon="minus"
+                  label="Zoom out"
+                  disabled={zoom <= MIN_ZOOM}
+                  onPress={() => zoomTo(zoom - ZOOM_STEP)}
+                />
+                <span className="text-text-muted w-12 text-center font-mono text-xs tabular-nums">
+                  {zoom.toFixed(1)}x
+                </span>
+                <Step
+                  icon="plus"
+                  label="Zoom in"
+                  disabled={zoom >= MAX_ZOOM}
+                  onPress={() => zoomTo(zoom + ZOOM_STEP)}
+                />
+
+                <span className="bg-border mx-1 h-6 w-px" />
+
+                <Step
+                  icon="reply"
+                  label="Rotate a quarter turn"
+                  onPress={() => setTurns((was) => (was + 1) % 4)}
+                />
+                <Step
+                  icon="expand"
+                  label="Fit the whole picture"
+                  disabled={zoom === MIN_ZOOM}
+                  onPress={() => {
+                    setZoom(MIN_ZOOM);
+                    setOffset(centred(cover * MIN_ZOOM));
+                  }}
+                />
+              </div>
+
+              <p className="text-text-muted text-xs">
+                Drag to move, scroll or pinch to zoom. Saved as a {OUTPUT_PX} pixel square.
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center justify-center gap-1.5">
-            <Step
-              icon="minus"
-              label="Zoom out"
-              disabled={zoom <= MIN_ZOOM}
-              onPress={() => zoomTo(zoom - ZOOM_STEP)}
-            />
-            <span className="text-text-muted w-12 text-center font-mono text-xs tabular-nums">
-              {zoom.toFixed(1)}x
-            </span>
-            <Step
-              icon="plus"
-              label="Zoom in"
-              disabled={zoom >= MAX_ZOOM}
-              onPress={() => zoomTo(zoom + ZOOM_STEP)}
-            />
-
-            <span className="bg-border mx-1 h-6 w-px" />
-
-            <Step
-              icon="reply"
-              label="Rotate a quarter turn"
-              onPress={() => setTurns((was) => (was + 1) % 4)}
-            />
-            <Step
-              icon="expand"
-              label="Fit the whole picture"
-              disabled={zoom === MIN_ZOOM}
-              onPress={() => {
-                setZoom(MIN_ZOOM);
-                setOffset(centred(cover * MIN_ZOOM));
-              }}
-            />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={dismiss} disabled={busy}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => void save()} disabled={busy || source === null}>
+              {busy ? <Spinner /> : null}
+              {busy ? 'Working' : 'Use this'}
+            </Button>
           </div>
-
-          <p className="text-text-muted text-xs">
-            Drag to move, scroll or pinch to zoom. Saved as a {OUTPUT_PX} pixel square.
-          </p>
-        </div>
-      </div>
-
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>
-          Cancel
-        </Button>
-        <Button type="button" onClick={() => void save()} disabled={busy || source === null}>
-          {busy ? <Spinner /> : null}
-          {busy ? 'Working' : 'Use this'}
-        </Button>
-      </div>
+        </>
+      )}
     </Dialog>
   );
 }

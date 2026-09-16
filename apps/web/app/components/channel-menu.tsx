@@ -204,28 +204,30 @@ export function ChannelMenu({ summary, workspaceSlug, canManage, onChanged }: Ch
           title={summary.channel.topic ? 'Edit the topic' : 'Add a topic'}
           onClose={() => setTopic(null)}
         >
-          <form
-            className="flex flex-col gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void saveTopic(topic);
-            }}
-          >
-            <TextField
-              label="Topic"
-              value={topic}
-              autoFocus
-              maxLength={280}
-              onChange={(event) => setTopic(event.target.value)}
-              hint="What this channel is for. Shown under its name."
-            />
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={() => setTopic(null)}>
-                Cancel
-              </Button>
-              <Button type="submit">Save</Button>
-            </div>
-          </form>
+          {(dismiss) => (
+            <form
+              className="flex flex-col gap-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void saveTopic(topic);
+              }}
+            >
+              <TextField
+                label="Topic"
+                value={topic}
+                autoFocus
+                maxLength={280}
+                onChange={(event) => setTopic(event.target.value)}
+                hint="What this channel is for. Shown under its name."
+              />
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="ghost" onClick={dismiss}>
+                  Cancel
+                </Button>
+                <Button type="submit">Save</Button>
+              </div>
+            </form>
+          )}
         </Dialog>
       )}
     </>

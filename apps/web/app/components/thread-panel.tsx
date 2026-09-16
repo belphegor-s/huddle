@@ -1,6 +1,6 @@
 import type { MemberProfile } from '@huddle/core';
+import { Avatar, cx, Icon } from '@huddle/ui';
 import { useEffect, useState } from 'react';
-import { Avatar, Icon } from '@huddle/ui';
 import type { ChannelStream } from '../lib/use-messages';
 import { api } from '../lib/api';
 import { toLines } from '../lib/rich-text';
@@ -19,6 +19,8 @@ interface ThreadPanelProps {
   stream: ChannelStream;
   canUseAi: boolean;
   canAttach: boolean;
+  /** Whether the panel is showing. Presence keeps it mounted while it leaves. */
+  shown: boolean;
   onClose(): void;
 }
 
@@ -36,6 +38,7 @@ export function ThreadPanel({
   stream,
   canUseAi,
   canAttach,
+  shown,
   onClose,
 }: ThreadPanelProps) {
   const [summarising, setSummarising] = useState(false);
@@ -51,7 +54,18 @@ export function ThreadPanel({
   const replies = stream.messages.filter((message) => message.parentId === parentId);
 
   return (
-    <aside className="border-border bg-surface absolute inset-0 z-10 flex flex-col border-l md:static md:z-auto md:w-96 md:shrink-0">
+    <aside
+      className={cx(
+        'border-border bg-surface absolute inset-0 z-10 flex flex-col border-l md:static md:z-auto md:w-96 md:shrink-0',
+        // On a phone the thread is a screen of its own, so it slides up from
+        // the bottom. On a desktop it sits in flow, and a small drift in from
+        // the right reads as the panel making room for itself.
+        'motion-safe:transition-[transform,opacity] motion-safe:duration-(--duration-sheet) motion-safe:[transition-timing-function:var(--ease-out-settle)]',
+        shown
+          ? 'translate-y-0 opacity-100 md:translate-x-0'
+          : 'translate-y-full opacity-0 md:translate-x-8 md:translate-y-0',
+      )}
+    >
       <header className="border-border flex items-center gap-3 border-b px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))]">
         <h2 className="flex-1 text-base font-semibold">Thread</h2>
         {canUseAi && replies.length > 2 ? (
