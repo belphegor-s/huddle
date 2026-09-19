@@ -57,11 +57,15 @@ const SHARED =
  * reads as broken in a way plain text never does.
  *
  * So: colour, underline, strike and stroke, all of which paint without
- * measuring. Bold is a stroke on the outline rather than the 600 weight, and
- * italic is safe because there is no italic face to load, so the browser
- * shears the regular one and the advances stay put. Code reads as code by
- * colour, from the same tokeniser that colours a sent message, so a snippet
- * looks the same while it is typed and after it lands.
+ * measuring. Bold is a stroke on the outline rather than the 600 weight. Code
+ * reads as code by colour, from the same tokeniser that colours a sent
+ * message, so a snippet looks the same while it is typed and after it lands.
+ *
+ * Italic is not on that list. There is no italic face to load, so the browser
+ * synthesises one, and Skia charges a pixel for the shear at the end of the
+ * run while DirectWrite does not. That pixel pushes every glyph after an
+ * emphasised word off the caret on Linux and on Android, so emphasis is left
+ * to its markers here and slants only once the message is sent.
  */
 const BOLD = '[-webkit-text-stroke:0.4px_currentColor]';
 
@@ -70,14 +74,14 @@ const STYLES: Record<Emphasis, string> = {
   marker: 'text-text-muted',
   heading: BOLD,
   strong: BOLD,
-  emphasis: 'italic',
+  emphasis: '',
   strike: 'line-through',
   code: 'text-accent',
   link: 'text-accent underline decoration-1 underline-offset-2',
   mention: `text-accent ${BOLD}`,
-  quote: 'text-text-secondary italic',
+  quote: 'text-text-secondary',
   'code-plain': 'text-text-primary',
-  'code-comment': 'text-syntax-comment italic',
+  'code-comment': 'text-syntax-comment',
   'code-string': 'text-syntax-string',
   'code-number': 'text-syntax-number',
   'code-keyword': 'text-syntax-keyword',
