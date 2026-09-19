@@ -80,17 +80,45 @@ export function Menu({
   const close = useCallback(() => setOpen(false), []);
   const toggle = useCallback(() => setOpen((was) => !was), []);
 
-  // The platform closes the popover for its own reasons: a click outside, the
-  // Escape key, another popover opening. The toggle event is how that gets
-  // back to React, so the two never disagree about whether it is open.
+  /**
+   * Sized, then placed: the placement measures the panel, so a width set after
+   * it would move the edge the panel was lined up against.
+   */
+  const settle = useCallback(() => {
+    const element = panel.current;
+    if (!element) return;
+
+    element.style.width =
+      matchTrigger && triggerNode
+        ? `${String(Math.round(triggerNode.getBoundingClientRect().width))}px`
+        : '';
+
+    aim(element, place(element, triggerNode, align, side));
+  }, [matchTrigger, triggerNode, align, side]);
+
+  // The platform opens and closes the popover for its own reasons: the click
+  // on the control, a click outside, the Escape key, another popover opening.
+  // The toggle event is how that gets back to React, so the two never disagree
+  // about whether it is open.
   useEffect(() => {
     const element = panel.current;
     if (!element) return;
 
-    const onToggle = (event: Event) => setOpen((event as ToggleEvent).newState === 'open');
+    /*
+     * Settled here rather than from the render this event schedules. The panel
+     * is already in the top layer by now, and anything that measures it before
+     * React comes round finds it at its minimum width in the corner it was
+     * declared in, which is a menu that visibly jumps into place.
+     */
+    const onToggle = (event: Event) => {
+      const opening = (event as ToggleEvent).newState === 'open';
+      if (opening) settle();
+      setOpen(opening);
+    };
+
     element.addEventListener('toggle', onToggle);
     return () => element.removeEventListener('toggle', onToggle);
-  }, []);
+  }, [settle]);
 
   useLayoutEffect(() => {
     const element = panel.current;
@@ -108,35 +136,26 @@ export function Menu({
       element.showPopover();
     }
 
-    // Sized before it is placed, or the placement measures the wrong width.
-    element.style.width =
-      matchTrigger && triggerNode
-        ? `${String(Math.round(triggerNode.getBoundingClientRect().width))}px`
-        : '';
-
-    aim(element, place(element, triggerNode, align, side));
+    settle();
 
     // Focus lands on the menu itself rather than the first item, so opening it
     // does not read as having already chosen something.
     element.focus({ preventScroll: true });
-  }, [open, triggerNode, align, side, matchTrigger]);
+  }, [open, side, settle]);
 
   // A menu pinned to a control has to follow it, or it detaches the moment
-  // anything behind it moves.
+  // anything behind it moves. A resize can change the control's width as well
+  // as its position, so the panel is sized again rather than only moved.
   useEffect(() => {
     if (!open) return;
 
-    const reposition = () => {
-      if (panel.current) aim(panel.current, place(panel.current, triggerNode, align, side));
-    };
-
-    window.addEventListener('scroll', reposition, true);
-    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', settle, true);
+    window.addEventListener('resize', settle);
     return () => {
-      window.removeEventListener('scroll', reposition, true);
-      window.removeEventListener('resize', reposition);
+      window.removeEventListener('scroll', settle, true);
+      window.removeEventListener('resize', settle);
     };
-  }, [open, triggerNode, align, side]);
+  }, [open, settle]);
 
   // Without popover support there is no light dismiss to inherit.
   useEffect(() => {

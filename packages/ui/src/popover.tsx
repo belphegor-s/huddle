@@ -62,14 +62,28 @@ export function Popover({
   const close = useCallback(() => setOpen(false), []);
   const toggle = useCallback(() => setOpen((was) => !was), []);
 
+  const settle = useCallback(() => {
+    const element = panel.current;
+    if (!element) return;
+
+    aim(element, place(element, triggerNode, align, side));
+  }, [triggerNode, align, side]);
+
   useEffect(() => {
     const element = panel.current;
     if (!element) return;
 
-    const onToggle = (event: Event) => setOpen((event as ToggleEvent).newState === 'open');
+    // Placed here rather than from the render this event schedules, for the
+    // reason in Menu: the panel is in the top layer already.
+    const onToggle = (event: Event) => {
+      const opening = (event as ToggleEvent).newState === 'open';
+      if (opening) settle();
+      setOpen(opening);
+    };
+
     element.addEventListener('toggle', onToggle);
     return () => element.removeEventListener('toggle', onToggle);
-  }, []);
+  }, [settle]);
 
   useLayoutEffect(() => {
     const element = panel.current;
@@ -85,24 +99,20 @@ export function Popover({
       aim(element, side);
       element.showPopover();
     }
-    aim(element, place(element, triggerNode, align, side));
+    settle();
     element.focus({ preventScroll: true });
-  }, [open, triggerNode, align, side]);
+  }, [open, side, settle]);
 
   useEffect(() => {
     if (!open) return;
 
-    const reposition = () => {
-      if (panel.current) aim(panel.current, place(panel.current, triggerNode, align, side));
-    };
-
-    window.addEventListener('scroll', reposition, true);
-    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', settle, true);
+    window.addEventListener('resize', settle);
     return () => {
-      window.removeEventListener('scroll', reposition, true);
-      window.removeEventListener('resize', reposition);
+      window.removeEventListener('scroll', settle, true);
+      window.removeEventListener('resize', settle);
     };
-  }, [open, triggerNode, align, side]);
+  }, [open, settle]);
 
   // Without popover support there is no light dismiss to inherit.
   useEffect(() => {

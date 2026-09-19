@@ -26,7 +26,15 @@ export default defineConfig({
   forbidOnly: process.env.CI === 'true',
   retries: process.env.CI === 'true' ? 1 : 0,
   workers: 1,
-  reporter: process.env.CI === 'true' ? 'github' : 'list',
+  /*
+   * On a runner the annotations go on the job and the HTML report is written
+   * for the artifact, which is the only way back to a failure that does not
+   * happen on a laptop.
+   */
+  reporter:
+    process.env.CI === 'true'
+      ? [['github'] as const, ['html', { open: 'never' }] as const]
+      : 'list',
 
   use: {
     baseURL: BASE_URL,
