@@ -41,7 +41,9 @@ describe('inline marks', () => {
   });
 
   it('lets punctuation follow the closing underscore', () => {
-    expect(shape(parseInline('with _emphasis_, and more'))).toBe('with emphasis(emphasis), and more');
+    expect(shape(parseInline('with _emphasis_, and more'))).toBe(
+      'with emphasis(emphasis), and more',
+    );
     expect(shape(parseInline('ends in _this_.'))).toBe('ends in emphasis(this).');
   });
 

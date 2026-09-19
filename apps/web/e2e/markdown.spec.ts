@@ -102,7 +102,51 @@ test('the paint stays under the caret whatever markdown is typed', async ({ page
   await composer.fill('**bold** _italic_ ~~gone~~ `code` @ada https://example.com/x');
   await page.waitForTimeout(100);
 
+  const report = await page.evaluate(async () => {
+    await document.fonts.ready;
+    const field = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Message"]');
+    const layer = field?.parentElement?.querySelector<HTMLElement>('[aria-hidden]');
+    if (!field || !layer) throw new Error('missing');
+
+    const width = (element: Element): number => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return range.getBoundingClientRect().width;
+    };
+
+    const bare = layer.cloneNode(true) as HTMLElement;
+    for (const span of bare.querySelectorAll('span')) {
+      span.removeAttribute('class');
+      span.removeAttribute('style');
+    }
+    bare.style.position = 'absolute';
+    bare.style.visibility = 'hidden';
+    bare.style.width = `${String(layer.clientWidth)}px`;
+    layer.parentElement?.append(bare);
+
+    const styledSpans = [...layer.querySelectorAll('span')];
+    const plainSpans = [...bare.querySelectorAll('span')];
+    const rows = styledSpans.map((span, index) => ({
+      text: span.textContent,
+      cls: span.className,
+      styled: width(span),
+      plain: width(plainSpans[index]),
+    }));
+
+    const out = {
+      switzer: document.fonts.check('15px Switzer'),
+      family: getComputedStyle(field).fontFamily,
+      layerWidth: width(layer),
+      bareWidth: width(bare),
+      rows,
+    };
+    bare.remove();
+    return out;
+  });
+  console.log('PAINT_DIAGNOSTIC ' + JSON.stringify(report));
+
   const styled = await paintDrift(page);
+  console.log('PAINT_DRIFT ' + String(styled));
   expect(styled, 'the styled paint is a different width from the plain text').toBeLessThan(1);
 
   /*

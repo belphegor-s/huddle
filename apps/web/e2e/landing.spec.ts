@@ -17,10 +17,14 @@ test('the hero conversation never changes height while it plays', async ({ page 
   expect([...heights]).toHaveLength(1);
 });
 
-test('the source link points at the repository', async ({ page }) => {
+test('every source link points at the repository', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('link', { name: 'Source' })).toHaveAttribute(
-    'href',
-    'https://github.com/belphegor-s/huddle',
-  );
+
+  // The header and the footer both carry one.
+  const sources = page.getByRole('link', { name: 'Source' });
+  await expect(sources.first()).toBeVisible();
+
+  for (const link of await sources.all()) {
+    await expect(link).toHaveAttribute('href', 'https://github.com/belphegor-s/huddle');
+  }
 });
