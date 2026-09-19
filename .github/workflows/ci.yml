@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v5
         with:
@@ -56,7 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v5
         with:
@@ -74,9 +74,13 @@ jobs:
         env:
           DATABASE_URL: postgres://huddle:huddle@localhost:5432/huddle
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
-          path: apps/web/playwright-report
+          # The traces are the point: a failure on a runner is only debuggable
+          # from the recording of the browser that saw it.
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
           retention-days: 7
