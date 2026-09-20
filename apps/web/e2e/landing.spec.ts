@@ -28,3 +28,14 @@ test('every source link points at the repository', async ({ page }) => {
     await expect(link).toHaveAttribute('href', 'https://github.com/belphegor-s/huddle');
   }
 });
+
+test('the hero gradient credits its open source', async ({ page }) => {
+  await page.goto('/');
+
+  // The credit carries the attribution in its title, which is the tooltip the
+  // pointer gets, and the visible text stays short.
+  const credit = page.getByRole('link', { name: 'Gradient: Paper Shaders' });
+  await expect(credit).toBeVisible();
+  await expect(credit).toHaveAttribute('href', 'https://shaders.paper.design');
+  await expect(credit).toHaveAttribute('title', /Apache-2\.0/);
+});

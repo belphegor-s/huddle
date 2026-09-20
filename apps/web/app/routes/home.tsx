@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 /** Where the code actually is. It was pointing at github.com itself. */
 const SOURCE_URL = 'https://github.com/belphegor-s/huddle';
 import { cx } from '@huddle/ui';
+import { HeroShader, SHADER_CREDIT, SHADER_URL } from '../components/hero-shader';
 import { pageMeta } from '../lib/meta';
 import { redirect } from 'react-router';
 import { api } from '../lib/api';
@@ -274,7 +275,9 @@ export default function Home() {
         </nav>
       </header>
 
-      <section className="grid items-center gap-10 pt-8 pb-20 md:grid-cols-[1.05fr_1fr] md:gap-14">
+      <section className="relative isolate grid items-center gap-10 pt-8 pb-20 md:grid-cols-[1.05fr_1fr] md:gap-14">
+        <HeroShader className="absolute inset-0 -z-10" />
+
         <div className="flex flex-col gap-6">
           <h1 className="font-display text-3xl leading-[1.05] font-semibold sm:text-4xl">
             Your team is running on a group chat that <Said>forgets everything.</Said>
@@ -300,6 +303,16 @@ export default function Home() {
           </div>
         </div>
         <ConversationDemo />
+
+        <a
+          href={SHADER_URL}
+          target="_blank"
+          rel="noreferrer noopener"
+          title={SHADER_CREDIT}
+          className="text-text-muted hover:text-text-secondary text-2xs absolute right-0 bottom-2 no-underline transition-colors"
+        >
+          Gradient: Paper Shaders
+        </a>
       </section>
 
       <section className="border-border grid gap-6 border-t pt-12 sm:grid-cols-2 sm:gap-x-10 sm:gap-y-8">
@@ -380,6 +393,19 @@ export default function Home() {
         <p className="text-text-muted text-xs">
           &copy; {new Date().getFullYear()}{' '}
           <span className="text-text-secondary">Ayush Sharma</span>
+        </p>
+        <p className="text-text-muted text-xs">
+          Hero gradient by{' '}
+          <a
+            href={SHADER_URL}
+            target="_blank"
+            rel="noreferrer noopener"
+            title={SHADER_CREDIT}
+            className="text-text-secondary hover:text-text-primary no-underline transition-colors"
+          >
+            Paper Shaders
+          </a>{' '}
+          (Apache-2.0)
         </p>
         <a
           href={SOURCE_URL}

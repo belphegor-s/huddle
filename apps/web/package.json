@@ -13,10 +13,11 @@
   "dependencies": {
     "@huddle/core": "workspace:*",
     "@huddle/ui": "workspace:*",
+    "@paper-design/shaders-react": "0.0.81",
+    "isbot": "^5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router": "^8.3.0",
-    "isbot": "^5"
+    "react-router": "^8.3.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
