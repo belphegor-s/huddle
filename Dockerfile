@@ -3,7 +3,18 @@
 # and an S3 bucket you already have.
 
 FROM node:24-alpine AS build
-RUN corepack enable
+
+# Corepack downloads the pnpm this repo pins on first use, and that fetch has
+# no retry: one connect timeout to the registry fails the build before a single
+# dependency is read. Fetch it in its own layer, so a manifest change does not
+# repeat it, and prefer IPv4 because the default order reached an unreachable
+# IPv6 route.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
+RUN corepack enable \
+  && (corepack prepare pnpm@11.1.1 --activate \
+      || (sleep 5 && corepack prepare pnpm@11.1.1 --activate))
+
 WORKDIR /repo
 
 # Manifests first, so a source change does not reinstall the world.
@@ -14,7 +25,7 @@ COPY packages/core/package.json packages/core/
 COPY packages/db/package.json packages/db/
 COPY packages/server/package.json packages/server/
 COPY packages/ui/package.json packages/ui/
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --fetch-retries=5
 
 COPY . .
 RUN pnpm build
