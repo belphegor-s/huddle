@@ -29,13 +29,17 @@ test('every source link points at the repository', async ({ page }) => {
   }
 });
 
-test('the hero gradient credits its open source', async ({ page }) => {
+test('the hero shader credits its open source only on hover and in the footer', async ({
+  page,
+}) => {
   await page.goto('/');
 
-  // The credit carries the attribution in its title, which is the tooltip the
-  // pointer gets, and the visible text stays short.
-  const credit = page.getByRole('link', { name: 'Gradient: Paper Shaders' });
+  // No visible credit in the hero: the backdrop carries it as its tooltip.
+  const backdrop = page.locator('section div[title*="webgl-noise"]').first();
+  await expect(backdrop).toHaveAttribute('title', /MIT/);
+
+  const credit = page.locator('footer').getByRole('link', { name: 'webgl-noise' });
   await expect(credit).toBeVisible();
-  await expect(credit).toHaveAttribute('href', 'https://shaders.paper.design');
-  await expect(credit).toHaveAttribute('title', /Apache-2\.0/);
+  await expect(credit).toHaveAttribute('href', 'https://github.com/stegu/webgl-noise');
+  await expect(credit).toHaveAttribute('title', /MIT/);
 });

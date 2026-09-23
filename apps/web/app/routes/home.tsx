@@ -303,16 +303,6 @@ export default function Home() {
           </div>
         </div>
         <ConversationDemo />
-
-        <a
-          href={SHADER_URL}
-          target="_blank"
-          rel="noreferrer noopener"
-          title={SHADER_CREDIT}
-          className="text-text-muted hover:text-text-secondary text-2xs absolute right-0 bottom-2 no-underline transition-colors"
-        >
-          Gradient: Paper Shaders
-        </a>
       </section>
 
       <section className="border-border grid gap-6 border-t pt-12 sm:grid-cols-2 sm:gap-x-10 sm:gap-y-8">
@@ -395,7 +385,7 @@ export default function Home() {
           <span className="text-text-secondary">Ayush Sharma</span>
         </p>
         <p className="text-text-muted text-xs">
-          Hero gradient by{' '}
+          Hero shader noise by{' '}
           <a
             href={SHADER_URL}
             target="_blank"
@@ -403,9 +393,9 @@ export default function Home() {
             title={SHADER_CREDIT}
             className="text-text-secondary hover:text-text-primary no-underline transition-colors"
           >
-            Paper Shaders
+            webgl-noise
           </a>{' '}
-          (Apache-2.0)
+          (MIT)
         </p>
         <a
           href={SOURCE_URL}
