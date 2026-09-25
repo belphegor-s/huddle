@@ -112,8 +112,8 @@ function CheckYourEmail({ email, next }: { email: string; next: string }) {
           <h1 className="text-2xl">Check your email</h1>
           <p className="text-text-secondary">
             A sign in link is on its way to{' '}
-            <span className="text-text-primary break-all">{email}</span>. It works once and
-            expires in 15 minutes.
+            <span className="text-text-primary break-all">{email}</span>. It works once and expires
+            in 15 minutes.
           </p>
         </div>
       </div>
@@ -126,8 +126,8 @@ function CheckYourEmail({ email, next }: { email: string; next: string }) {
         <div className="flex flex-col gap-1 text-sm">
           <p className="text-text-primary font-medium">Not in your inbox?</p>
           <p className="text-text-secondary">
-            Look in spam or junk. Sign in emails often land there the first time. Marking it as
-            not spam helps the next one arrive where it should.
+            Look in spam or junk. Sign in emails often land there the first time. Marking it as not
+            spam helps the next one arrive where it should.
           </p>
         </div>
       </aside>
