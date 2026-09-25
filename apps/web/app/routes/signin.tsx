@@ -1,5 +1,5 @@
 import { RequestMagicLinkInput } from '@huddle/core';
-import { Button, TextField } from '@huddle/ui';
+import { Button, Icon, TextField } from '@huddle/ui';
 import { Form, redirect, useNavigation, useSearchParams } from 'react-router';
 import { pageMeta } from '../lib/meta';
 import { api, ApiError } from '../lib/api';
@@ -104,13 +104,33 @@ export default function SignIn({ actionData }: Route.ComponentProps) {
 function CheckYourEmail({ email, next }: { email: string; next: string }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-6 px-6 py-12">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl">Check your email</h1>
-        <p className="text-text-secondary">
-          A sign in link is on its way to <span className="text-text-primary">{email}</span>. It
-          works once and expires in 15 minutes.
-        </p>
+      <div className="flex flex-col gap-4">
+        <span className="pop-in bg-accent-soft text-accent flex size-12 items-center justify-center rounded-2xl">
+          <Icon name="mail" className="size-6" />
+        </span>
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl">Check your email</h1>
+          <p className="text-text-secondary">
+            A sign in link is on its way to{' '}
+            <span className="text-text-primary break-all">{email}</span>. It works once and
+            expires in 15 minutes.
+          </p>
+        </div>
       </div>
+
+      <aside
+        role="note"
+        className="rise-in border-caution/30 bg-caution/10 flex gap-3 rounded-xl border px-4 py-3.5"
+      >
+        <span className="bg-caution mt-1.5 size-2 shrink-0 rounded-full" aria-hidden />
+        <div className="flex flex-col gap-1 text-sm">
+          <p className="text-text-primary font-medium">Not in your inbox?</p>
+          <p className="text-text-secondary">
+            Look in spam or junk. Sign in emails often land there the first time. Marking it as
+            not spam helps the next one arrive where it should.
+          </p>
+        </div>
+      </aside>
 
       <Form method="post" className="flex flex-col gap-3">
         <input type="hidden" name="email" value={email} />
